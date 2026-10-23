@@ -23,6 +23,13 @@ fail() {
 
 export DEBIAN_FRONTEND=noninteractive
 
+log "Configuring a consistent UTF-8 locale."
+apt-get update
+apt-get install -y locales
+sed -i 's/^# *en_GB.UTF-8 UTF-8/en_GB.UTF-8 UTF-8/' /etc/locale.gen
+locale-gen en_GB.UTF-8
+update-locale LANG=en_GB.UTF-8
+
 log "Updating package lists."
 apt-get update
 
@@ -82,8 +89,20 @@ FAIL2BAN
 fail2ban-client -t || fail "Fail2ban configuration validation failed."
 systemctl enable --now fail2ban
 systemctl restart fail2ban
-fail2ban-client status sshd ||
-    fail "Fail2ban SSH jail is unavailable."
+
+FAIL2BAN_READY=0
+for attempt in $(seq 1 10); do
+    if fail2ban-client status sshd >/dev/null 2>&1; then
+        FAIL2BAN_READY=1
+        break
+    fi
+    sleep 1
+done
+
+[[ "$FAIL2BAN_READY" -eq 1 ]] ||
+    fail "Fail2ban SSH jail did not become available within 10 seconds."
+
+fail2ban-client status sshd
 
 log "Configuring unattended security updates."
 cat > /etc/apt/apt.conf.d/20auto-upgrades <<'APT'
