@@ -2,6 +2,7 @@
 set -Eeuo pipefail
 
 LOG_TAG="homelab-debian-baseline"
+REBOOT_REQUIRED=0
 
 log() {
     printf '[%s] %s\n' "$(date --iso-8601=seconds)" "$*"
@@ -32,6 +33,18 @@ apt-get install -y \
     unattended-upgrades \
     openssh-server
 
+# Ensure the intended Cloud-Init account exists before hardening SSH.
+SSH_USER="${HOMELAB_SSH_USER:-ian}"
+id "$SSH_USER" >/dev/null 2>&1 ||
+    fail "Expected SSH user '$SSH_USER' does not exist."
+
+SSH_HOME="$(getent passwd "$SSH_USER" | cut -d: -f6)"
+[[ -n "$SSH_HOME" && -d "$SSH_HOME" ]] ||
+    fail "Home directory for '$SSH_USER' is missing."
+
+[[ -s "$SSH_HOME/.ssh/authorized_keys" ]] ||
+    fail "No authorized SSH public key found for '$SSH_USER'; refusing SSH hardening."
+
 log "Configuring SSH hardening."
 install -d -m 0755 /etc/ssh/sshd_config.d
 
@@ -43,6 +56,16 @@ KbdInteractiveAuthentication no
 SSH
 
 /usr/sbin/sshd -t || fail "SSH configuration validation failed."
+
+SSH_EFFECTIVE="$(sshd -T)"
+grep -qx 'permitrootlogin no' <<< "$SSH_EFFECTIVE" ||
+    fail "Root SSH login is not disabled."
+grep -qx 'pubkeyauthentication yes' <<< "$SSH_EFFECTIVE" ||
+    fail "SSH public-key authentication is not enabled."
+grep -qx 'passwordauthentication no' <<< "$SSH_EFFECTIVE" ||
+    fail "SSH password authentication is not disabled."
+grep -qx 'kbdinteractiveauthentication no' <<< "$SSH_EFFECTIVE" ||
+    fail "SSH keyboard-interactive authentication is not disabled."
 
 log "Enabling and starting SSH."
 systemctl enable --now ssh
@@ -56,8 +79,11 @@ cat > /etc/fail2ban/jail.d/sshd.local <<'FAIL2BAN'
 enabled = true
 FAIL2BAN
 
+fail2ban-client -t || fail "Fail2ban configuration validation failed."
 systemctl enable --now fail2ban
 systemctl restart fail2ban
+fail2ban-client status sshd ||
+    fail "Fail2ban SSH jail is unavailable."
 
 log "Configuring unattended security updates."
 cat > /etc/apt/apt.conf.d/20auto-upgrades <<'APT'
@@ -67,36 +93,38 @@ APT
 
 systemctl enable --now apt-daily.timer apt-daily-upgrade.timer
 
-log "Enabling QEMU Guest Agent."
-systemctl enable --now qemu-guest-agent
+grep -q 'APT::Periodic::Update-Package-Lists "1";' /etc/apt/apt.conf.d/20auto-upgrades ||
+    fail "Automatic package-list updates are not configured."
+grep -q 'APT::Periodic::Unattended-Upgrade "1";' /etc/apt/apt.conf.d/20auto-upgrades ||
+    fail "Automatic unattended upgrades are not configured."
 
-log "Validating baseline."
+log "Enabling QEMU Guest Agent."
+systemctl enable qemu-guest-agent
+
+if [[ -e /dev/virtio-ports/org.qemu.guest_agent.0 ]]; then
+    systemctl restart qemu-guest-agent
+    if ! systemctl is-active --quiet qemu-guest-agent; then
+        systemctl --no-pager --full status qemu-guest-agent || true
+        fail "QEMU Guest Agent device exists but its service failed."
+    fi
+else
+    REBOOT_REQUIRED=1
+    log "NOTICE: QEMU Guest Agent device is not present yet."
+    log "NOTICE: A VM reboot may be required before the agent can start."
+fi
+
+log "Validating baseline services."
 systemctl is-active --quiet ssh ||
     fail "SSH service is not active."
-
 systemctl is-active --quiet fail2ban ||
     fail "Fail2ban is not active."
-
-fail2ban-client status sshd ||
-    fail "Fail2ban SSH jail is unavailable."
-
-systemctl is-active --quiet qemu-guest-agent ||
-    fail "QEMU Guest Agent is not active."
-
 systemctl is-enabled --quiet apt-daily.timer ||
     fail "APT update timer is not enabled."
-
 systemctl is-enabled --quiet apt-daily-upgrade.timer ||
     fail "APT upgrade timer is not enabled."
 
-SSH_EFFECTIVE="$(sshd -T)"
-grep -qx 'permitrootlogin no' <<< "$SSH_EFFECTIVE" ||
-    fail "Root SSH login is not disabled."
-grep -qx 'pubkeyauthentication yes' <<< "$SSH_EFFECTIVE" ||
-    fail "SSH public-key authentication is not enabled."
-grep -qx 'passwordauthentication no' <<< "$SSH_EFFECTIVE" ||
-    fail "SSH password authentication is not disabled."
-grep -qx 'kbdinteractiveauthentication no' <<< "$SSH_EFFECTIVE" ||
-    fail "SSH keyboard-interactive authentication is not disabled."
-
-log "PASS: Debian baseline installed and validated."
+if [[ "$REBOOT_REQUIRED" -eq 1 ]]; then
+    log "PASS WITH REBOOT REQUIRED: baseline configured; QEMU Guest Agent needs post-reboot validation."
+else
+    log "PASS: baseline installed and validated."
+fi
