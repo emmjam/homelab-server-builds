@@ -142,6 +142,16 @@ systemctl is-enabled --quiet apt-daily.timer ||
 systemctl is-enabled --quiet apt-daily-upgrade.timer ||
     fail "APT upgrade timer is not enabled."
 
+# Ensure administrative commands are available in user shell sessions.
+cat > /etc/profile.d/00-sbin-path.sh <<'EOF'
+case ":$PATH:" in
+    *:/usr/sbin:*) ;;
+    *) PATH="$PATH:/usr/sbin" ;;
+esac
+export PATH
+EOF
+chmod 0644 /etc/profile.d/00-sbin-path.sh
+
 if [[ "$REBOOT_REQUIRED" -eq 1 ]]; then
     log "PASS WITH REBOOT REQUIRED: baseline configured; QEMU Guest Agent needs post-reboot validation."
 else
