@@ -23,6 +23,21 @@ fail() {
 
 export DEBIAN_FRONTEND=noninteractive
 
+# Configure Debian repositories to use the TNAS apt-cacher-ng proxy.
+if [[ -f /etc/apt/mirrors/debian.list ]]; then
+    sed -i 's|https://deb.debian.org|http://deb.debian.org|g' \
+        /etc/apt/mirrors/debian.list
+fi
+
+if [[ -f /etc/apt/mirrors/debian-security.list ]]; then
+    sed -i 's|https://deb.debian.org|http://deb.debian.org|g' \
+        /etc/apt/mirrors/debian-security.list
+fi
+
+cat > /etc/apt/apt.conf.d/02proxy <<'EOF'
+Acquire::http::Proxy "http://192.168.0.101:3142";
+EOF
+
 log "Configuring a consistent UTF-8 locale."
 apt-get update
 apt-get install -y locales
