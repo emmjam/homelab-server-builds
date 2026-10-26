@@ -175,7 +175,7 @@ if [[ -n "$CORES" || -n "$MEMORY" || -n "$DISK" ]]; then
         QM_SET_ARGS+=(--memory "$MEMORY")
     fi
     if [[ -n "$DISK" ]]; then
-        log "Resizing disk to ${DISK}..."
+        log "Resizing disk to ${DISK} Gb..."
         qm resize "$VMID" scsi0 "${DISK}G"
     fi
     if [[ ${#QM_SET_ARGS[@]} -gt 0 ]]; then
