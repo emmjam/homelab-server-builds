@@ -145,8 +145,8 @@ New virtual machines are provisioned using `scripts/provision-vm.sh`:
 ```
 
 The script:
-1. Verifies template `9000` is present.
-2. Checks that `<vmid>` and `<vm-name>` are unique.
-3. Creates a full clone from `9000` to `<vmid>`.
-4. Configures Cloud-Init DHCP on `ipconfig0`.
-5. Updates Cloud-Init and boots the new virtual machine.
+1. Validates input syntax and ensures `<vmid>` and `<vm-name>` are not already in use.
+2. Verifies template `9999` exists and is marked as a template.
+3. Performs a full clone from `9999` to `<vmid>`, inheriting the template's preconfigured Cloud-Init DHCP and SSH configuration.
+4. Boots the new virtual machine and reports its status and acquired DHCP IPv4 address.
+5. Employs a cleanup trap to safely destroy any partial VM if an error occurs during provisioning, leaving the source template untouched.
