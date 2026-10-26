@@ -48,7 +48,7 @@ done
 log "Installing prerequisites and Java 17 runtime."
 apt-get update
 DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    ca-certificates curl gnupg openjdk-17-jre-headless tree
+    ca-certificates curl gnupg openjdk-21-jre-headless tree
 
 java -version
 
@@ -59,7 +59,7 @@ tmp_key="$(mktemp)"
 trap 'rm -f "${tmp_key:-}"' EXIT
 
 curl --fail --silent --show-error --location \
-    "$RUNDЕCK_KEY_URL" -o "$tmp_key"
+    "$RUNDECK_KEY_URL" -o "$tmp_key"
 
 # Convert the downloaded key to a keyring for apt's signed-by option.
 gpg --batch --yes --dearmor --output "$KEYRING" "$tmp_key"
@@ -70,7 +70,7 @@ trap on_error ERR
 
 log "Configuring the official Rundeck Community repository."
 printf 'deb [signed-by=%s] %s any main\n' \
-    "$KEYRING" "$RUNDЕCK_REPO_URL" > "$SOURCE_FILE"
+    "$KEYRING" "$RUNDECK_REPO_URL" > "$SOURCE_FILE"
 chmod 0644 "$SOURCE_FILE"
 
 log "Installing Rundeck Community Edition."
