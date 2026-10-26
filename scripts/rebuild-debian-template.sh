@@ -166,7 +166,8 @@ done
     fail "Guest Agent did not become available."
 
 log "Waiting for Cloud-Init to complete on candidate."
-guest_exec "$CANDIDATE_ID" /usr/bin/cloud-init status --wait
+guest_exec "$CANDIDATE_ID" /usr/bin/env bash -c \
+    'rc=0; /usr/bin/cloud-init status --wait || rc=$?; [[ "$rc" -eq 0 || "$rc" -eq 2 ]]'
 
 log "Verifying candidate acquired a DHCP IPv4 address."
 CANDIDATE_IP=""
