@@ -79,6 +79,7 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y rundeck
 
 log "Enabling and starting Rundeck."
 systemctl enable --now rundeckd
+/etc/init.d/rundeckd start
 systemctl --no-pager --full status rundeckd
 
 log "Installed package version:"
