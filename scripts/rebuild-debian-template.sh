@@ -325,8 +325,10 @@ test ! -e /root/baseline.status
 log "Cleaning Cloud-Init state before template creation."
 guest_exec "$CANDIDATE_ID" /usr/bin/cloud-init clean --logs --machine-id
 
-log "Candidate passed validation. Shutting it down."
-guest_exec "$CANDIDATE_ID" /usr/bin/systemctl poweroff || true
+log "Candidate passed validation. Requesting guest shutdown."
+qm shutdown "$CANDIDATE_ID" --timeout 60 || {
+    log "Guest shutdown request did not complete cleanly; checking VM state."
+}
 
 STOPPED=0
 for ((i=1; i<=30; i++)); do
