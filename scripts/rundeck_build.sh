@@ -77,6 +77,11 @@ log "Installing Rundeck Community Edition."
 apt-get update
 DEBIAN_FRONTEND=noninteractive apt-get install -y rundeck
 
+RUNDECK_IP=$(ip -4 route get 192.168.0.1 | awk '{for (i=1; i<=NF; i++) if ($i=="src") {print $(i+1); exit}}')
+[[ -n "$RUNDECK_IP" ]] || die "Could not determine the VM's LAN IP."
+sed -i "s|^grails\.serverURL=.*|grails.serverURL=http://${RUNDECK_IP}:4440|" \
+    /etc/rundeck/rundeck-config.properties
+
 log "Enabling and starting Rundeck."
 systemctl enable --now rundeckd
 /etc/init.d/rundeckd start
@@ -86,8 +91,7 @@ log "Installed package version:"
 dpkg-query -W -f='${Package} ${Version}\n' rundeck
 
 printf '\nRundeck installation completed.\n'
-IP=$(hostname -I | awk '{print $1}')
-printf 'Web interface: http://%s:4440/\n' "$IP"
+printf 'Web interface: http://%s:4440/\n' "$RUNDECK_IP"
 printf 'Service logs:  /var/log/rundeck/service.log\n'
 printf 'If startup is still in progress, inspect the logs before proceeding.\n'
 

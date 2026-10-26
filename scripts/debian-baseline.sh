@@ -81,6 +81,16 @@ PasswordAuthentication no
 KbdInteractiveAuthentication no
 SSH
 
+# Add Rundeck user & SSH key
+useradd --create-home --shell /bin/bash rundeck
+install -d -o rundeck -g rundeck -m 700 /home/rundeck/.ssh
+install -o rundeck -g rundeck -m 600 \
+    /tmp/rundeck.pub /home/rundeck/.ssh/authorized_keys
+rm /tmp/rundeck.pub
+printf 'rundeck ALL=(ALL) NOPASSWD: ALL\n' > /etc/sudoers.d/rundeck
+chmod 0440 /etc/sudoers.d/rundeck
+visudo -cf /etc/sudoers.d/rundeck
+
 /usr/sbin/sshd -t || fail "SSH configuration validation failed."
 
 SSH_EFFECTIVE="$(sshd -T)"

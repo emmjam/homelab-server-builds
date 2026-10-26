@@ -26,6 +26,9 @@ BASELINE_TIMEOUT=600
 CANDIDATE_CREATED=0
 PROMOTION_STARTED=0
 
+RUNDECK_PUBLIC_KEY="/root/rundeck.pub"
+CANDIDATE_SSH_USER="ian"
+
 log() {
     printf '[%s] %s\n' "$(date '+%F %T')" "$*"
 }
@@ -215,6 +218,9 @@ else
         command -v ss >/dev/null && ss -tln | grep -q ":22 " || systemctl is-active --quiet ssh
     '
 fi
+
+log "Copying over SSH key"
+scp ${RUNDECK_PUBLIC_KEY} "${CANDIDATE_SSH_USER}@${CANDIDATE_IP}:/tmp/rundeck.pub"
 
 log "Checking guest prerequisites."
 guest_exec "$CANDIDATE_ID" /usr/bin/env bash -lc \
