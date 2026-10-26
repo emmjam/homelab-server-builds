@@ -86,7 +86,8 @@ log "Installed package version:"
 dpkg-query -W -f='${Package} ${Version}\n' rundeck
 
 printf '\nRundeck installation completed.\n'
-printf 'Web interface: http://<this-VM-IP>:4440/\n'
+IP=$(hostname -I | awk '{print $1}')
+printf 'Web interface: http://%s:4440/\n' "$IP"
 printf 'Service logs:  /var/log/rundeck/service.log\n'
 printf 'If startup is still in progress, inspect the logs before proceeding.\n'
 
