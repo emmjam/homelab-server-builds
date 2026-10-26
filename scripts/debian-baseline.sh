@@ -38,6 +38,10 @@ cat > /etc/apt/apt.conf.d/02proxy <<'EOF'
 Acquire::http::Proxy "http://192.168.0.101:3142";
 EOF
 
+cat > /etc/apt/apt.conf.d/03https-direct <<'EOF'
+Acquire::https::Proxy "DIRECT";
+EOF
+
 log "Configuring a consistent UTF-8 locale."
 apt-get update
 apt-get install -y locales
