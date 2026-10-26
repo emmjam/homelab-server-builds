@@ -5,8 +5,8 @@ set -Eeuo pipefail
 # Run as root on the Proxmox host.
 
 TEMPLATE_ID=9000
-CANDIDATE_ID=9999
-BACKUP_ID=9998
+CANDIDATE_ID=9998
+BACKUP_ID=9999
 
 TEMPLATE_NAME="debian-13-template"
 CANDIDATE_NAME="debian-13-candidate"
