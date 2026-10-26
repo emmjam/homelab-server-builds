@@ -140,7 +140,7 @@ if qm status "$CANDIDATE_ID" >/dev/null 2>&1; then
 fi
 
 if qm status "$BACKUP_ID" >/dev/null 2>&1; then
-    fail "Backup VM ID ${BACKUP_ID} already exists. Inspect it before retrying."
+    log "Existing rollback template VM ${BACKUP_ID} detected; it will be refreshed during promotion."
 fi
 
 log "Cloning template ${TEMPLATE_ID} to candidate ${CANDIDATE_ID}."
@@ -344,16 +344,23 @@ if (( STOPPED == 0 )); then
         fail "Could not stop candidate."
 fi
 
-log "Creating rollback clone of the existing template as VM ${BACKUP_ID}."
+log "Validation succeeded. Beginning template replacement."
+PROMOTION_STARTED=1
+
+# Remove existing rollback template from prior run before creating new rollback clone
+if qm status "$BACKUP_ID" >/dev/null 2>&1; then
+    log "Removing previous rollback template VM ${BACKUP_ID}."
+    qm destroy "$BACKUP_ID" --purge 1 ||
+        fail "Could not remove previous rollback template ${BACKUP_ID}."
+fi
+
+log "Creating rollback clone of current template ${TEMPLATE_ID} as VM ${BACKUP_ID}."
 qm clone "$TEMPLATE_ID" "$BACKUP_ID" \
     --name "$BACKUP_NAME" --full 1 ||
     fail "Could not create rollback clone. Original template is untouched."
 
 qm template "$BACKUP_ID" ||
     fail "Could not mark rollback clone as a template. Original template is untouched."
-
-log "Validation succeeded. Beginning template replacement."
-PROMOTION_STARTED=1
 
 # Keep the rollback clone before removing the original.
 qm destroy "$TEMPLATE_ID" --purge 1 ||
