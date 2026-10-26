@@ -7,6 +7,11 @@ set -Eeuo pipefail
 TEMPLATE_ID="${TEMPLATE_ID:-9999}"
 VM_CREATED=0
 
+VMID=""
+NAME=""
+CORES=""
+MEMORY=""
+
 log() {
     printf '[%s] %s\n' "$(date '+%F %T')" "$*"
 }
@@ -17,17 +22,24 @@ fail() {
 }
 
 usage() {
-    cat <<EOF >&2
-Usage: $0 <vmid> <vm-name>
+    cat <<EOF
+Usage: $0 <vmid> <vm-name> [OPTIONS]
 
-Arguments:
-  <vmid>    Numeric ID for the new VM (e.g., 100-999999)
-  <vm-name> Hostname / name for the new VM
+Required Parameters:
+  VM ID                 Unique Proxmox VM ID (e.g. 100-999999)
+  VM name               Name / hostname for the new VM
 
-Example:
+Optional Parameters:
+  --cores <num>         Number of CPU cores (default: inherit from template)
+  --memory <MB>         RAM in MB (default: inherit from template)
+  --help                Show this usage message
+
+Examples:
   $0 105 web-server-01
+  $0 105 web-server-01 --cores 2 --memory 2048
+  $0 105 web-server-01 --memory 4096
 EOF
-    exit 2
+    exit 0
 }
 
 cleanup() {
@@ -45,23 +57,77 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# Parse command line options and arguments
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --help|-h)
+            usage
+            ;;
+        --cores)
+            [[ $# -ge 2 ]] || fail "Option '--cores' requires an argument."
+            CORES="$2"
+            shift 2
+            ;;
+        --cores=*)
+            CORES="${1#*=}"
+            shift
+            ;;
+        --memory)
+            [[ $# -ge 2 ]] || fail "Option '--memory' requires an argument."
+            MEMORY="$2"
+            shift 2
+            ;;
+        --memory=*)
+            MEMORY="${1#*=}"
+            shift
+            ;;
+        --)
+            shift
+            break
+            ;;
+        -*)
+            fail "Unknown option: $1 (run with --help for usage)"
+            ;;
+        *)
+            if [[ -z "$VMID" ]]; then
+                VMID="$1"
+            elif [[ -z "$NAME" ]]; then
+                NAME="$1"
+            else
+                fail "Unexpected positional argument: $1 (run with --help for usage)"
+            fi
+            shift
+            ;;
+    esac
+done
+
 [[ $EUID -eq 0 ]] || fail "Run this script as root on the Proxmox host."
 
 for cmd in qm jq awk; do
     command -v "$cmd" >/dev/null 2>&1 || fail "Required command not found: $cmd"
 done
 
-[[ $# -eq 2 ]] || usage
+# Validate required parameters
+[[ -n "$VMID" ]] || fail "Missing required parameter: VM ID (run with --help for usage)."
+[[ -n "$NAME" ]] || fail "Missing required parameter: VM name (run with --help for usage)."
 
-VMID="$1"
-NAME="$2"
-
-# Input validation
 [[ "$VMID" =~ ^[1-9][0-9]{1,5}$ ]] ||
     fail "Invalid VM ID '${VMID}'. Must be a positive integer (e.g., 100-999999)."
 
 [[ "$NAME" =~ ^[a-zA-Z0-9]([a-zA-Z0-9._-]{0,61}[a-zA-Z0-9])?$ ]] ||
     fail "Invalid VM name '${NAME}'. Must be a valid hostname (alphanumeric, dots, dashes, underscores)."
+
+if [[ -n "$CORES" ]]; then
+    [[ "$CORES" =~ ^[1-9][0-9]*$ ]] ||
+        fail "Invalid CPU cores value '${CORES}'. Must be a positive integer."
+fi
+
+if [[ -n "$MEMORY" ]]; then
+    [[ "$MEMORY" =~ ^[1-9][0-9]*$ ]] ||
+        fail "Invalid memory value '${MEMORY}'. Must be a positive integer in MB."
+    (( MEMORY >= 512 )) ||
+        fail "Memory must be at least 512 MB (got: ${MEMORY})."
+fi
 
 # Template verification
 qm status "$TEMPLATE_ID" >/dev/null 2>&1 ||
@@ -83,6 +149,20 @@ fi
 log "Cloning template ${TEMPLATE_ID} to new VM ${VMID} (${NAME})..."
 qm clone "$TEMPLATE_ID" "$VMID" --name "$NAME" --full 1
 VM_CREATED=1
+
+# Apply optional CPU cores or memory overrides if specified
+if [[ -n "$CORES" || -n "$MEMORY" ]]; then
+    QM_SET_ARGS=()
+    if [[ -n "$CORES" ]]; then
+        log "Setting CPU cores to ${CORES}..."
+        QM_SET_ARGS+=(--cores "$CORES")
+    fi
+    if [[ -n "$MEMORY" ]]; then
+        log "Setting RAM memory to ${MEMORY} MB..."
+        QM_SET_ARGS+=(--memory "$MEMORY")
+    fi
+    qm set "$VMID" "${QM_SET_ARGS[@]}"
+fi
 
 # Start VM
 log "Starting VM ${VMID} (${NAME})..."
@@ -107,6 +187,8 @@ done
 log "=================================================="
 log "VM ${VMID} (${NAME}) provisioned successfully!"
 log "Status: $(qm status "$VMID" | awk '{print $2}')"
+log "Cores: $(qm config "$VMID" | awk '/^cores:/ {print $2}')"
+log "Memory: $(qm config "$VMID" | awk '/^memory:/ {print $2}') MB"
 if [[ -n "$IP_ADDRESS" ]]; then
     log "IPv4 Address (DHCP): ${IP_ADDRESS}"
     log "SSH Access: ssh ian@${IP_ADDRESS}"
