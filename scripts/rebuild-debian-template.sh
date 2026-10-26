@@ -101,7 +101,7 @@ cleanup() {
             log "Promotion had started. Do not retry until VM IDs ${TEMPLATE_ID}, ${CANDIDATE_ID}, and ${BACKUP_ID} have been inspected."
             log "Any rollback template created at VM ${BACKUP_ID} has been retained."
         else
-            log "The existing template ${TEMPLATE_ID} has not been intentionally replaced."
+            log "The existing template ${TEMPLATE_ID} has not been replaced."
 
             if (( CANDIDATE_CREATED )) &&
                qm status "$CANDIDATE_ID" >/dev/null 2>&1; then
@@ -225,7 +225,7 @@ else
 fi
 
 log "Copying over SSH key"
-scp ${RUNDECK_PUBLIC_KEY} "${CANDIDATE_SSH_USER}@${CANDIDATE_IP}:/tmp/rundeck.pub"
+scp -o StrictHostKeyChecking=accept-new ${RUNDECK_PUBLIC_KEY} "${CANDIDATE_SSH_USER}@${CANDIDATE_IP}:/tmp/rundeck.pub"
 
 log "Checking guest prerequisites."
 guest_exec "$CANDIDATE_ID" /usr/bin/env bash -lc \
