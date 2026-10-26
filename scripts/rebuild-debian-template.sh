@@ -21,7 +21,7 @@ cd ${BASE_PWD} || {
 BASELINE_LOCAL="${BASE_PWD}/debian-baseline.sh"
 BASELINE_GUEST="${BASE_PWD}/debian-baseline.sh"
 BASELINE_PID_FILE="${BASE_PWD}/baseline.pid"
-BASELINE_STATUS_FILE="${BASE_PWD}baseline.status"
+BASELINE_STATUS_FILE="${BASE_PWD}/baseline.status"
 BASELINE_LOG="/var/log/debian-baseline.log"
 
 AGENT_WAIT_ATTEMPTS=60
@@ -31,7 +31,7 @@ BASELINE_TIMEOUT=600
 CANDIDATE_CREATED=0
 PROMOTION_STARTED=0
 
-RUNDECK_PUBLIC_KEY="/root/rundeck.pub"
+RUNDECK_PUBLIC_KEY="${BASE_PWD}/rundeck.pub"
 CANDIDATE_SSH_USER="ian"
 
 log() {
