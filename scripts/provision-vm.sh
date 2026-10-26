@@ -11,6 +11,7 @@ VMID=""
 NAME=""
 CORES=""
 MEMORY=""
+DISK=""
 
 log() {
     printf '[%s] %s\n' "$(date '+%F %T')" "$*"
@@ -31,13 +32,14 @@ Required Parameters:
 
 Optional Parameters:
   --cores <num>         Number of CPU cores (default: inherit from template)
-  --memory <MB>         RAM in MB (default: inherit from template)
+  --memory <GB>         RAM in GB (default: inherit from template)
+  --disk <GB>           Disk size in GB (default: inherit from template)
   --help                Show this usage message
 
 Examples:
   $0 105 web-server-01
-  $0 105 web-server-01 --cores 2 --memory 2048
-  $0 105 web-server-01 --memory 4096
+  $0 105 web-server-01 --cores 2 --memory 2 --disk 20
+  $0 105 web-server-01 --memory 1
 EOF
     exit 0
 }
@@ -79,6 +81,16 @@ while [[ $# -gt 0 ]]; do
             ;;
         --memory=*)
             MEMORY="${1#*=}"
+            shift
+            ;;
+        --)
+        --disk)
+            [[ $# -ge 2 ]] || fail "Option '--disk' requires an argument."
+            DISK="$2"
+            shift 2
+            ;;
+        --disk=*)
+            DISK="${1#*=}"
             shift
             ;;
         --)
@@ -124,10 +136,11 @@ fi
 
 if [[ -n "$MEMORY" ]]; then
     [[ "$MEMORY" =~ ^[1-9][0-9]*$ ]] ||
-        fail "Invalid memory value '${MEMORY}'. Must be a positive integer in MB."
-    (( MEMORY >= 512 )) ||
-        fail "Memory must be at least 512 MB (got: ${MEMORY})."
+        fail "Invalid memory value '${MEMORY}'. Must be a positive integer in GB."
+    (( MEMORY >= 1 )) ||
+        fail "Memory must be at least 1 GB (got: ${MEMORY})."
 fi
+MEMORY=$(( $MEMORY * 1024 ))
 
 # Template verification
 qm status "$TEMPLATE_ID" >/dev/null 2>&1 ||
@@ -150,8 +163,8 @@ log "Cloning template ${TEMPLATE_ID} to new VM ${VMID} (${NAME})..."
 qm clone "$TEMPLATE_ID" "$VMID" --name "$NAME" --full 1
 VM_CREATED=1
 
-# Apply optional CPU cores or memory overrides if specified
-if [[ -n "$CORES" || -n "$MEMORY" ]]; then
+# Apply optional CPU cores, disk or memory overrides if specified
+if [[ -n "$CORES" || -n "$MEMORY" || -n "$DISK" ]]; then
     QM_SET_ARGS=()
     if [[ -n "$CORES" ]]; then
         log "Setting CPU cores to ${CORES}..."
@@ -161,7 +174,13 @@ if [[ -n "$CORES" || -n "$MEMORY" ]]; then
         log "Setting RAM memory to ${MEMORY} MB..."
         QM_SET_ARGS+=(--memory "$MEMORY")
     fi
-    qm set "$VMID" "${QM_SET_ARGS[@]}"
+    if [[ -n "$DISK" ]]; then
+        log "Resizing disk to ${DISK}..."
+        qm resize "$VMID" scsi0 "$DISK"
+    fi
+    if [[ ${#QM_SET_ARGS[@]} -gt 0 ]]; then
+        qm set "$VMID" "${QM_SET_ARGS[@]}"
+    fi
 fi
 
 # Start VM
@@ -189,6 +208,7 @@ log "VM ${VMID} (${NAME}) provisioned successfully!"
 log "Status: $(qm status "$VMID" | awk '{print $2}')"
 log "Cores: $(qm config "$VMID" | awk '/^cores:/ {print $2}')"
 log "Memory: $(qm config "$VMID" | awk '/^memory:/ {print $2}') MB"
+log "Disk: $(qm config "$VMID" | awk '/^scsi0:/ {print $2}')"
 if [[ -n "$IP_ADDRESS" ]]; then
     log "IPv4 Address (DHCP): ${IP_ADDRESS}"
     log "SSH Access: ssh ian@${IP_ADDRESS}"
