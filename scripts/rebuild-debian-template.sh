@@ -225,7 +225,9 @@ else
 fi
 
 log "Copying over SSH key"
-scp -o StrictHostKeyChecking=no ${RUNDECK_PUBLIC_KEY} "${CANDIDATE_SSH_USER}@${CANDIDATE_IP}:/tmp/rundeck.pub"
+KEY_BASE64="$(base64 -w0 "$RUNDECK_PUBLIC_KEY")"
+qm guest exec "$CANDIDATE_ID" -- \
+    bash -c "echo '$KEY_BASE64' | base64 -d > /tmp/rundeck.pub"
 
 log "Checking guest prerequisites."
 guest_exec "$CANDIDATE_ID" /usr/bin/env bash -lc \
