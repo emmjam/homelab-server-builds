@@ -21,7 +21,7 @@ cd ${LOCAL_BASE_PWD} || {
     exit 1
 }
 REMOTE_BASE_PWD="/home/${CANDIDATE_SSH_USER}"
-BASELINE_LOCAL="${BASE_PWD}/debian-baseline.sh"
+BASELINE_LOCAL="${LOCAL_BASE_PWD}/debian-baseline.sh"
 BASELINE_GUEST="${REMOTE_BASE_PWD}/debian-baseline.sh"
 BASELINE_PID_FILE="${REMOTE_BASE_PWD}/baseline.pid"
 BASELINE_STATUS_FILE="${REMOTE_BASE_PWD}/baseline.status"
