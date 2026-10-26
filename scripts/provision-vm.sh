@@ -23,6 +23,7 @@ fail() {
 }
 
 usage() {
+    clear
     cat <<EOF
 Usage: $0 <vmid> <vm-name> [OPTIONS]
 
