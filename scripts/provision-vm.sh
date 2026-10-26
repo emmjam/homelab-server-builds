@@ -83,7 +83,6 @@ while [[ $# -gt 0 ]]; do
             MEMORY="${1#*=}"
             shift
             ;;
-        --)
         --disk)
             [[ $# -ge 2 ]] || fail "Option '--disk' requires an argument."
             DISK="$2"
