@@ -1,201 +1,306 @@
-
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-# TNAS Debian 13 template rebuild
-# Approved template: 9000
-# Temporary candidate: 9002
-#
-# Promotion policy:
-#   All tests pass -> delete 9000, clone candidate as 9000, make it a template.
-#   Any pre-promotion failure -> delete candidate and preserve 9000.
-#
-# Run as root on TNAS.
+# Rebuild the Debian 13 template safely.
+# Run as root on the Proxmox host.
 
 TEMPLATE_ID=9000
 CANDIDATE_ID=9002
-TEMPLATE_NAME=debian-13-template
-CANDIDATE_NAME=debian-13-template-candidate
-REPO_DIR=/root/homelab-server-builds
-BASELINE="$REPO_DIR/scripts/debian-baseline.sh"
-LOG=/var/log/debian-template-rebuild.log
-APT_PROXY=http://192.168.0.101:3142
+BACKUP_ID=9003
 
-exec > >(tee -a "$LOG") 2>&1
+TEMPLATE_NAME="debian-13-template"
+CANDIDATE_NAME="debian-13-candidate"
+BACKUP_NAME="debian-13-template-backup"
+
+BASELINE_URL="https://raw.githubusercontent.com/emmjam/homelab-server-builds/main/scripts/debian-baseline.sh"
+BASELINE_LOCAL="/root/debian-baseline.sh"
+BASELINE_GUEST="/root/debian-baseline.sh"
+BASELINE_PID_FILE="/root/baseline.pid"
+BASELINE_STATUS_FILE="/root/baseline.status"
+BASELINE_LOG="/var/log/debian-baseline.log"
+
+AGENT_WAIT_ATTEMPTS=60
+GUEST_TIMEOUT=60
+BASELINE_TIMEOUT=600
 
 CANDIDATE_CREATED=0
 PROMOTION_STARTED=0
 
-die() {
-    echo "ERROR: $*" >&2
+log() {
+    printf '[%s] %s\n' "$(date '+%F %T')" "$*"
+}
+
+fail() {
+    log "ERROR: $*"
     exit 1
 }
 
-cleanup() {
-    rc=$?
-    if [[ "$rc" -ne 0 && "$CANDIDATE_CREATED" -eq 1 &&
-          "$PROMOTION_STARTED" -eq 0 ]]; then
-        echo "Build or tests failed. Removing candidate $CANDIDATE_ID."
-        qm stop "$CANDIDATE_ID" --skiplock 1 >/dev/null 2>&1 || true
-        qm destroy "$CANDIDATE_ID" --purge 1 >/dev/null 2>&1 || true
-        echo "Existing template $TEMPLATE_ID has not been changed."
-    elif [[ "$rc" -ne 0 && "$PROMOTION_STARTED" -eq 1 ]]; then
-        echo "ERROR during promotion. Do not delete candidate $CANDIDATE_ID;"
-        echo "it may be needed to complete recovery of template $TEMPLATE_ID."
+guest_exec() {
+    local vmid="$1"
+    shift
+
+    local result exitcode exited
+    result="$(qm guest exec "$vmid" --timeout "$GUEST_TIMEOUT" -- "$@" 2>&1)" || {
+        log "Guest command invocation failed on VM ${vmid}: ${result}"
+        return 1
+    }
+
+    exited="$(jq -r '.exited // empty' <<<"$result")"
+    exitcode="$(jq -r '.exitcode // empty' <<<"$result")"
+
+    if [[ "$exited" != "1" || ! "$exitcode" =~ ^[0-9]+$ ]]; then
+        log "Unexpected Guest Agent response on VM ${vmid}: ${result}"
+        return 1
     fi
-    echo "Finished with exit code $rc at $(date -Is)"
+
+    if (( exitcode != 0 )); then
+        log "Guest command failed on VM ${vmid}, exit ${exitcode}: ${result}"
+        return "$exitcode"
+    fi
+}
+
+guest_read_file() {
+    local vmid="$1"
+    local file="$2"
+
+    local result exitcode exited
+    result="$(qm guest exec "$vmid" --timeout "$GUEST_TIMEOUT" -- /usr/bin/cat "$file" 2>&1)" || {
+        return 1
+    }
+
+    exited="$(jq -r '.exited // empty' <<<"$result")"
+    exitcode="$(jq -r '.exitcode // empty' <<<"$result")"
+
+    if [[ "$exited" == "1" && "$exitcode" == "0" ]]; then
+        jq -r '.["out-data"] // empty' <<<"$result"
+        return 0
+    fi
+
+    return 1
+}
+
+cleanup() {
+    local rc=$?
+    trap - EXIT
+
+    # Always remove the temporary host copy.
+    rm -f "$BASELINE_LOCAL"
+
+    if (( rc != 0 )); then
+        log "Rebuild failed."
+
+        if (( PROMOTION_STARTED )); then
+            log "Promotion had started. Do not retry until VM IDs ${TEMPLATE_ID}, ${CANDIDATE_ID}, and ${BACKUP_ID} have been inspected."
+            log "Any rollback template created at VM ${BACKUP_ID} has been retained."
+        else
+            log "The existing template ${TEMPLATE_ID} has not been intentionally replaced."
+
+            if (( CANDIDATE_CREATED )) &&
+               qm status "$CANDIDATE_ID" >/dev/null 2>&1; then
+                qm stop "$CANDIDATE_ID" --timeout 60 >/dev/null 2>&1 || true
+                qm destroy "$CANDIDATE_ID" --purge 1 >/dev/null 2>&1 || true
+            fi
+        fi
+    fi
+
+    exit "$rc"
 }
 trap cleanup EXIT
 
-echo "=== Debian template rebuild started: $(date -Is) ==="
+[[ $EUID -eq 0 ]] || fail "Run this script as root."
 
-[[ "$EUID" -eq 0 ]] || die "Run this script as root."
-command -v qm >/dev/null || die "Proxmox qm command not found."
-command -v git >/dev/null || die "git not found."
-command -v base64 >/dev/null || die "base64 not found."
-command -v python3 >/dev/null || die "python3 not found."
+for command in qm curl jq sha256sum; do
+    command -v "$command" >/dev/null 2>&1 ||
+        fail "Required command not found: $command"
+done
 
-# Refresh the committed baseline if the repository is checked out on TNAS.
-if [[ -d "$REPO_DIR/.git" ]]; then
-    git -C "$REPO_DIR" fetch origin main
-    git -C "$REPO_DIR" checkout main
-    git -C "$REPO_DIR" pull --ff-only origin main
-fi
+log "Downloading baseline script from GitHub over HTTPS."
+curl --fail --silent --show-error --location \
+    --proto '=https' --tlsv1.2 \
+    "$BASELINE_URL" --output "$BASELINE_LOCAL"
 
-[[ -s "$BASELINE" ]] ||
-    die "Baseline not found at $BASELINE. Put the committed debian-baseline.sh there."
+[[ -s "$BASELINE_LOCAL" ]] ||
+    fail "Downloaded baseline script is empty."
 
-qm status "$TEMPLATE_ID" >/dev/null 2>&1 ||
-    die "Approved template $TEMPLATE_ID does not exist."
+chmod 700 "$BASELINE_LOCAL"
+bash -n "$BASELINE_LOCAL" ||
+    fail "Baseline script failed shell syntax validation."
+
+log "Baseline SHA-256: $(sha256sum "$BASELINE_LOCAL" | awk '{print $1}')"
+
+log "Checking VM IDs."
+qm config "$TEMPLATE_ID" >/dev/null ||
+    fail "Template VM ${TEMPLATE_ID} does not exist."
 
 qm config "$TEMPLATE_ID" | grep -q '^template: 1$' ||
-    die "VM $TEMPLATE_ID is not a Proxmox template."
+    fail "VM ${TEMPLATE_ID} is not marked as a Proxmox template."
 
 if qm status "$CANDIDATE_ID" >/dev/null 2>&1; then
-    die "VM ID $CANDIDATE_ID already exists. Resolve it before rebuilding."
+    fail "Candidate VM ${CANDIDATE_ID} already exists. Inspect it before retrying."
 fi
 
-echo "Cloning approved template $TEMPLATE_ID to candidate $CANDIDATE_ID."
+if qm status "$BACKUP_ID" >/dev/null 2>&1; then
+    fail "Backup VM ID ${BACKUP_ID} already exists. Inspect it before retrying."
+fi
+
+log "Cloning template ${TEMPLATE_ID} to candidate ${CANDIDATE_ID}."
 qm clone "$TEMPLATE_ID" "$CANDIDATE_ID" \
-    --full 1 \
-    --name "$CANDIDATE_NAME"
+    --name "$CANDIDATE_NAME" --full 1
 CANDIDATE_CREATED=1
 
-qm set "$CANDIDATE_ID" --ipconfig0 ip=dhcp
-qm cloudinit update "$CANDIDATE_ID"
+log "Starting candidate."
 qm start "$CANDIDATE_ID"
 
-echo "Waiting for the guest agent."
-agent_ready=0
-for _ in $(seq 1 60); do
-    if qm guest cmd "$CANDIDATE_ID" ping >/dev/null 2>&1; then
-        agent_ready=1
+log "Waiting for QEMU Guest Agent."
+AGENT_READY=0
+
+for ((i=1; i<=AGENT_WAIT_ATTEMPTS; i++)); do
+    if qm agent "$CANDIDATE_ID" ping >/dev/null 2>&1; then
+        AGENT_READY=1
         break
     fi
     sleep 5
 done
-[[ "$agent_ready" -eq 1 ]] || die "Guest agent did not become ready."
 
-# Run a command in the guest and return its exit status.
-guest_run() {
-    local command="$1"
-    local result pid status exited code
-    result=$(qm guest exec "$CANDIDATE_ID" --timeout 30 -- \
-        /bin/sh -c "$command")
-    pid=$(printf '%s' "$result" |
-        python3 -c 'import json,sys; print(json.load(sys.stdin)["pid"])')
+(( AGENT_READY == 1 )) ||
+    fail "Guest Agent did not become available."
 
-    while :; do
-        status=$(qm guest exec-status "$CANDIDATE_ID" "$pid")
-        exited=$(printf '%s' "$status" |
-            python3 -c 'import json,sys; print(str(json.load(sys.stdin).get("exited",False)).lower())')
-        if [[ "$exited" == true ]]; then
-            code=$(printf '%s' "$status" |
-                python3 -c 'import json,sys; print(json.load(sys.stdin).get("exitcode",1))')
-            printf '%s' "$status" |
-                python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("out-data",""),end=""); print(d.get("err-data",""),file=sys.stderr,end="")'
-            [[ "$code" == 0 ]]
-            return
-        fi
-        sleep 2
-    done
-}
+log "Checking guest prerequisites."
+guest_exec "$CANDIDATE_ID" /usr/bin/env bash -lc \
+    'command -v curl >/dev/null &&
+     test -d /root &&
+     test "$(id -u)" = 0'
 
-# Transfer and execute the exact baseline script.
-echo "Transferring baseline to candidate."
-PAYLOAD=$(base64 -w0 "$BASELINE")
-guest_run "printf '%s' '$PAYLOAD' | base64 -d > /root/debian-baseline.sh && chmod 700 /root/debian-baseline.sh && /root/debian-baseline.sh" ||
-    die "Baseline execution failed."
+log "Downloading baseline script inside candidate over HTTPS."
+guest_exec "$CANDIDATE_ID" /usr/bin/curl \
+    --fail --silent --show-error --location \
+    --proto '=https' --tlsv1.2 \
+    "$BASELINE_URL" --output "$BASELINE_GUEST"
 
-# Validation checks.
-check() {
-    local description="$1"
-    local command="$2"
-    echo "TEST: $description"
-    guest_run "$command" || die "Test failed: $description"
-}
+log "Setting permissions and checking guest script syntax."
+guest_exec "$CANDIDATE_ID" /usr/bin/chmod 700 "$BASELINE_GUEST"
+guest_exec "$CANDIDATE_ID" /usr/bin/bash -n "$BASELINE_GUEST"
 
-check "qemu-guest-agent active" \
-    "systemctl is-active --quiet qemu-guest-agent"
+log "Preparing candidate for Debian baseline execution."
+guest_exec "$CANDIDATE_ID" /usr/bin/rm -f "$BASELINE_PID_FILE" "$BASELINE_STATUS_FILE"
 
-check "fail2ban active" \
-    "systemctl is-active --quiet fail2ban"
+log "Launching Debian baseline in candidate VM."
+guest_exec "$CANDIDATE_ID" /usr/bin/env bash -c \
+    "( /usr/bin/bash \"$BASELINE_GUEST\" > \"$BASELINE_LOG\" 2>&1; echo \$? > \"$BASELINE_STATUS_FILE\" ) </dev/null >/dev/null 2>&1 & echo \$! > \"$BASELINE_PID_FILE\""
 
-check "SSH password authentication disabled" \
-    "! /usr/sbin/sshd -T | grep -E '^(passwordauthentication|kbdinteractiveauthentication) yes$'"
+log "Getting baseline PID."
+BASELINE_PID="$(guest_read_file "$CANDIDATE_ID" "$BASELINE_PID_FILE" | tr -d '\r\n[:space:]')"
+[[ "$BASELINE_PID" =~ ^[0-9]+$ ]] ||
+    fail "Could not retrieve valid baseline PID from candidate VM (got: '${BASELINE_PID}')."
 
-check "SSH root login disabled" \
-    "! /usr/sbin/sshd -T | grep '^permitrootlogin yes$'"
+log "Debian baseline running with PID ${BASELINE_PID} inside candidate VM."
 
-check "SSH public-key authentication enabled" \
-    "/usr/sbin/sshd -T | grep -q '^pubkeyauthentication yes$'"
+log "Monitoring baseline process ${BASELINE_PID} until it exits."
+BASELINE_ELAPSED=0
+while (( BASELINE_ELAPSED < BASELINE_TIMEOUT )); do
+    sleep 5
+    (( BASELINE_ELAPSED += 5 ))
 
-check "apt-cacher-ng proxy configured" \
-    "grep -Fx 'Acquire::http::Proxy \"$APT_PROXY\";' /etc/apt/apt.conf.d/02proxy"
+    # Check if process is still running
+    if ! guest_exec "$CANDIDATE_ID" /usr/bin/kill -0 "$BASELINE_PID" >/dev/null 2>&1; then
+        log "Baseline process ${BASELINE_PID} has finished."
+        break
+    fi
 
-check "en_GB.UTF-8 locale available" \
-    "locale -a | grep -qi '^en_GB\\.utf8$'"
+    if (( BASELINE_ELAPSED % 30 == 0 )); then
+        log "Debian baseline (PID ${BASELINE_PID}) still running (${BASELINE_ELAPSED}s / ${BASELINE_TIMEOUT}s)..."
+    fi
+done
 
-check "/usr/sbin included in PATH" \
-    "printf '%s' \"\$PATH\" | tr ':' '\\n' | grep -Fxq /usr/sbin"
+if (( BASELINE_ELAPSED >= BASELINE_TIMEOUT )); then
+    log "ERROR: Baseline script timed out after ${BASELINE_TIMEOUT} seconds."
+    if guest_log="$(guest_read_file "$CANDIDATE_ID" "$BASELINE_LOG" 2>/dev/null)"; then
+        log "Tail of baseline log inside candidate:"
+        tail -n 50 <<<"$guest_log" | while IFS= read -r line; do log "  $line"; done
+    fi
+    fail "Debian baseline timed out after ${BASELINE_TIMEOUT} seconds."
+fi
 
-echo "All validation tests passed."
+BASELINE_EXIT_CODE="$(guest_read_file "$CANDIDATE_ID" "$BASELINE_STATUS_FILE" 2>/dev/null | tr -d '\r\n[:space:]' || true)"
+if [[ "$BASELINE_EXIT_CODE" != "0" ]]; then
+    log "ERROR: Debian baseline failed with exit code ${BASELINE_EXIT_CODE:-unknown}."
+    if guest_log="$(guest_read_file "$CANDIDATE_ID" "$BASELINE_LOG" 2>/dev/null)"; then
+        log "Tail of baseline log inside candidate:"
+        tail -n 50 <<<"$guest_log" | while IFS= read -r line; do log "  $line"; done
+    fi
+    fail "Debian baseline failed with exit code ${BASELINE_EXIT_CODE:-unknown}."
+fi
 
-# Shut down candidate before converting it to a template.
-echo "Shutting down candidate."
-qm shutdown "$CANDIDATE_ID" --timeout 120
+log "Debian baseline completed successfully (exit code 0) in approximately ${BASELINE_ELAPSED} seconds."
 
-stopped=0
-for _ in $(seq 1 60); do
-    if qm status "$CANDIDATE_ID" | grep -q 'status: stopped'; then
-        stopped=1
+log "Removing guest copies of baseline script, PID, and status files."
+guest_exec "$CANDIDATE_ID" /usr/bin/rm -f "$BASELINE_GUEST" "$BASELINE_PID_FILE" "$BASELINE_STATUS_FILE"
+guest_exec "$CANDIDATE_ID" /usr/bin/test '!' -e "$BASELINE_GUEST"
+guest_exec "$CANDIDATE_ID" /usr/bin/test '!' -e "$BASELINE_PID_FILE"
+guest_exec "$CANDIDATE_ID" /usr/bin/test '!' -e "$BASELINE_STATUS_FILE"
+
+log "Validating candidate OS and SSH service."
+guest_exec "$CANDIDATE_ID" /usr/bin/env bash -lc '
+set -eu
+. /etc/os-release
+test "$ID" = debian
+test "${VERSION_ID%%.*}" = 13
+test -x /usr/sbin/sshd
+systemctl is-enabled ssh.service >/dev/null
+systemctl is-active ssh.service >/dev/null
+test ! -e /root/debian-baseline.sh
+test ! -e /root/baseline.pid
+test ! -e /root/baseline.status
+'
+
+log "Cleaning Cloud-Init state before template creation."
+guest_exec "$CANDIDATE_ID" /usr/bin/cloud-init clean --logs --machine-id
+
+log "Candidate passed validation. Shutting it down."
+guest_exec "$CANDIDATE_ID" /usr/bin/systemctl poweroff || true
+
+STOPPED=0
+for ((i=1; i<=30; i++)); do
+    if qm status "$CANDIDATE_ID" 2>/dev/null |
+        grep -q 'status: stopped'; then
+        STOPPED=1
         break
     fi
     sleep 2
 done
-[[ "$stopped" -eq 1 ]] ||
-    die "Candidate did not stop cleanly; existing template preserved."
 
-# All tests passed: execute the requested replacement.
+if (( STOPPED == 0 )); then
+    log "Requesting Proxmox to stop the candidate."
+    qm stop "$CANDIDATE_ID" --timeout 60 ||
+        fail "Could not stop candidate."
+fi
+
+log "Creating rollback clone of the existing template as VM ${BACKUP_ID}."
+qm clone "$TEMPLATE_ID" "$BACKUP_ID" \
+    --name "$BACKUP_NAME" --full 1 ||
+    fail "Could not create rollback clone. Original template is untouched."
+
+qm template "$BACKUP_ID" ||
+    fail "Could not mark rollback clone as a template. Original template is untouched."
+
+log "Validation succeeded. Beginning template replacement."
 PROMOTION_STARTED=1
-echo "All tests passed. Deleting old template $TEMPLATE_ID."
-qm destroy "$TEMPLATE_ID" --purge 1
 
-echo "Cloning tested candidate $CANDIDATE_ID as replacement $TEMPLATE_ID."
+# Keep the rollback clone before removing the original.
+qm destroy "$TEMPLATE_ID" --purge 1 ||
+    fail "Could not remove old template. Rollback clone remains at ${BACKUP_ID}."
+
+log "Cloning validated candidate into original template ID ${TEMPLATE_ID}."
 qm clone "$CANDIDATE_ID" "$TEMPLATE_ID" \
-    --full 1 \
-    --name "$TEMPLATE_NAME"
+    --name "$TEMPLATE_NAME" --full 1 ||
+    fail "Could not create replacement. Rollback clone remains at ${BACKUP_ID}."
 
-echo "Converting replacement to template."
-qm template "$TEMPLATE_ID"
+qm template "$TEMPLATE_ID" ||
+    fail "Could not mark replacement as a template. Rollback clone remains at ${BACKUP_ID}."
 
-qm config "$TEMPLATE_ID" | grep -q '^template: 1$' ||
-    die "Replacement VM exists but template verification failed."
-
-echo "Removing temporary candidate."
+log "Removing temporary candidate."
 qm destroy "$CANDIDATE_ID" --purge 1
 CANDIDATE_CREATED=0
 
-echo "SUCCESS: template $TEMPLATE_ID replaced and verified."
-echo "=== Rebuild completed: $(date -Is) ==="
-
+log "SUCCESS: VM ${TEMPLATE_ID} is the rebuilt Debian 13 template."
+log "Rollback template retained as VM ${BACKUP_ID}."

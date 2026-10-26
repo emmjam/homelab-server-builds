@@ -133,10 +133,12 @@ grep -q 'APT::Periodic::Unattended-Upgrade "1";' /etc/apt/apt.conf.d/20auto-upgr
     fail "Automatic unattended upgrades are not configured."
 
 log "Enabling QEMU Guest Agent."
-systemctl enable qemu-guest-agent
+systemctl enable qemu-guest-agent 2>/dev/null || true
 
 if [[ -e /dev/virtio-ports/org.qemu.guest_agent.0 ]]; then
-    systemctl restart qemu-guest-agent
+    if ! systemctl is-active --quiet qemu-guest-agent; then
+        systemctl start qemu-guest-agent
+    fi
     if ! systemctl is-active --quiet qemu-guest-agent; then
         systemctl --no-pager --full status qemu-guest-agent || true
         fail "QEMU Guest Agent device exists but its service failed."
