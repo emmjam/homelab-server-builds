@@ -225,7 +225,7 @@ else
 fi
 
 log "Copying over SSH key"
-scp -o StrictHostKeyChecking=accept-new ${RUNDECK_PUBLIC_KEY} "${CANDIDATE_SSH_USER}@${CANDIDATE_IP}:/tmp/rundeck.pub"
+scp -o StrictHostKeyChecking=no ${RUNDECK_PUBLIC_KEY} "${CANDIDATE_SSH_USER}@${CANDIDATE_IP}:/tmp/rundeck.pub"
 
 log "Checking guest prerequisites."
 guest_exec "$CANDIDATE_ID" /usr/bin/env bash -lc \
