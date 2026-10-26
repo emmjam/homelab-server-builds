@@ -165,6 +165,56 @@ done
 (( AGENT_READY == 1 )) ||
     fail "Guest Agent did not become available."
 
+log "Waiting for Cloud-Init to complete on candidate."
+guest_exec "$CANDIDATE_ID" /usr/bin/cloud-init status --wait
+
+log "Verifying candidate acquired a DHCP IPv4 address."
+CANDIDATE_IP=""
+for ((i=1; i<=30; i++)); do
+    CANDIDATE_IP="$(qm guest cmd "$CANDIDATE_ID" network-get-interfaces 2>/dev/null | jq -r '
+        .[]? | select(.name != "lo") | .["ip-addresses"][]? |
+        select(.["ip-address-type"] == "ipv4" and (.["ip-address"] | startswith("127.") | not)) |
+        .["ip-address"]
+    ' 2>/dev/null | head -n 1 || true)"
+    if [[ "$CANDIDATE_IP" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        break
+    fi
+    sleep 2
+done
+
+[[ "$CANDIDATE_IP" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] ||
+    fail "Candidate VM did not acquire a valid DHCP IPv4 address."
+
+log "Candidate acquired DHCP IPv4 address: ${CANDIDATE_IP}"
+
+log "Verifying Cloud-Init user and SSH keys on candidate."
+guest_exec "$CANDIDATE_ID" /usr/bin/env bash -lc '
+set -eu
+SSH_USER="${HOMELAB_SSH_USER:-ian}"
+id "$SSH_USER" >/dev/null
+SSH_HOME="$(getent passwd "$SSH_USER" | cut -d: -f6)"
+test -d "$SSH_HOME"
+test -s "$SSH_HOME/.ssh/authorized_keys"
+'
+
+log "Verifying SSH service is reachable on port 22 on ${CANDIDATE_IP}."
+SSH_PORT_READY=0
+for ((i=1; i<=15; i++)); do
+    if timeout 3 bash -c "</dev/tcp/${CANDIDATE_IP}/22" >/dev/null 2>&1; then
+        SSH_PORT_READY=1
+        break
+    fi
+    sleep 2
+done
+if (( SSH_PORT_READY )); then
+    log "SSH port 22 on ${CANDIDATE_IP} is reachable from host."
+else
+    log "NOTICE: Port 22 not directly reachable from host; verifying guest SSH listener."
+    guest_exec "$CANDIDATE_ID" /usr/bin/env bash -lc '
+        command -v ss >/dev/null && ss -tln | grep -q ":22 " || systemctl is-active --quiet ssh
+    '
+fi
+
 log "Checking guest prerequisites."
 guest_exec "$CANDIDATE_ID" /usr/bin/env bash -lc \
     'command -v curl >/dev/null &&
@@ -239,15 +289,33 @@ guest_exec "$CANDIDATE_ID" /usr/bin/test '!' -e "$BASELINE_GUEST"
 guest_exec "$CANDIDATE_ID" /usr/bin/test '!' -e "$BASELINE_PID_FILE"
 guest_exec "$CANDIDATE_ID" /usr/bin/test '!' -e "$BASELINE_STATUS_FILE"
 
-log "Validating candidate OS and SSH service."
+log "Validating candidate OS, SSH hardening, and baseline services."
 guest_exec "$CANDIDATE_ID" /usr/bin/env bash -lc '
 set -eu
 . /etc/os-release
 test "$ID" = debian
 test "${VERSION_ID%%.*}" = 13
+
+# Validate SSH configuration
 test -x /usr/sbin/sshd
+/usr/sbin/sshd -t
 systemctl is-enabled ssh.service >/dev/null
 systemctl is-active ssh.service >/dev/null
+
+# Validate SSH hardening settings
+SSH_CONFIG="$(sshd -T)"
+grep -qx "permitrootlogin no" <<< "$SSH_CONFIG"
+grep -qx "pubkeyauthentication yes" <<< "$SSH_CONFIG"
+grep -qx "passwordauthentication no" <<< "$SSH_CONFIG"
+grep -qx "kbdinteractiveauthentication no" <<< "$SSH_CONFIG"
+
+# Validate core baseline services
+systemctl is-active --quiet fail2ban
+systemctl is-active --quiet qemu-guest-agent
+systemctl is-enabled --quiet apt-daily.timer
+systemctl is-enabled --quiet apt-daily-upgrade.timer
+
+# Confirm cleanup of baseline files
 test ! -e /root/debian-baseline.sh
 test ! -e /root/baseline.pid
 test ! -e /root/baseline.status
