@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 set -Eeuo pipefail
 
 # Rebuild the Debian 13 template safely.
@@ -13,10 +13,15 @@ CANDIDATE_NAME="debian-13-candidate"
 BACKUP_NAME="debian-13-template-backup"
 
 BASELINE_URL="https://raw.githubusercontent.com/emmjam/homelab-server-builds/main/scripts/debian-baseline.sh"
-BASELINE_LOCAL="/root/debian-baseline.sh"
-BASELINE_GUEST="/root/debian-baseline.sh"
-BASELINE_PID_FILE="/root/baseline.pid"
-BASELINE_STATUS_FILE="/root/baseline.status"
+BASE_PWD="/root/homelab-server-builds"
+cd ${BASE_PWD} || {
+    printf 'ERROR: Could not change to working directory %s\n' "$BASE_PWD" >&2
+    exit 1
+}
+BASELINE_LOCAL="${BASE_PWD}/debian-baseline.sh"
+BASELINE_GUEST="${BASE_PWD}/debian-baseline.sh"
+BASELINE_PID_FILE="${BASE_PWD}/baseline.pid"
+BASELINE_STATUS_FILE="${BASE_PWD}baseline.status"
 BASELINE_LOG="/var/log/debian-baseline.log"
 
 AGENT_WAIT_ATTEMPTS=60

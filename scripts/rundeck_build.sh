@@ -1,5 +1,4 @@
-
-#!/usr/bin/env bash
+#!/bin/bash
 set -Eeuo pipefail
 
 # Install and start Rundeck Community Edition on Debian.
