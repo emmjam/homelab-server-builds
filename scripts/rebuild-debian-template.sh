@@ -12,16 +12,19 @@ TEMPLATE_NAME="debian-13-template"
 CANDIDATE_NAME="debian-13-candidate"
 BACKUP_NAME="debian-13-template-backup"
 
+CANDIDATE_SSH_USER="ian"
+
 BASELINE_URL="https://raw.githubusercontent.com/emmjam/homelab-server-builds/main/scripts/debian-baseline.sh"
-BASE_PWD="/root/homelab-server-builds"
-cd ${BASE_PWD} || {
-    printf 'ERROR: Could not change to working directory %s\n' "$BASE_PWD" >&2
+LOCAL_BASE_PWD="/root/homelab-server-builds"
+cd ${LOCAL_BASE_PWD} || {
+    printf 'ERROR: Could not change to working directory %s\n' "$LOCAL_BASE_PWD" >&2
     exit 1
 }
+REMOTE_BASE_PWD="/home/${CANDIDATE_SSH_USER}"
 BASELINE_LOCAL="${BASE_PWD}/debian-baseline.sh"
-BASELINE_GUEST="${BASE_PWD}/debian-baseline.sh"
-BASELINE_PID_FILE="${BASE_PWD}/baseline.pid"
-BASELINE_STATUS_FILE="${BASE_PWD}/baseline.status"
+BASELINE_GUEST="${REMOTE_BASE_PWD}/debian-baseline.sh"
+BASELINE_PID_FILE="${REMOTE_BASE_PWD}/baseline.pid"
+BASELINE_STATUS_FILE="${REMOTE_BASE_PWD}/baseline.status"
 BASELINE_LOG="/var/log/debian-baseline.log"
 
 AGENT_WAIT_ATTEMPTS=60
@@ -32,7 +35,7 @@ CANDIDATE_CREATED=0
 PROMOTION_STARTED=0
 
 RUNDECK_PUBLIC_KEY="${BASE_PWD}/rundeck.pub"
-CANDIDATE_SSH_USER="ian"
+
 
 log() {
     printf '[%s] %s\n' "$(date '+%F %T')" "$*"
