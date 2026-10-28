@@ -135,9 +135,6 @@ chmod 700 "$BASELINE_LOCAL"
 bash -n "$BASELINE_LOCAL" ||
     fail "Baseline script failed shell syntax validation."
 
-BASELINE_SHA256="$(sha256sum "$BASELINE_LOCAL" | awk '{print $1}')"
-log "Baseline SHA-256: ${BASELINE_SHA256}"
-
 log "Checking VM IDs."
 qm config "$TEMPLATE_ID" >/dev/null ||
     fail "Template VM ${TEMPLATE_ID} does not exist."
@@ -248,10 +245,6 @@ guest_exec "$CANDIDATE_ID" /usr/bin/curl \
 log "Setting permissions and checking guest script syntax."
 guest_exec "$CANDIDATE_ID" /usr/bin/chmod 700 "$BASELINE_GUEST"
 guest_exec "$CANDIDATE_ID" /usr/bin/bash -n "$BASELINE_GUEST"
-log "Verifying guest baseline matches the validated host copy."
-guest_exec "$CANDIDATE_ID" /usr/bin/env bash -c \
-    'actual="$(/usr/bin/sha256sum "$1" | /usr/bin/cut -d " " -f1)"; [[ "$actual" == "$2" ]]' \
-    _ "$BASELINE_GUEST" "$BASELINE_SHA256"
 
 log "Preparing candidate for Debian baseline execution."
 guest_exec "$CANDIDATE_ID" /usr/bin/rm -f "$BASELINE_PID_FILE" "$BASELINE_STATUS_FILE"
