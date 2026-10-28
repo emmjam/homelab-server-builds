@@ -258,8 +258,9 @@ guest_exec "$CANDIDATE_ID" /usr/bin/rm -f "$BASELINE_PID_FILE" "$BASELINE_STATUS
 
 log "Launching Debian baseline in candidate VM."
 guest_exec "$CANDIDATE_ID" /usr/bin/env bash -c \
-    "( /usr/bin/bash \"$BASELINE_GUEST\" > \"$BASELINE_LOG\" 2>&1; echo \$? > \"$BASELINE_STATUS_FILE\" ) </dev/null >/dev/null 2>&1 & echo \$! > \"$BASELINE_PID_FILE\""
-
+    '( /usr/bin/bash "$1" > "$2" 2>&1; echo $? > "$3" ) </dev/null >/dev/null 2>&1 & echo $! > "$4"' \
+    _ "$BASELINE_GUEST" "$BASELINE_LOG" "$BASELINE_STATUS_FILE" "$BASELINE_PID_FILE"
+    
 log "Getting baseline PID."
 BASELINE_PID="$(guest_read_file "$CANDIDATE_ID" "$BASELINE_PID_FILE" | tr -d '\r\n[:space:]')"
 [[ "$BASELINE_PID" =~ ^[0-9]+$ ]] ||
