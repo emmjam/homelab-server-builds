@@ -117,7 +117,7 @@ trap cleanup EXIT
 
 [[ $EUID -eq 0 ]] || fail "Run this script as root."
 
-for command in qm curl jq sha256sum; do
+for command in qm curl jq base64 grep awk tr timeout; do
     command -v "$command" >/dev/null 2>&1 ||
         fail "Required command not found: $command"
 done
