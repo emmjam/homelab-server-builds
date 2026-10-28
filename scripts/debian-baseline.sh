@@ -82,17 +82,23 @@ KbdInteractiveAuthentication no
 SSH
 
 # Add Rundeck user & SSH key
-useradd --create-home --shell /bin/bash rundeck
-install -d -o rundeck -g rundeck -m 700 /home/rundeck/.ssh
-install -o rundeck -g rundeck -m 600 \
-    /tmp/rundeck.pub /home/rundeck/.ssh/authorized_keys
-rm /tmp/rundeck.pub
-printf 'rundeck ALL=(ALL) NOPASSWD: ALL\n' > /etc/sudoers.d/rundeck
-chmod 0440 /etc/sudoers.d/rundeck
-visudo -cf /etc/sudoers.d/rundeck
-mkdir -p /opt/homelab-server-builds/scripts
-chown -Rf rundeck:rundeck /opt/homelab-server-builds
-
+if ! id rundeck >/dev/null 2>&1; then
+    log "Creating 'rundeck' user and SSH key."
+    install -d -m 0700 /tmp/rundeck-ssh
+    ssh-keygen -t ed25519 -f /tmp/rundeck-ssh/id_ed25519 -N '' -C 'rundeck@homelab'
+    install -m 0644 /tmp/rundeck-ssh/id_ed25519.pub /tmp/rundeck.pub
+    rm -rf /tmp/rundeck-ssh
+    useradd --create-home --shell /bin/bash rundeck
+    install -d -o rundeck -g rundeck -m 700 /home/rundeck/.ssh
+    install -o rundeck -g rundeck -m 600 \
+        /tmp/rundeck.pub /home/rundeck/.ssh/authorized_keys
+    rm /tmp/rundeck.pub
+    printf 'rundeck ALL=(ALL) NOPASSWD: ALL\n' > /etc/sudoers.d/rundeck
+    chmod 0440 /etc/sudoers.d/rundeck
+    visudo -cf /etc/sudoers.d/rundeck
+    mkdir -p /opt/homelab-server-builds/scripts
+    chown -Rf rundeck:rundeck /opt/homelab-server-builds
+fi 
 /usr/sbin/sshd -t || fail "SSH configuration validation failed."
 
 SSH_EFFECTIVE="$(sshd -T)"
