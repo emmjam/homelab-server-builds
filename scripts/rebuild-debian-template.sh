@@ -15,13 +15,13 @@ BACKUP_NAME="debian-13-template-backup"
 CANDIDATE_SSH_USER="ian"
 
 BASELINE_URL="https://raw.githubusercontent.com/emmjam/homelab-server-builds/main/scripts/debian-baseline.sh"
-LOCAL_BASE_PWD="/root/homelab-server-builds"
-cd ${LOCAL_BASE_PWD} || {
-    printf 'ERROR: Could not change to working directory %s\n' "$LOCAL_BASE_PWD" >&2
+REPO="/opt/homelab-server-builds"
+cd ${REPO} || {
+    printf 'ERROR: Could not change to working directory %s\n' "$REPO" >&2
     exit 1
 }
 REMOTE_BASE_PWD="/home/${CANDIDATE_SSH_USER}"
-BASELINE_LOCAL="${LOCAL_BASE_PWD}/debian-baseline.sh"
+BASELINE_LOCAL="${REPO}/debian-baseline.sh"
 BASELINE_GUEST="${REMOTE_BASE_PWD}/debian-baseline.sh"
 BASELINE_PID_FILE="${REMOTE_BASE_PWD}/baseline.pid"
 BASELINE_STATUS_FILE="${REMOTE_BASE_PWD}/baseline.status"
@@ -34,7 +34,7 @@ BASELINE_TIMEOUT=600
 CANDIDATE_CREATED=0
 PROMOTION_STARTED=0
 
-RUNDECK_PUBLIC_KEY="${LOCAL_BASE_PWD}/rundeck.pub"
+RUNDECK_PUBLIC_KEY="${REPO}/rundeck.pub"
 
 
 log() {
@@ -235,7 +235,7 @@ qm guest exec "$CANDIDATE_ID" -- \
 log "Checking guest prerequisites."
 guest_exec "$CANDIDATE_ID" /usr/bin/env bash -lc \
     'command -v curl >/dev/null &&
-     test -d /root &&
+     test -d ${REPO} &&
      test "$(id -u)" = 0'
 
 log "Downloading baseline script inside candidate over HTTPS."
@@ -333,9 +333,9 @@ systemctl is-enabled --quiet apt-daily.timer
 systemctl is-enabled --quiet apt-daily-upgrade.timer
 
 # Confirm cleanup of baseline files
-test ! -e /root/debian-baseline.sh
-test ! -e /root/baseline.pid
-test ! -e /root/baseline.status
+test ! -e ${REPO}/debian-baseline.sh
+test ! -e ${REPO}/baseline.pid
+test ! -e ${REPO}/baseline.status
 '
 
 log "Cleaning Cloud-Init state before template creation."

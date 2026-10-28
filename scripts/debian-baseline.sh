@@ -90,6 +90,8 @@ rm /tmp/rundeck.pub
 printf 'rundeck ALL=(ALL) NOPASSWD: ALL\n' > /etc/sudoers.d/rundeck
 chmod 0440 /etc/sudoers.d/rundeck
 visudo -cf /etc/sudoers.d/rundeck
+mkdir -p /opt/homelab-server-builds/scripts
+chown -Rf rundeck:rundeck /opt/homelab-server-builds
 
 /usr/sbin/sshd -t || fail "SSH configuration validation failed."
 
