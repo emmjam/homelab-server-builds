@@ -51,8 +51,8 @@ guest_exec() {
         return 1
     }
 
-    exited="$(jq -r 'if .exited == true or .exited == 1 or .exited == "1" then "1" else "" end' <<<"$result")
-    exitcode="$(jq -r '.exitcode // empty' <<<"$result")"
+    exited="$(jq -r 'if .exited == true or .exited == 1 or .exited == "1" then "1" else "" end' <<<"$result")" || return 1
+    exitcode="$(jq -r '.exitcode // empty' <<<"$result")" || return 1
 
     if [[ "$exited" != "1" || ! "$exitcode" =~ ^[0-9]+$ ]]; then
         log "Unexpected Guest Agent response on VM ${vmid}: ${result}"
