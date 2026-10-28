@@ -15,13 +15,8 @@ BACKUP_NAME="debian-13-template-backup"
 CANDIDATE_SSH_USER="ian"
 
 BASELINE_URL="https://raw.githubusercontent.com/emmjam/homelab-server-builds/main/scripts/debian-baseline.sh"
-REPO="/opt/homelab-server-builds"
-cd ${REPO} || {
-    printf 'ERROR: Could not change to working directory %s\n' "$REPO" >&2
-    exit 1
-}
 REMOTE_BASE_PWD="/home/${CANDIDATE_SSH_USER}"
-BASELINE_LOCAL="${REPO}/debian-baseline.sh"
+BASELINE_LOCAL=""
 BASELINE_GUEST="${REMOTE_BASE_PWD}/debian-baseline.sh"
 BASELINE_PID_FILE="${REMOTE_BASE_PWD}/baseline.pid"
 BASELINE_STATUS_FILE="${REMOTE_BASE_PWD}/baseline.status"
@@ -56,7 +51,7 @@ guest_exec() {
         return 1
     }
 
-    exited="$(jq -r '.exited // empty' <<<"$result")"
+    exited="$(jq -r 'if .exited == true or .exited == 1 or .exited == "1" then "1" else "" end' <<<"$result")
     exitcode="$(jq -r '.exitcode // empty' <<<"$result")"
 
     if [[ "$exited" != "1" || ! "$exitcode" =~ ^[0-9]+$ ]]; then
@@ -79,7 +74,7 @@ guest_read_file() {
         return 1
     }
 
-    exited="$(jq -r '.exited // empty' <<<"$result")"
+    exited="$(jq -r 'if .exited == true or .exited == 1 or .exited == "1" then "1" else "" end' <<<"$result")
     exitcode="$(jq -r '.exitcode // empty' <<<"$result")"
 
     if [[ "$exited" == "1" && "$exitcode" == "0" ]]; then
@@ -94,8 +89,10 @@ cleanup() {
     local rc=$?
     trap - EXIT
 
-    # Always remove the temporary host copy.
-    rm -f "$BASELINE_LOCAL"
+    # Remove only the temporary host copy created by this run.
+    if [[ -n "${BASELINE_LOCAL:-}" ]]; then
+        rm -f -- "$BASELINE_LOCAL"
+    fi
 
     if (( rc != 0 )); then
         log "Rebuild failed."
@@ -126,6 +123,7 @@ for command in qm curl jq sha256sum; do
 done
 
 log "Downloading baseline script from GitHub over HTTPS."
+BASELINE_LOCAL="$(mktemp /tmp/debian-baseline.XXXXXX.sh)"
 curl --fail --silent --show-error --location \
     --proto '=https' --tlsv1.2 \
     "$BASELINE_URL" --output "$BASELINE_LOCAL"
@@ -137,7 +135,8 @@ chmod 700 "$BASELINE_LOCAL"
 bash -n "$BASELINE_LOCAL" ||
     fail "Baseline script failed shell syntax validation."
 
-log "Baseline SHA-256: $(sha256sum "$BASELINE_LOCAL" | awk '{print $1}')"
+BASELINE_SHA256="$(sha256sum "$BASELINE_LOCAL" | awk '{print $1}')"
+log "Baseline SHA-256: ${BASELINE_SHA256}"
 
 log "Checking VM IDs."
 qm config "$TEMPLATE_ID" >/dev/null ||
@@ -227,10 +226,13 @@ else
     '
 fi
 
-log "Copying over SSH key"
+log "Copying over SSH public key."
+[[ -s "$RUNDECK_PUBLIC_KEY" ]] ||
+    fail "Rundeck public key is missing or empty: ${RUNDECK_PUBLIC_KEY}"
 KEY_BASE64="$(base64 -w0 "$RUNDECK_PUBLIC_KEY")"
-qm guest exec "$CANDIDATE_ID" -- \
-    bash -c "echo '$KEY_BASE64' | base64 -d > /tmp/rundeck.pub"
+guest_exec "$CANDIDATE_ID" /usr/bin/env bash -c \
+    "printf '%s' '$KEY_BASE64' | /usr/bin/base64 -d > /tmp/rundeck.pub"
+guest_exec "$CANDIDATE_ID" /usr/bin/test -s /tmp/rundeck.pub
 
 log "Checking guest prerequisites."
 guest_exec "$CANDIDATE_ID" /usr/bin/env bash -lc \
@@ -246,6 +248,10 @@ guest_exec "$CANDIDATE_ID" /usr/bin/curl \
 log "Setting permissions and checking guest script syntax."
 guest_exec "$CANDIDATE_ID" /usr/bin/chmod 700 "$BASELINE_GUEST"
 guest_exec "$CANDIDATE_ID" /usr/bin/bash -n "$BASELINE_GUEST"
+log "Verifying guest baseline matches the validated host copy."
+guest_exec "$CANDIDATE_ID" /usr/bin/env bash -c \
+    'actual="$(/usr/bin/sha256sum "$1" | /usr/bin/cut -d " " -f1)"; [[ "$actual" == "$2" ]]' \
+    _ "$BASELINE_GUEST" "$BASELINE_SHA256"
 
 log "Preparing candidate for Debian baseline execution."
 guest_exec "$CANDIDATE_ID" /usr/bin/rm -f "$BASELINE_PID_FILE" "$BASELINE_STATUS_FILE"
@@ -331,10 +337,7 @@ systemctl is-active --quiet qemu-guest-agent
 systemctl is-enabled --quiet apt-daily.timer
 systemctl is-enabled --quiet apt-daily-upgrade.timer
 
-# Confirm cleanup of baseline files
-test ! -e ${REPO}/debian-baseline.sh
-test ! -e ${REPO}/baseline.pid
-test ! -e ${REPO}/baseline.status
+# Guest-side temporary files are checked immediately after cleanup.
 '
 
 log "Cleaning Cloud-Init state before template creation."
