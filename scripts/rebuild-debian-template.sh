@@ -34,7 +34,7 @@ BASELINE_TIMEOUT=600
 CANDIDATE_CREATED=0
 PROMOTION_STARTED=0
 
-RUNDECK_PUBLIC_KEY="${REPO}/rundeck.pub"
+RUNDECK_PUBLIC_KEY="/home/rundeck/.ssh/rundeck.pub"
 
 
 log() {
@@ -235,7 +235,6 @@ qm guest exec "$CANDIDATE_ID" -- \
 log "Checking guest prerequisites."
 guest_exec "$CANDIDATE_ID" /usr/bin/env bash -lc \
     'command -v curl >/dev/null &&
-     test -d ${REPO} &&
      test "$(id -u)" = 0'
 
 log "Downloading baseline script inside candidate over HTTPS."

@@ -1,0 +1,12 @@
+Option name: rundeck_ssh_key_priv
+Storage path: keys/project/HomeLab/rundeck_ssh_key_priv
+Input type: Plain text with password input
+Required: Yes
+Should be hidden: No
+
+SSH_KEY="@option.rundeck_ssh_key_priv@"
+
+curl -sS \
+  -H "X-Rundeck-Auth-Token: $TOKEN" \
+  -H "Accept: application/json" \
+  "http://localhost:4440/api/41/storage/keys/project/HomeLab/rundeck_ssh_key_pub"
