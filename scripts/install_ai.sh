@@ -60,16 +60,16 @@ if [[ ! -f /etc/debian_version ]]; then
     exit 1
 fi
 
+echo "==> Installing prerequisites"
+apt-get update
+apt-get install -y ca-certificates curl
+
 for command in curl systemctl; do
     if ! command -v "$command" >/dev/null 2>&1; then
         echo "ERROR: Required command '$command' is missing." >&2
         exit 1
     fi
 done
-
-echo "==> Installing prerequisites"
-apt-get update
-apt-get install -y ca-certificates curl
 
 if ! command -v ollama >/dev/null 2>&1; then
     echo "==> Installing Ollama"
