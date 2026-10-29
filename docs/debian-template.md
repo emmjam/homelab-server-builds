@@ -141,23 +141,23 @@ The automated rebuild pipeline performs comprehensive validation checks across e
 New virtual machines are provisioned using `scripts/provision-vm.sh`:
 
 ```bash
-./scripts/provision-vm.sh <vmid> <vm-name> [OPTIONS]
+./scripts/provision-vm.sh <vm-name> [OPTIONS]
 ```
 
 ### Parameters
 
 | Parameter | Purpose | Default |
 | :--- | :--- | :--- |
-| `VM ID` | Unique Proxmox VM ID | Required |
 | `VM name` | Name / hostname of the new VM | Required |
 | `--cores <num>` | Number of CPU cores | Inherit from template |
-| `--memory <MB>` | RAM in MB | Inherit from template |
+| `--memory <GB>` | RAM in whole GB | Inherit from template |
+| `--disk <GB>` | Disk size in whole GB | Inherit from template |
 | `--help` | Show usage | — |
 
 The script:
-1. Validates input syntax and ensures `<vmid>` and `<vm-name>` are not already in use.
-2. Verifies template `9999` exists and is marked as a template.
-3. Performs a full clone from `9999` to `<vmid>`, inheriting the template's preconfigured Cloud-Init DHCP and SSH configuration.
-4. Applies optional `--cores` and `--memory` overrides if specified.
-5. Boots the new virtual machine and reports its status and acquired DHCP IPv4 address.
+1. Validates the VM name and optional resource settings.
+2. Requests the lowest available VM ID from Proxmox and verifies template `9000` exists and is marked as a template.
+3. Performs a full clone, inheriting the template's preconfigured Cloud-Init DHCP and SSH configuration.
+4. Applies optional CPU, RAM, and disk overrides.
+5. Boots the new virtual machine and reports its assigned VM ID, status, and acquired DHCP IPv4 address.
 6. Employs a cleanup trap to safely destroy any partial VM if an error occurs during provisioning, leaving the source template untouched.
