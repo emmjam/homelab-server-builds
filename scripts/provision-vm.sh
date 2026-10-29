@@ -4,7 +4,7 @@ set -Eeuo pipefail
 # Provision a new Debian VM from Proxmox template 9999.
 # Run as root on the Proxmox host.
 
-TEMPLATE_ID="${TEMPLATE_ID:-9999}"
+TEMPLATE_ID="${TEMPLATE_ID:-9000}"
 VM_CREATED=0
 
 VMID=""
