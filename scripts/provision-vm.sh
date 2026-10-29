@@ -1,13 +1,12 @@
 #!/bin/bash
 set -Eeuo pipefail
 
-# Provision a new Debian VM from Proxmox template 9999.
+# Provision a new Debian VM from Proxmox template 9000.
 # Run as root on the Proxmox host.
 
 TEMPLATE_ID="${TEMPLATE_ID:-9000}"
 VM_CREATED=0
 
-VMID=""
 NAME=""
 CORES=""
 MEMORY=""
@@ -25,11 +24,10 @@ fail() {
 usage() {
     clear
     cat <<EOF
-Usage: $0 <vmid> <vm-name> [OPTIONS]
+Usage: $0 <vm-name> [OPTIONS]
 
 Required Parameters:
-  VM ID                 Unique Proxmox VM ID (e.g. 100-999999)
-  VM name               Name / hostname for the new VM
+  VM name               Name / hostname for the new VM; Proxmox assigns the lowest available VM ID
 
 Optional Parameters:
   --cores <num>         Number of CPU cores (default: inherit from template)
@@ -38,9 +36,9 @@ Optional Parameters:
   --help                Show this usage message
 
 Examples:
-  $0 105 web-server-01
-  $0 105 web-server-01 --cores 2 --memory 2 --disk 20
-  $0 105 web-server-01 --memory 1
+  $0 web-server-01
+  $0 web-server-01 --cores 2 --memory 2 --disk 20
+  $0 web-server-01 --memory 1
 EOF
     exit 0
 }
@@ -101,9 +99,7 @@ while [[ $# -gt 0 ]]; do
             fail "Unknown option: $1 (run with --help for usage)"
             ;;
         *)
-            if [[ -z "$VMID" ]]; then
-                VMID="$1"
-            elif [[ -z "$NAME" ]]; then
+            if [[ -z "$NAME" ]]; then
                 NAME="$1"
             else
                 fail "Unexpected positional argument: $1 (run with --help for usage)"
@@ -115,16 +111,12 @@ done
 
 [[ $EUID -eq 0 ]] || fail "Run this script as root on the Proxmox host."
 
-for cmd in qm jq awk; do
+for cmd in qm pvesh jq awk; do
     command -v "$cmd" >/dev/null 2>&1 || fail "Required command not found: $cmd"
 done
 
 # Validate required parameters
-[[ -n "$VMID" ]] || fail "Missing required parameter: VM ID (run with --help for usage)."
 [[ -n "$NAME" ]] || fail "Missing required parameter: VM name (run with --help for usage)."
-
-[[ "$VMID" =~ ^[1-9][0-9]{1,5}$ ]] ||
-    fail "Invalid VM ID '${VMID}'. Must be a positive integer (e.g., 100-999999)."
 
 [[ "$NAME" =~ ^[a-zA-Z0-9]([a-zA-Z0-9._-]{0,61}[a-zA-Z0-9])?$ ]] ||
     fail "Invalid VM name '${NAME}'. Must be a valid hostname (alphanumeric, dots, dashes, underscores)."
@@ -141,6 +133,15 @@ if [[ -n "$MEMORY" ]]; then
         fail "Memory must be at least 1 GB (got: ${MEMORY})."
 fi
 MEMORY=$(( $MEMORY * 1024 ))
+
+# Ask Proxmox to select the lowest available VM ID. Keep the returned ID
+# numeric and within the supported range before using it in qm commands.
+VMID="$(pvesh get /cluster/nextid 2>/dev/null)" ||
+    fail "Could not obtain the next available VM ID from Proxmox."
+VMID="$(printf '%s' "$VMID" | tr -d '\r\n')"
+[[ "$VMID" =~ ^[1-9][0-9]{1,5}$ ]] ||
+    fail "Proxmox returned an invalid next VM ID: '${VMID}'."
+log "Proxmox selected the lowest available VM ID: ${VMID}."
 
 # Template verification
 qm status "$TEMPLATE_ID" >/dev/null 2>&1 ||
