@@ -60,6 +60,88 @@ apt-get install -y \
     openssh-server \
     isc-dhcp-client
 
+# Install a first-boot DHCP renewal hook. Enabling without --now leaves it
+# dormant during candidate construction; the template clone runs it on boot.
+log "Installing per-clone first-boot DHCP hostname registration."
+install -d -m 0755 /usr/local/sbin /etc/systemd/system
+cat > /usr/local/sbin/homelab-dhcp-renew-once <<'DHCP_SCRIPT'
+#!/bin/bash
+set -Eeuo pipefail
+
+LOG_TAG="homelab-dhcp-renew"
+LOG_FILE="/var/log/homelab-dhcp-renew.log"
+STATE_DIR="/var/lib/homelab-dhcp-renew"
+COMPLETE_FILE="${STATE_DIR}/complete"
+
+log() {
+    local message="$*"
+    printf '[%s] %s\n' "$(date --iso-8601=seconds)" "$message" | tee -a "$LOG_FILE"
+    logger -t "$LOG_TAG" -- "$message" 2>/dev/null || true
+}
+
+on_error() {
+    local rc=$?
+    log "ERROR: DHCP hostname renewal failed (line ${BASH_LINENO[0]}, exit ${rc})."
+    exit "$rc"
+}
+trap on_error ERR
+
+[[ $EUID -eq 0 ]] || { log "ERROR: Must run as root."; exit 1; }
+if [[ -e "$COMPLETE_FILE" ]]; then
+    log "Already completed for this VM; skipping."
+    exit 0
+fi
+
+log "Waiting for Cloud-Init to complete."
+cloud_init_rc=0
+cloud-init status --wait || cloud_init_rc=$?
+[[ "$cloud_init_rc" -eq 0 || "$cloud_init_rc" -eq 2 ]] || {
+    log "ERROR: Cloud-Init did not complete successfully (exit ${cloud_init_rc})."
+    exit "$cloud_init_rc"
+}
+
+interface=""
+for attempt in $(seq 1 120); do
+    interface="$(ip -4 route show default | awk 'NR == 1 { for (i = 1; i <= NF; i++) if ($i == "dev") { print $(i + 1); exit } }')"
+    if [[ -n "$interface" ]]; then
+        break
+    fi
+    sleep 1
+done
+[[ -n "$interface" ]] || { log "ERROR: No IPv4 default-route interface appeared within 120 seconds."; exit 1; }
+
+hostname="$(hostnamectl --static 2>/dev/null || hostname)"
+log "Renewing DHCP lease on active IPv4 default-route interface ${interface} for hostname ${hostname}."
+dhclient -v -r "$interface"
+dhclient -v "$interface"
+
+install -d -m 0755 "$STATE_DIR"
+printf 'completed=%s\nhostname=%s\ninterface=%s\n' \
+    "$(date --iso-8601=seconds)" "$hostname" "$interface" > "${COMPLETE_FILE}.tmp"
+chmod 0644 "${COMPLETE_FILE}.tmp"
+mv -f "${COMPLETE_FILE}.tmp" "$COMPLETE_FILE"
+log "SUCCESS: DHCP lease renewed; completion marker written for this VM."
+DHCP_SCRIPT
+chmod 0755 /usr/local/sbin/homelab-dhcp-renew-once
+
+cat > /etc/systemd/system/homelab-dhcp-renew.service <<'DHCP_UNIT'
+[Unit]
+Description=Register the Cloud-Init hostname with DHCP once per VM
+Wants=network-online.target
+After=network-online.target cloud-final.service
+ConditionPathExists=!/var/lib/homelab-dhcp-renew/complete
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/homelab-dhcp-renew-once
+Restart=on-failure
+RestartSec=30s
+DHCP_UNIT
+
+systemctl daemon-reload
+systemctl enable --no-reload homelab-dhcp-renew.service
+
 # Ensure the intended Cloud-Init account exists before hardening SSH.
 SSH_USER="${HOMELAB_SSH_USER:-ian}"
 id "$SSH_USER" >/dev/null 2>&1 ||
@@ -191,17 +273,6 @@ esac
 export PATH
 EOF
 chmod 0644 /etc/profile.d/00-sbin-path.sh
-
-IFACE=$(ip -4 route show default | awk 'NR==1 {print $5}')
-
-if [[ -z "$IFACE" ]]; then
-    echo "ERROR: Could not determine the active network interface"
-    exit 1
-fi
-
-echo "Renewing DHCP lease on $IFACE"
-dhclient -v -r "$IFACE"
-dhclient -v "$IFACE"
 
 if [[ "$REBOOT_REQUIRED" -eq 1 ]]; then
     log "PASS WITH REBOOT REQUIRED: baseline configured; QEMU Guest Agent needs post-reboot validation."

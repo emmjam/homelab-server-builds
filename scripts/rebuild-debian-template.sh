@@ -331,6 +331,18 @@ systemctl is-active --quiet qemu-guest-agent
 systemctl is-enabled --quiet apt-daily.timer
 systemctl is-enabled --quiet apt-daily-upgrade.timer
 
+# The one-time DHCP renewal must be present and enabled in the template,
+# but must remain unstarted while this candidate is being built.
+test -x /usr/local/sbin/homelab-dhcp-renew-once
+test -s /etc/systemd/system/homelab-dhcp-renew.service
+command -v dhclient >/dev/null
+systemctl is-enabled --quiet homelab-dhcp-renew.service
+if systemctl is-active --quiet homelab-dhcp-renew.service; then
+    echo "DHCP renewal service unexpectedly ran during candidate build" >&2
+    exit 1
+fi
+test ! -e /var/lib/homelab-dhcp-renew/complete
+
 # Guest-side temporary files are checked immediately after cleanup.
 '
 
