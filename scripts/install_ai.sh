@@ -62,7 +62,7 @@ fi
 
 echo "==> Installing prerequisites"
 apt-get update
-apt-get install -y ca-certificates curl
+apt-get install -y ca-certificates curl zstd
 
 for command in curl systemctl; do
     if ! command -v "$command" >/dev/null 2>&1; then

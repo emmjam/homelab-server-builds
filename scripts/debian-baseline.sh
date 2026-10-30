@@ -191,6 +191,9 @@ export PATH
 EOF
 chmod 0644 /etc/profile.d/00-sbin-path.sh
 
+dhclient -v -r eth0
+dhclient -v eth0
+
 if [[ "$REBOOT_REQUIRED" -eq 1 ]]; then
     log "PASS WITH REBOOT REQUIRED: baseline configured; QEMU Guest Agent needs post-reboot validation."
 else
