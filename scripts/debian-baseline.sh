@@ -192,8 +192,16 @@ export PATH
 EOF
 chmod 0644 /etc/profile.d/00-sbin-path.sh
 
-dhclient -v -r eth0
-dhclient -v eth0
+IFACE=$(ip -4 route show default | awk 'NR==1 {print $5}')
+
+if [[ -z "$IFACE" ]]; then
+    echo "ERROR: Could not determine the active network interface"
+    exit 1
+fi
+
+echo "Renewing DHCP lease on $IFACE"
+dhclient -v -r "$IFACE"
+dhclient -v "$IFACE"
 
 if [[ "$REBOOT_REQUIRED" -eq 1 ]]; then
     log "PASS WITH REBOOT REQUIRED: baseline configured; QEMU Guest Agent needs post-reboot validation."
