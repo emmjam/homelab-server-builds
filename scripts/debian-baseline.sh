@@ -57,7 +57,8 @@ apt-get install -y \
     qemu-guest-agent \
     fail2ban \
     unattended-upgrades \
-    openssh-server
+    openssh-server \
+    isc-dhcp-client
 
 # Ensure the intended Cloud-Init account exists before hardening SSH.
 SSH_USER="${HOMELAB_SSH_USER:-ian}"
