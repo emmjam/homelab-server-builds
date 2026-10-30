@@ -137,6 +137,9 @@ Type=oneshot
 ExecStart=/usr/local/sbin/homelab-dhcp-renew-once
 Restart=on-failure
 RestartSec=30s
+
+[Install]
+WantedBy=multi-user.target
 DHCP_UNIT
 
 systemctl daemon-reload
