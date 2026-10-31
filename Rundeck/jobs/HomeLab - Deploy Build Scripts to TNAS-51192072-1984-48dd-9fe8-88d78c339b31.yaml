@@ -13,6 +13,7 @@
     commands:
     - description: Script
       scriptfile: /opt/homelab-server-builds/Rundeck/scripts/deploy-build-scripts-to-tnas.sh
+      scriptInterpreter: /bin/bash
     keepgoing: false
     strategy: node-first
   user: ian
