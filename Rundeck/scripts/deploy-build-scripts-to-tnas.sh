@@ -19,7 +19,7 @@ SSH_OPTS=(
 )
 
 # Verify the source scripts exist in the local checkout.
-for file in Rundeck/scripts/rebuild-debian-template.sh scripts/debian-baseline.sh Rundeck/scripts/provision-vm.sh; do
+for file in Rundeck/scripts/rebuild-debian-template.sh scripts/debian-baseline.sh Rundeck/scripts/provision-vm.sh Rundeck/scripts/delete-vm.sh; do
     if [[ ! -s "$REPO/$file" ]]; then
         echo "ERROR: Missing source script: $REPO/$file" >&2
         exit 1
@@ -49,14 +49,20 @@ scp "${SSH_OPTS[@]}" \
     "$REPO/Rundeck/scripts/provision-vm.sh" \
     "$DEST:$REMOTE_REPO/scripts/provision-vm.sh"
 
+scp "${SSH_OPTS[@]}" \
+    "$REPO/Rundeck/scripts/delete-vm.sh" \
+    "$DEST:$REMOTE_REPO/scripts/delete-vm.sh"
+
 # Set executable permissions and verify the deployed files.
 ssh "${SSH_OPTS[@]}" "$DEST" \
     "set -eu
      chmod 700 '$REMOTE_REPO/scripts/rebuild-debian-template.sh'
      chmod 700 '$REMOTE_REPO/debian-baseline.sh'
      chmod 700 '$REMOTE_REPO/scripts/provision-vm.sh'
+     chmod 700 '$REMOTE_REPO/scripts/delete-vm.sh'
      test -s '$REMOTE_REPO/scripts/rebuild-debian-template.sh'
      test -s '$REMOTE_REPO/debian-baseline.sh'
-     test -s '$REMOTE_REPO/scripts/provision-vm.sh'"
+     test -s '$REMOTE_REPO/scripts/provision-vm.sh'
+     test -s '$REMOTE_REPO/scripts/delete-vm.sh'"
 
 echo "Deployment completed and destination files verified."

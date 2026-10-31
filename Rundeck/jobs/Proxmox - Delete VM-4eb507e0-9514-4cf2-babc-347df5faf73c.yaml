@@ -1,0 +1,26 @@
+- defaultTab: nodes
+  description: Delete a Proxmox VM by its exact name or numeric VM ID. Template VMs are protected; running VMs must shut down gracefully before deletion.
+  executionEnabled: true
+  group: jobs
+  id: 4eb507e0-9514-4cf2-babc-347df5faf73c
+  loglevel: INFO
+  name: Proxmox - Delete VM
+  nodeFilterEditable: false
+  options:
+  - description: Exact VM name or numeric Proxmox VM ID. Template VMs cannot be deleted.
+    label: VM name or ID
+    name: target
+    required: true
+    type: text
+  plugins:
+    ExecutionLifecycle: {}
+  scheduleEnabled: true
+  sequence:
+    commands:
+    - description: Delete VM on Proxmox
+      scriptfile: /opt/homelab-server-builds/Rundeck/scripts/invoke-delete-vm.sh
+      scriptInterpreter: /bin/bash
+    keepgoing: false
+    strategy: node-first
+  user: ian
+  uuid: 4eb507e0-9514-4cf2-babc-347df5faf73c
