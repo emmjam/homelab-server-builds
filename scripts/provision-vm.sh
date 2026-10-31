@@ -223,6 +223,7 @@ log "Installing Pi-hole hostname registration cron job in VM ${VMID}..."
 CHECKER_PAYLOAD="$(base64 -w0 <<'CHECKER_SCRIPT'
 #!/bin/bash
 set -uo pipefail
+PATH="/usr/sbin:/usr/bin:/sbin:/bin"
 LOG_TAG="homelab-hostname-registration"
 LOG_FILE="/var/log/homelab-hostname-registration.log"
 DNS_SERVER="192.168.0.2"
