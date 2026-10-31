@@ -56,9 +56,9 @@ fi
 
 STATUS="$(qm status "$VMID" | awk '{print $2}')"
 if [[ "$STATUS" == "running" ]]; then
-    log "Requesting graceful shutdown of VM ${VMID} (${VM_NAME})."
-    qm shutdown "$VMID" --timeout 90 ||
-        fail "Graceful shutdown failed for VM ${VMID}; it was not deleted."
+    log "Stopping VM ${VMID} (${VM_NAME}) immediately with qm stop."
+    qm stop "$VMID" --timeout 30 ||
+        fail "Could not stop VM ${VMID}; it was not deleted."
     STATUS="$(qm status "$VMID" | awk '{print $2}')"
     [[ "$STATUS" == "stopped" ]] || fail "VM ${VMID} is still '$STATUS'; it was not deleted."
 fi

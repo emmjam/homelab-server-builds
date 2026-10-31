@@ -14,7 +14,7 @@ A definition is stored as one YAML file named `${job.name}-${job.id}.yaml` direc
 
 ## Existing HomeLab jobs
 
-The current HomeLab project has ten versioned jobs: three workflows and seven reusable operations. Definitions preserve the live UUIDs. The TNAS deployment job uses the flat Git source paths while retaining its existing TNAS destination paths and SSH key reference. `Proxmox - Delete VM` accepts an exact VM name or numeric ID, refuses all VMs marked as templates, and requires running guests to shut down gracefully before their disks are purged.
+The current HomeLab project has ten versioned jobs: three workflows and seven reusable operations. Definitions preserve the live UUIDs. The TNAS deployment job uses the flat Git source paths while retaining its existing TNAS destination paths and SSH key reference. `Proxmox - Delete VM` accepts an exact VM name or numeric ID, refuses all VMs marked as templates, and immediately stops running guests with `qm stop` before purging their disks.
 
 The reusable Proxmox scripts remain deployed to `/opt/homelab-server-builds/scripts/` on TNAS; the guest baseline remains deployed to `/opt/homelab-server-builds/debian-baseline.sh`. Rundeck-side helper scripts run from the Rundeck checkout at `/opt/homelab-server-builds/Rundeck/scripts/`; job scriptfile paths point directly to files in that directory.
 

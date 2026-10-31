@@ -1,5 +1,5 @@
 - defaultTab: nodes
-  description: Delete a Proxmox VM by its exact name or numeric VM ID. Template VMs are protected; running VMs must shut down gracefully before deletion.
+  description: Delete a Proxmox VM by its exact name or numeric VM ID. Template VMs are protected; running VMs are immediately stopped with qm stop before deletion.
   executionEnabled: true
   group: jobs
   id: 4eb507e0-9514-4cf2-babc-347df5faf73c
