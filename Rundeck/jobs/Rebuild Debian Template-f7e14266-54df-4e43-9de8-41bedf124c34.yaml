@@ -1,0 +1,19 @@
+- defaultTab: nodes
+  description: Rebuild the Debian template for VMs
+  executionEnabled: true
+  group: jobs
+  id: f7e14266-54df-4e43-9de8-41bedf124c34
+  loglevel: INFO
+  name: Rebuild Debian Template
+  nodeFilterEditable: false
+  plugins:
+    ExecutionLifecycle: {}
+  scheduleEnabled: true
+  sequence:
+    commands:
+    - description: Script
+      scriptfile: /opt/homelab-server-builds/Rundeck/scripts/invoke-template-rebuild.sh
+    keepgoing: false
+    strategy: node-first
+  user: ian
+  uuid: f7e14266-54df-4e43-9de8-41bedf124c34

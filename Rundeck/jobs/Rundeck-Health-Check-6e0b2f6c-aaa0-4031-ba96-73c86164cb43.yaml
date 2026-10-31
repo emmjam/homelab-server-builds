@@ -1,0 +1,19 @@
+- defaultTab: nodes
+  description: Test job
+  executionEnabled: true
+  group: jobs
+  id: 6e0b2f6c-aaa0-4031-ba96-73c86164cb43
+  loglevel: INFO
+  name: Rundeck-Health-Check
+  nodeFilterEditable: false
+  plugins:
+    ExecutionLifecycle: {}
+  scheduleEnabled: true
+  sequence:
+    commands:
+    - description: Command
+      exec: hostname; cat /etc/debian_version; uptime; df -h /
+    keepgoing: false
+    strategy: node-first
+  user: ian
+  uuid: 6e0b2f6c-aaa0-4031-ba96-73c86164cb43

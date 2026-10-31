@@ -1,0 +1,26 @@
+- defaultTab: nodes
+  description: ''
+  executionEnabled: true
+  group: jobs
+  id: 310dfa4f-e27f-4945-be6a-7380ef75e586
+  loglevel: INFO
+  name: HomeLab - Update GitHub Checkout
+  nodeFilterEditable: false
+  options:
+  - hidden: true
+    name: github_token
+    required: true
+    secure: true
+    storagePath: keys/project/HomeLab/github_read_token
+    type: text
+  plugins:
+    ExecutionLifecycle: {}
+  scheduleEnabled: true
+  sequence:
+    commands:
+    - description: Script
+      scriptfile: /opt/homelab-server-builds/Rundeck/scripts/update-github-checkout.sh
+    keepgoing: false
+    strategy: node-first
+  user: ian
+  uuid: 310dfa4f-e27f-4945-be6a-7380ef75e586

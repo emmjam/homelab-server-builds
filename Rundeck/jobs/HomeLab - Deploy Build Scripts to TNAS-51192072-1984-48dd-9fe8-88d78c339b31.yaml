@@ -1,0 +1,19 @@
+- defaultTab: nodes
+  description: ''
+  executionEnabled: true
+  group: jobs
+  id: 51192072-1984-48dd-9fe8-88d78c339b31
+  loglevel: INFO
+  name: HomeLab - Deploy Build Scripts to TNAS
+  nodeFilterEditable: false
+  plugins:
+    ExecutionLifecycle: {}
+  scheduleEnabled: true
+  sequence:
+    commands:
+    - description: Script
+      scriptfile: /opt/homelab-server-builds/Rundeck/scripts/deploy-build-scripts-to-tnas.sh
+    keepgoing: false
+    strategy: node-first
+  user: ian
+  uuid: 51192072-1984-48dd-9fe8-88d78c339b31

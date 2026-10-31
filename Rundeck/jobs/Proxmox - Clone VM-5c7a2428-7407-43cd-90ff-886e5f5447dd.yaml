@@ -1,0 +1,40 @@
+- defaultTab: nodes
+  description: 'Provision a Proxmox VM by running scripts/provision-vm.sh on TNAS. API job options: vmname,
+    cores, memory (GB), and disk (GB). Proxmox assigns the lowest available VM ID. Always uses template
+    ID 9000; backup template ID 9999 is not used.'
+  executionEnabled: true
+  group: jobs
+  id: 5c7a2428-7407-43cd-90ff-886e5f5447dd
+  loglevel: INFO
+  name: Proxmox - Clone VM
+  nodeFilterEditable: false
+  options:
+  - name: vmname
+    required: true
+    type: text
+  - description: Number of virtual CPU cores.
+    label: CPU cores
+    name: cores
+    required: true
+    type: text
+  - description: VM RAM size in whole GB.
+    label: RAM (GB)
+    name: memory
+    required: true
+    type: text
+  - description: VM disk size in whole GB.
+    label: Disk size (GB)
+    name: disk
+    required: true
+    type: text
+  plugins:
+    ExecutionLifecycle: {}
+  scheduleEnabled: true
+  sequence:
+    commands:
+    - description: Script
+      scriptfile: /opt/homelab-server-builds/Rundeck/scripts/invoke-provision-vm.sh
+    keepgoing: false
+    strategy: node-first
+  user: ian
+  uuid: 5c7a2428-7407-43cd-90ff-886e5f5447dd

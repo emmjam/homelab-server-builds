@@ -1,0 +1,14 @@
+# Local secrets and environment files
+.env
+.env.*
+!.env.example
+
+# Local editor and operating-system files
+.DS_Store
+*.swp
+*.swo
+*~
+
+# Python cache files
+__pycache__/
+*.py[cod]

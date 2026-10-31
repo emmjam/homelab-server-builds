@@ -4,7 +4,7 @@
 
 The Debian 13 (Trixie) Golden Template serves as the hardened, standardized base image for provisioning Linux virtual machines across the homelab infrastructure on Proxmox VE.
 
-The build process is automated by `scripts/rebuild-debian-template.sh`, which enforces strict safety policies, executes the baseline hardening script (`scripts/debian-baseline.sh`), verifies Cloud-Init DHCP and SSH services, and atomically promotes the tested candidate while retaining a rollback backup.
+The build process is automated by `Rundeck/scripts/rebuild-debian-template.sh`, which enforces strict safety policies, executes the baseline hardening script (`scripts/debian-baseline.sh`), verifies Cloud-Init DHCP and SSH services, and atomically promotes the tested candidate while retaining a rollback backup.
 
 ---
 
@@ -60,7 +60,7 @@ The reusable baseline script (`scripts/debian-baseline.sh`) configures and valid
 
 ## Automated Rebuild & Promotion Process
 
-The build automation is managed by `scripts/rebuild-debian-template.sh` running as root on the Proxmox host.
+The build automation is managed by `Rundeck/scripts/rebuild-debian-template.sh` running as root on the Proxmox host.
 
 ### Build Workflow
 
@@ -138,10 +138,10 @@ The automated rebuild pipeline performs comprehensive validation checks across e
 
 ## Provisioning Virtual Machines
 
-New virtual machines are provisioned using `scripts/provision-vm.sh`:
+New virtual machines are provisioned using `Rundeck/scripts/provision-vm.sh`:
 
 ```bash
-./scripts/provision-vm.sh <vm-name> [OPTIONS]
+./Rundeck/scripts/provision-vm.sh <vm-name> [OPTIONS]
 ```
 
 ### Parameters

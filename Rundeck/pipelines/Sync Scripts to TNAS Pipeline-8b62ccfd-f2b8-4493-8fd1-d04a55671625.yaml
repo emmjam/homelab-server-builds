@@ -1,0 +1,47 @@
+- defaultTab: nodes
+  description: 'The combined workflow would be:
+
+    1. Git checkout / update
+
+    Retrieve the latest repository version on the Rundeck server
+
+    2. Validate the scripts
+
+    Confirm all required source files exist before deploying
+
+    3. Update TNAS
+
+    Copy the scripts and set executable permissions
+
+    4. Verify and report
+
+    Check the deployed files and report success or failure'
+  executionEnabled: true
+  id: 8b62ccfd-f2b8-4493-8fd1-d04a55671625
+  loglevel: INFO
+  name: Sync Scripts to TNAS Pipeline
+  nodeFilterEditable: false
+  plugins:
+    ExecutionLifecycle: {}
+  scheduleEnabled: true
+  sequence:
+    commands:
+    - description: Job reference
+      jobref:
+        group: jobs
+        name: HomeLab - Update GitHub Checkout
+        nodeStep: 'true'
+        project: HomeLab
+        uuid: 310dfa4f-e27f-4945-be6a-7380ef75e586
+    - description: Job reference
+      jobref:
+        group: jobs
+        name: HomeLab - Deploy Build Scripts to TNAS
+        nodeStep: 'true'
+        project: HomeLab
+        uuid: 51192072-1984-48dd-9fe8-88d78c339b31
+    keepgoing: false
+    strategy: node-first
+  user: ian
+  uuid: 8b62ccfd-f2b8-4493-8fd1-d04a55671625
+  group: pipelines
