@@ -1,5 +1,5 @@
 - defaultTab: nodes
-  description: ''
+  description: Pull the Git checkout, import and update all job definitions, and remove Rundeck jobs deleted from Git.
   executionEnabled: true
   group: jobs
   id: 310dfa4f-e27f-4945-be6a-7380ef75e586
@@ -12,6 +12,12 @@
     required: true
     secure: true
     storagePath: keys/project/HomeLab/github_read_token
+    type: text
+  - hidden: true
+    name: rundeck_api_token
+    required: true
+    secure: true
+    storagePath: keys/project/HomeLab/rundeck_api_token
     type: text
   plugins:
     ExecutionLifecycle: {}

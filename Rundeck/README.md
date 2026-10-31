@@ -18,23 +18,13 @@ The current HomeLab project has eight versioned jobs: three workflows and five r
 
 The reusable Proxmox scripts remain deployed to `/opt/homelab-server-builds/scripts/` on TNAS; the guest baseline remains deployed to `/opt/homelab-server-builds/debian-baseline.sh`. Rundeck-side helper scripts run from the Rundeck checkout at `/opt/homelab-server-builds/Rundeck/scripts/`; job scriptfile paths point directly to files in that directory.
 
-## Recommended Git synchronization
+## Automatic Git synchronization
 
-Use Rundeck's built-in **Git SCM Import** integration for the `HomeLab` project, with this repository and the approved `main` branch. Git Import makes the repository authoritative and avoids accidentally exporting unrelated live jobs back into Git.
+The `HomeLab - Update GitHub Checkout` job pulls `main`, imports every YAML definition in `Rundeck/jobs/` and `Rundeck/pipelines/`, then removes live jobs in the managed `jobs` and `pipelines` groups whose UUIDs are no longer present in those directories. New job files are added on the next refresh, edits update the matching UUID, and deleting a YAML file removes that job from Rundeck. Jobs in other groups and other projects are outside this reconciliation scope.
 
-Recommended configuration:
+The refresh job needs the GitHub read token and a Rundeck API token in HomeLab Key Storage. The API token must have permission to import and delete jobs in the HomeLab project. Store it at `keys/project/HomeLab/rundeck_api_token`; do not place credentials in Git. All managed job YAML files must use matching `id` and `uuid` values and belong to the `jobs` or `pipelines` group. Both directories must remain present so the refresh can distinguish an intentionally empty job set from a missing checkout layout.
 
-- Import format: YAML.
-- File path template: `Rundeck/${job.group}/${job.name}-${job.id}.${config.format}` with repository root as the SCM base directory.
-- Match regular expression: `Rundeck/(jobs|pipelines)/.*\.yaml`.
-- UUID behavior: preserve UUIDs.
-- Scope: configure this integration on the `HomeLab` project only.
-
-Before the first import, export or back up the current HomeLab project and review the proposed updates. The YAML files preserve the existing job UUIDs and place reusable jobs and workflows in the `jobs` and `pipelines` groups. Do not configure an exporter against the same branch. Review deletions carefully: removing a tracked YAML file can cause the matching imported Rundeck job to be removed. The path filter keeps jobs outside these repository directories out of scope.
-
-For initial adoption, configure import and review the available changes in Rundeck before applying them. Afterward, use the SCM import status and diff actions to review Git changes before importing; avoid automatic imports that bypass review. Keep unrelated projects and jobs outside this project integration.
-
-Rundeck also supports direct YAML upload and API import, but these require an operator to choose duplicate handling each time. Git SCM Import is the better ongoing synchronization method because it tracks changes and scopes them to selected files. See the [Rundeck Git SCM documentation](https://docs.rundeck.com/docs/manual/projects/scm/git.html) and [job import API reference](https://docs.rundeck.com/docs/api/).
+The importer uses Rundeck's [job import API](https://docs.rundeck.com/docs/api/#importing-jobs) with UUID preservation and update behavior. Review YAML changes in Git before merging them to `main`, because deleting a definition now deletes its corresponding live job on the next refresh.
 
 ## Rufus integration
 
