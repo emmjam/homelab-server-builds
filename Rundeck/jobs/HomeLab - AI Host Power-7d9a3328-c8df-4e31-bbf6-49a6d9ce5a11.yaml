@@ -1,0 +1,37 @@
+- defaultTab: nodes
+  description: 'Wake or suspend the allowlisted ai-agent and ai-worker hosts. Sleep requires the Rundeck SSH key and passwordless suspend permission on the selected host; each action is checked and reported.'
+  executionEnabled: true
+  group: jobs
+  id: 7d9a3328-c8df-4e31-bbf6-49a6d9ce5a11
+  loglevel: INFO
+  name: HomeLab - AI Host Power
+  nodeFilterEditable: false
+  options:
+  - description: Select the AI host.
+    enforced: true
+    label: VM name
+    name: vmname
+    required: true
+    values:
+    - ai-agent
+    - ai-worker
+  - description: Wake with a magic packet or suspend to RAM.
+    enforced: true
+    label: Action
+    name: action
+    required: true
+    values:
+    - wake
+    - sleep
+  plugins:
+    ExecutionLifecycle: {}
+  scheduleEnabled: false
+  sequence:
+    commands:
+    - description: Wake or suspend and verify the selected AI host
+      scriptfile: /opt/homelab-server-builds/Rundeck/scripts/power-ai-host.sh
+      scriptInterpreter: /bin/bash
+    keepgoing: false
+    strategy: node-first
+  user: ian
+  uuid: 7d9a3328-c8df-4e31-bbf6-49a6d9ce5a11

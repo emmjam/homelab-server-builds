@@ -15,13 +15,17 @@ See [Rundeck/README.md](Rundeck/README.md) for job synchronization and Rufus int
 
 ## Debian 13 baseline
 
-The guest baseline is [scripts/debian-baseline.sh](scripts/debian-baseline.sh). It configures QEMU Guest Agent, SSH hardening, Fail2ban, unattended upgrades, and validates services. The template pipeline downloads and runs it on a candidate VM, then removes the temporary copy before promotion.
+The guest baseline is [scripts/debian-baseline.sh](scripts/debian-baseline.sh). It configures QEMU Guest Agent, SSH hardening, `vi` as the system default editor, Fail2ban, unattended upgrades, and validates services. The template pipeline downloads and runs it on a candidate VM, then removes the temporary copy before promotion.
 
 Run it manually as root inside a Debian 13 VM only after inspecting it and confirming authorised key-based access:
 
 ```bash
 sudo bash scripts/debian-baseline.sh
 ```
+
+## Physical host Wake-on-LAN
+
+The HP ai-agent and Dell ai-worker support suspend-to-RAM and magic-packet WOL. Their current NIC settings report `Wake-on: g`, and deep suspend-to-RAM is selected. Enable WOL/PCIe wake in firmware and disable ErP/deep power saving where applicable. The controlled Rundeck job uses fixed host MACs for wake and SSH for sleep; the AI-mgmnt VM can invoke it.
 
 ## Security and change process
 

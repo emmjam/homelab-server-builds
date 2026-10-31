@@ -14,7 +14,9 @@ A definition is stored as one YAML file named `${job.name}-${job.id}.yaml` direc
 
 ## Existing HomeLab jobs
 
-The current HomeLab project has ten versioned jobs: three workflows and seven reusable operations. Definitions preserve the live UUIDs. The TNAS deployment job uses the flat Git source paths while retaining its existing TNAS destination paths and SSH key reference. `Proxmox - Delete VM` accepts an exact VM name or numeric ID, refuses all VMs marked as templates, and immediately stops running guests with `qm stop` before purging their disks.
+The current HomeLab project has eleven versioned jobs: three workflows and eight reusable operations. Definitions preserve the live UUIDs. The TNAS deployment job uses the flat Git source paths while retaining its existing TNAS destination paths and SSH key reference. `Proxmox - Delete VM` accepts an exact VM name or numeric ID, refuses all VMs marked as templates, and immediately stops running guests with `qm stop` before purging their disks.
+
+`HomeLab - AI Host Power` accepts only `ai-agent` or `ai-worker` and `wake` or `sleep`. Wake sends a magic packet to the selected host's fixed MAC and verifies SSH becomes available. Sleep requires the Rundeck SSH identity on the selected host, checks that deep suspend-to-RAM is selected, requests `systemctl --no-block suspend`, and verifies SSH becomes unavailable. The AI-mgmnt VM can invoke this controlled job; it does not expose arbitrary host commands.
 
 The reusable Proxmox scripts remain deployed to `/opt/homelab-server-builds/scripts/` on TNAS; the guest baseline remains deployed to `/opt/homelab-server-builds/debian-baseline.sh`. Rundeck-side helper scripts run from the Rundeck checkout at `/opt/homelab-server-builds/Rundeck/scripts/`; job scriptfile paths point directly to files in that directory.
 

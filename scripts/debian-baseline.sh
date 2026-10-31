@@ -58,7 +58,13 @@ apt-get install -y \
     fail2ban \
     unattended-upgrades \
     openssh-server \
-    isc-dhcp-client
+    isc-dhcp-client \
+    vim-tiny
+
+log "Selecting vi as the system default editor."
+update-alternatives --set editor /usr/bin/vim.tiny
+[[ "$(readlink -f /usr/bin/editor)" == "/usr/bin/vim.tiny" ]] ||
+    fail "The system default editor is not set to vi."
 
 # Ensure the intended Cloud-Init account exists before hardening SSH.
 SSH_USER="${HOMELAB_SSH_USER:-ian}"
@@ -82,24 +88,36 @@ PasswordAuthentication no
 KbdInteractiveAuthentication no
 SSH
 
-# Add Rundeck user & SSH key
+# Add the Rundeck user and the public key injected by the template rebuild.
 if ! id rundeck >/dev/null 2>&1; then
-    log "Creating 'rundeck' user and SSH key."
-    install -d -m 0700 /tmp/rundeck-ssh
-    ssh-keygen -t ed25519 -f /tmp/rundeck-ssh/id_ed25519 -N '' -C 'rundeck@homelab'
-    install -m 0644 /tmp/rundeck-ssh/id_ed25519.pub /tmp/rundeck.pub
-    rm -rf /tmp/rundeck-ssh
+    [[ -s /tmp/rundeck.pub ]] ||
+        fail "Rundeck public key was not provided; refusing to create an inaccessible account."
+    ssh-keygen -lf /tmp/rundeck.pub >/dev/null ||
+        fail "The provided Rundeck public key is invalid."
+    log "Creating 'rundeck' user."
     useradd --create-home --shell /bin/bash rundeck
-    install -d -o rundeck -g rundeck -m 700 /home/rundeck/.ssh
-    install -o rundeck -g rundeck -m 600 \
-        /tmp/rundeck.pub /home/rundeck/.ssh/authorized_keys
-    rm /tmp/rundeck.pub
     printf 'rundeck ALL=(ALL) NOPASSWD: ALL\n' > /etc/sudoers.d/rundeck
     chmod 0440 /etc/sudoers.d/rundeck
     visudo -cf /etc/sudoers.d/rundeck
     mkdir -p /opt/homelab-server-builds/scripts
     chown -Rf rundeck:rundeck /opt/homelab-server-builds
-fi 
+fi
+
+install -d -o rundeck -g rundeck -m 0700 /home/rundeck/.ssh
+RUNDECK_AUTHORIZED_KEYS="/home/rundeck/.ssh/authorized_keys"
+if [[ -s /tmp/rundeck.pub ]]; then
+    ssh-keygen -lf /tmp/rundeck.pub >/dev/null ||
+        fail "The provided Rundeck public key is invalid."
+    if ! grep -Fxf /tmp/rundeck.pub "$RUNDECK_AUTHORIZED_KEYS" >/dev/null 2>&1; then
+        cat /tmp/rundeck.pub >> "$RUNDECK_AUTHORIZED_KEYS"
+    fi
+    rm /tmp/rundeck.pub
+fi
+[[ -s "$RUNDECK_AUTHORIZED_KEYS" ]] ||
+    fail "No Rundeck public key is installed for SSH access."
+chown rundeck:rundeck "$RUNDECK_AUTHORIZED_KEYS"
+chmod 0600 "$RUNDECK_AUTHORIZED_KEYS"
+
 /usr/sbin/sshd -t || fail "SSH configuration validation failed."
 
 SSH_EFFECTIVE="$(sshd -T)"
