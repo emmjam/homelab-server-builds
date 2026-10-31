@@ -41,9 +41,9 @@ find Rundeck/jobs Rundeck/pipelines -maxdepth 1 -type f -name '*.yaml' -print | 
 # cannot leave Rundeck with jobs removed but their replacements not loaded.
 while IFS= read -r file; do
   [ -n "$file" ] || continue
-  job_id=$(awk '/^[[:space:]]+id:/ { print $2; exit }' "$file" | tr -d "'\"")
-  job_uuid=$(awk '/^[[:space:]]+uuid:/ { print $2; exit }' "$file" | tr -d "'\"")
-  job_group=$(awk '/^[[:space:]]+group:/ { print $2; exit }' "$file" | tr -d "'\"")
+  job_id=$(awk '/^  id:/ { print $2; exit }' "$file" | tr -d "'\"")
+  job_uuid=$(awk '/^  uuid:/ { print $2; exit }' "$file" | tr -d "'\"")
+  job_group=$(awk '/^  group:/ { print $2; exit }' "$file" | tr -d "'\"")
   case "$job_group" in
     jobs|pipelines) ;;
     *) echo "ERROR: $file must assign its job to group 'jobs' or 'pipelines'." >&2; exit 1 ;;
