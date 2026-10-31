@@ -217,7 +217,7 @@ else
     log "IPv4 Address: Pending DHCP lease (check with: qm guest cmd ${VMID} network-get-interfaces)"
 fi
 
-# Install a recurring guest-side check after Cloud-Init has supplied the VM's
+# Install a boot-time guest-side check after Cloud-Init has supplied the VM's
 # final hostname. QEMU Guest Agent is already used above to read interfaces.
 log "Installing Pi-hole hostname registration cron job in VM ${VMID}..."
 CHECKER_PAYLOAD="$(base64 -w0 <<'CHECKER_SCRIPT'
@@ -233,14 +233,18 @@ log() {
     logger -t "$LOG_TAG" -- "$message" 2>/dev/null || true
 }
 hostname="$(hostname -s)"
-interface="$(ip -4 route show default | awk 'NR == 1 { for (i = 1; i <= NF; i++) if ($i == "dev") { print $(i + 1); exit } }')"
-if [[ -z "$hostname" || -z "$interface" ]]; then
-    log "ERROR: Could not determine hostname or active IPv4 default-route interface."
-    exit 1
-fi
-current_ip="$(ip -4 -o addr show dev "$interface" scope global | awk 'NR == 1 { sub(/\/.*/, "", $4); print $4 }')"
-if [[ -z "$current_ip" ]]; then
-    log "ERROR: No active IPv4 address found on ${interface}."
+interface=""
+current_ip=""
+for ((attempt = 1; attempt <= 120; attempt++)); do
+    interface="$(ip -4 route show default | awk 'NR == 1 { for (i = 1; i <= NF; i++) if ($i == "dev") { print $(i + 1); exit } }')"
+    if [[ -n "$interface" ]]; then
+        current_ip="$(ip -4 -o addr show dev "$interface" scope global | awk 'NR == 1 { sub(/\/.*/, "", $4); print $4 }')"
+        [[ -n "$current_ip" ]] && break
+    fi
+    sleep 1
+done
+if [[ -z "$hostname" || -z "$interface" || -z "$current_ip" ]]; then
+    log "ERROR: Hostname, active IPv4 interface, or address unavailable after waiting 120 seconds."
     exit 1
 fi
 registered_ip="$(dig +time=2 +tries=1 +short A "$hostname" @"$DNS_SERVER" | awk '/^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/ { print; exit }')"
@@ -266,13 +270,13 @@ log "ERROR: After DHCP renewal, ${hostname} resolves to '${registered_ip:-<missi
 exit 1
 CHECKER_SCRIPT
 )"
-guest_install="set -e; export DEBIAN_FRONTEND=noninteractive; apt-get update; apt-get install -y cron bind9-dnsutils isc-dhcp-client; printf '%s' '${CHECKER_PAYLOAD}' | base64 -d > /usr/local/sbin/homelab-hostname-registration; chmod 0755 /usr/local/sbin/homelab-hostname-registration; printf '%s\\n' '*/5 * * * * root /usr/local/sbin/homelab-hostname-registration' > /etc/cron.d/homelab-hostname-registration; chmod 0644 /etc/cron.d/homelab-hostname-registration; systemctl enable --now cron"
+guest_install="set -e; export DEBIAN_FRONTEND=noninteractive; apt-get update; apt-get install -y cron bind9-dnsutils isc-dhcp-client; printf '%s' '${CHECKER_PAYLOAD}' | base64 -d > /usr/local/sbin/homelab-hostname-registration; chmod 0755 /usr/local/sbin/homelab-hostname-registration; printf '%s\\n' '@reboot root /usr/local/sbin/homelab-hostname-registration' > /etc/cron.d/homelab-hostname-registration; chmod 0644 /etc/cron.d/homelab-hostname-registration; systemctl enable --now cron"
 guest_result="$(qm guest exec "$VMID" --synchronous 1 --timeout 0 -- /bin/bash -c "$guest_install" 2>&1)" ||
     fail "Could not install hostname-registration cron job in VM ${VMID}: ${guest_result}"
 if jq -e '.exitcode != 0' >/dev/null <<<"$guest_result"; then
     fail "Hostname-registration installation failed in VM ${VMID}: ${guest_result}"
 fi
-log "Installed hostname-registration check in VM ${VMID}; cron runs every 5 minutes."
+log "Installed hostname-registration check in VM ${VMID}; cron runs at reboot."
 
 log "Source template ${TEMPLATE_ID} preserved."
 log "=================================================="
