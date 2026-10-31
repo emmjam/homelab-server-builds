@@ -11,12 +11,14 @@
     name: github_token
     required: true
     secure: true
+    valueExposed: true
     storagePath: keys/project/HomeLab/github_read_token
     type: text
   - hidden: true
     name: rundeck_api_token
     required: true
     secure: true
+    valueExposed: true
     storagePath: keys/project/HomeLab/rundeck_api_token
     type: text
   plugins:
