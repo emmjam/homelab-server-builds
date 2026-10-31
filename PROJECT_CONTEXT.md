@@ -44,6 +44,12 @@ The longer-term architecture includes:
 
 The general principle is to automate repeatable infrastructure deployment through scripts and Rundeck rather than performing manual configuration.
 
+Local AI responsibilities are split across three machines: TNAS/Rufus manages and coordinates workloads; the HP/`ai-agent.lan` provides primary interactive inference; and the Dell/`ai-worker.lan` handles background agents, parallel processing and additional AI workloads. Keep management independent of inference so the compute machines can be started, stopped, maintained or reassigned without losing central coordination.
+
+## Separate media-library project: Bobarr and Plex
+
+Bobarr is intended to manage a self-hosted film and television media library, with that library feeding into Plex for media playback. Bobarr is a separate homelab project; it is not part of Rufus or the Rundeck automation infrastructure. The project reference is [Bobarr](https://github.com/iam4x/bobarr). Deployment choices and integrations beyond this relationship have not been finalised.
+
 # 3. Primary Infrastructure: TNAS
 
 ## Hardware
@@ -141,6 +147,12 @@ Future improvement: include the three highest CPU-consuming processes in high-te
 Pi-hole now provides DHCP and DNS.
 
 The Vodafone router provides Wi-Fi using the same SSID and password as previously configured.
+
+## Secure external media-library access
+
+Provide password-protected web access to the media directory through `emmjam.linkpc.net`. The proposed deployment uses a dedicated Debian VM, Nginx as the web server and reverse proxy, and Certbot to obtain and maintain HTTPS certificates. Nginx is also intended to reverse-proxy Bobarr.
+
+HTTPS and authentication are required for external access. Do not expose the media directory or Bobarr interface publicly without appropriate access controls. Exact VM details, proxy configuration, and authentication implementation remain undecided.
 
 ## Future DNS improvements
 
@@ -406,7 +418,7 @@ Ensure scripts provide visible, meaningful output and preserve exit status.
 
 ### Wake-on-LAN
 
-Enable persistent Wake-on-LAN on the HP ai-agent and Dell ai-worker. The controlled Rundeck job accepts an allowlisted host and wake/sleep action; the AI-mgmnt VM invokes the job after firmware support is confirmed.
+The controlled Rundeck job accepts an allowlisted host and wake/sleep action. Sleep and wake were tested successfully on both AI hosts. The AI-mgmnt VM can invoke the job; persistence across host reboots has not been verified.
 
 # 9. Physical Machines
 
@@ -415,15 +427,16 @@ Enable persistent Wake-on-LAN on the HP ai-agent and Dell ai-worker. The control
 | Component | Specification |
 |---|---|
 | CPU | Intel i5-6500T |
-| Cores | 4 |
-| RAM | Upgraded RAM; verify installed capacity |
+| Cores / threads | 4 / 4 |
+| RAM | Upgrade completed; capacity not recorded |
 | SSD | 120 GB |
+| DHCP/DNS hostname | `ai-agent.lan` |
 
 The BIOS issue was resolved and the RAM and SSD upgrades completed.
 
-**Role:** AI-agent host for ordinary questions and interactive conversations. It has primary priority because response time here directly affects the user experience.
+**Role:** Primary AI agent and local inference machine. It hosts the primary local AI model and handles interactive inference and conversational workloads for the homelab.
 
-The HP may run Proxmox and host the AI-agent environment in a VM. The AI-mgmnt VM hosted on TNAS remains the always-available controller; the HP is an inference worker, not the central AI-mgmnt system. The host should support suspend-to-RAM and Wake-on-LAN for on-demand availability.
+The host should support suspend-to-RAM and Wake-on-LAN for on-demand availability.
 
 ## Dell OptiPlex mini
 
@@ -432,11 +445,12 @@ The HP may run Proxmox and host the AI-agent environment in a VM. The AI-mgmnt V
 | CPU | Intel i3-4160T |
 | RAM | 8 GB |
 | Storage | 1.8 TB HDD |
-| Networking | Active interface `enp2s0`, Realtek `r8169` PCI driver; earlier notes listed a USB RTL8153 adapter |
+| Networking | Active interface `enp2s0` uses the Realtek `r8169` PCI driver |
+| DHCP/DNS hostname | `ai-worker.lan` |
 
-**Role:** AI-worker host for lightweight agents, background tasks, and parallel processing. It has secondary priority so background work does not compete with interactive conversations on the HP.
+**Role:** AI worker for background agents and tasks, parallel processing, and additional independent AI workloads. This keeps background processing separate from the HP's primary interactive workload.
 
-The host should support suspend-to-RAM and Wake-on-LAN for on-demand background work. The currently active interface `enp2s0` reports driver `r8169` and supports magic-packet WOL; confirm firmware wake behavior during suspend.
+The USB RTL8153 network adapter was trialled and removed. The active `enp2s0` interface supports magic-packet WOL; suspend and wake have been tested through Rundeck.
 
 ## Mac Pros
 
@@ -456,22 +470,21 @@ Do not assume it is available for unrelated workloads.
 
 # 10. Rufus: Local AI Management System
 
-The planned homelab AI management system is called:
+The local AI management system is called:
 
 **Rufus**
 
 The underlying VM/service name may remain `AI-mgmnt`.
 
-Rufus is intended to be the conversational management interface for the homelab.
+Rufus runs on TNAS as the central AI management and orchestration system. It is intended to remain available as the coordinator. Keep management and orchestration separate from inference; TNAS is not the primary interactive inference machine.
 
-It should eventually be able to:
+Rufus coordinates the AI environment across the HP and Dell. It determines where workloads should run and can move routine work to the Dell when the HP is busy. Its intended capabilities include:
 
 - Understand the homelab architecture.
 - Query infrastructure information.
-- Interact with Rundeck.
-- Create and provision VMs.
-- Run approved maintenance operations.
-- Wake additional machines.
+- Use Rundeck jobs, pipelines and other operations available through its API for infrastructure and VM management. Presence in Rundeck is the approval boundary.
+- Coordinate work across the AI agent and worker rather than assuming all work runs locally.
+- Start, stop, maintain or reassign compute workloads without losing central orchestration.
 - Monitor infrastructure health.
 - Coordinate local AI workloads.
 - Use external AI services when available.
@@ -489,26 +502,22 @@ The intended arrangement is:
 
 ## Model management
 
-Only one AI model/AI VM should run at a time on each physical device.
-
-Separate AI VMs should be available but stopped by default.
+Only one AI model/AI VM should run at a time on each compute machine.
 
 Initial planned models:
 
 - Qwen 3 4B.
 - Gemma.
 
-The AI-mgmnt VM hosted on TNAS is the always-available central controller. It coordinates inference placement and can move routine work to the Dell when the HP is busy.
+Machine responsibilities:
 
-Inference allocation:
-
-| Machine | Role | Priority |
+| Machine | Logical role | Responsibility |
 |---|---|---|
-| HP EliteDesk (ai-agent) | Ordinary questions and interactive conversations | Primary |
-| Dell OptiPlex (ai-worker) | Lightweight agents, background tasks, and parallel processing | Secondary |
-| TNAS | Larger models on demand | Specialist |
+| TNAS / Rufus (`AI-mgmnt`) | Management and orchestration | Always-available coordination and workload placement; not primary interactive inference |
+| HP EliteDesk (`ai-agent.lan`) | Primary AI agent | Primary local model, interactive inference, and conversational workloads |
+| Dell OptiPlex (`ai-worker.lan`) | AI worker | Background agents, parallel processing, and additional independent AI workloads |
 
-Only one model should run at a time on each physical device. Separate AI VMs remain stopped by default; the AI-mgmnt VM hosted on TNAS remains the central controller, not an inference worker by default.
+Separate AI VMs should be available but remain stopped by default. The deployment mode for the HP and Dell (bare-metal Linux, Proxmox, or AI workloads in VMs) has not been decided; do not assume one.
 
 AI-mgmnt/Rufus must remain a dedicated AI management system, not be combined with Rundeck.
 
@@ -535,29 +544,23 @@ The following items represent known work or future improvements. They are not ne
 ## High priority
 
 1. Verify and consolidate the Debian provisioning scripts.
-2. Ensure VM provisioning accepts CPU, RAM, disk and identity parameters.
-3. Implement conditional DHCP hostname registration at client boot.
-4. Standardise Rundeck-to-TNAS privileged script execution.
-5. Store Rundeck job definitions in GitHub.
-6. Fix Rundeck execution output and logging.
-7. Complete the Rufus deployment on the HP EliteDesk.
+2. Complete the AI interface, agent and worker nodes deployment.
 
 ## Medium priority
 
-8. Enable suspend-to-RAM and persistent Wake-on-LAN on the HP ai-agent and Dell ai-worker, then verify controlled requests through the HomeLab - AI Host Power Rundeck job.
-9. Improve Pi-hole DNS with Unbound and DNSSEC.
-10. Improve DHCP management usability.
-11. Implement the PXE infrastructure.
-12. Improve TNAS temperature logging.
+3. Improve Pi-hole DNS with Unbound and DNSSEC.
+4. Improve DHCP management usability.
+5. Implement the PXE infrastructure.
+6. Improve TNAS temperature logging.
 
 ## Longer term
 
-13. Implement a Debian gateway.
-14. Investigate standby gateway HA/failover.
-15. Implement a separate NordVPN/Squid proxy VM.
-16. Develop the hybrid online/local AI architecture.
-17. Integrate Rufus with infrastructure monitoring and automation.
-18. Expand distributed AI computing across available machines.
+7. Implement a Debian gateway.
+8. Investigate standby gateway HA/failover.
+9. Implement a separate NordVPN/Squid proxy VM.
+10. Develop the hybrid online/local AI architecture.
+11. Integrate Rufus with infrastructure monitoring and automation.
+12. Expand distributed AI computing across available machines.
 
 # 13. Networking and Security Principles
 
@@ -602,7 +605,7 @@ The user has several explicit preferences that should guide all development.
 - Rundeck is the automation execution layer.
 - Proxmox is the virtualisation layer.
 - TNAS is the primary infrastructure host.
-- Rufus is the future conversational AI management layer.
+- Rufus on TNAS is the central AI management and orchestration layer; the HP and Dell provide inference capacity in their agreed agent and worker roles.
 
 Do not combine these responsibilities unnecessarily.
 

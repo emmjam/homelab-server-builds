@@ -1,6 +1,6 @@
 # Rundeck Automation
 
-This directory holds the Rundeck job definitions and scripts managed through Git. Rundeck remains the controlled execution service; Rufus should discover and invoke only the documented pipeline jobs through the Rundeck API.
+This directory holds the Rundeck job definitions and scripts managed through Git. Rundeck remains the controlled execution service. Rufus can discover and invoke any job, pipeline, or other operation made available through the Rundeck API; presence in Rundeck is the approval boundary.
 
 ## Directory and job groups
 
@@ -30,7 +30,7 @@ The importer uses Rundeck's [job import API](https://docs.rundeck.com/docs/api/#
 
 ## Rufus integration
 
-Rufus should use a narrowly scoped Rundeck API token and invoke approved workflows by UUID. It can discover pipeline descriptions and required options through Rundeck's project/job APIs, submit only those validated options, poll execution status, and retrieve execution logs. Keep API credentials in Rundeck Key Storage or another secret store; never put them in job YAML or scripts. Do not expose arbitrary shell execution or an unrestricted run-script endpoint to Rufus.
+Rufus should use a narrowly scoped Rundeck API token to invoke any available jobs, pipelines, or other controlled Rundeck operations. It can discover operation descriptions and required options through Rundeck's project/job APIs, submit valid options, poll execution status, and retrieve execution logs. The presence of an operation in Rundeck is the approval boundary. Keep API credentials in Rundeck Key Storage or another secret store; never put credentials in job YAML or scripts. Keep Rufus actions mediated by Rundeck rather than exposing a separate arbitrary shell or unrestricted run-script endpoint.
 
 ## TNAS execution and privilege boundary
 
