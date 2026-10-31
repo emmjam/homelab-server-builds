@@ -278,6 +278,24 @@ if jq -e '.exitcode != 0' >/dev/null <<<"$guest_result"; then
 fi
 log "Installed hostname-registration check in VM ${VMID}; cron runs at reboot."
 
+# The VM is already booted by the time provisioning installs the cron file.
+# Reboot once so cron sees and runs the new @reboot entry.
+log "Rebooting VM ${VMID} to run hostname registration at boot."
+qm reboot "$VMID" --timeout 120
+
+log "Waiting for VM ${VMID} QEMU Guest Agent after reboot..."
+GUEST_AGENT_READY=0
+for ((i=1; i<=60; i++)); do
+    if qm agent "$VMID" ping >/dev/null 2>&1; then
+        GUEST_AGENT_READY=1
+        break
+    fi
+    sleep 2
+done
+(( GUEST_AGENT_READY == 1 )) ||
+    fail "QEMU Guest Agent did not return after rebooting VM ${VMID}."
+log "VM ${VMID} rebooted and QEMU Guest Agent is responsive."
+
 log "Source template ${TEMPLATE_ID} preserved."
 log "=================================================="
 
