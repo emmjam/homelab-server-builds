@@ -45,6 +45,10 @@ SSH_OPTIONS=(
     -o BatchMode=yes
     -o ConnectTimeout="$SSH_CONNECT_TIMEOUT"
     -o ConnectionAttempts=1
+    -o StrictHostKeyChecking=no
+    -o UserKnownHostsFile=/dev/null
+    -o GlobalKnownHostsFile=/dev/null
+    -o LogLevel=ERROR
     -o ServerAliveInterval=1
     -o ServerAliveCountMax=2
 )
