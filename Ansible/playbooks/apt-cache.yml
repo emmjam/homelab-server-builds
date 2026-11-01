@@ -1,0 +1,59 @@
+---
+- name: Install and configure the homelab APT cache
+  hosts: apt_cache
+  become: true
+  gather_facts: true
+  pre_tasks:
+    - name: Require Debian 13
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.distribution == 'Debian'
+          - ansible_facts.distribution_major_version == '13'
+
+    - name: Use direct repositories on the cache server
+      ansible.builtin.copy:
+        dest: /etc/apt/apt.conf.d/02homelab-proxy
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          Acquire::http::Proxy "DIRECT";
+          Acquire::https::Proxy "DIRECT";
+
+  tasks:
+    - name: Install apt-cacher-ng
+      ansible.builtin.apt:
+        name: apt-cacher-ng
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Configure cache listener
+      ansible.builtin.blockinfile:
+        path: /etc/apt-cacher-ng/acng.conf
+        marker: '# {mark} ANSIBLE MANAGED HOMELAB CACHE'
+        block: |
+          Port: 3142
+          BindAddress: 0.0.0.0
+      notify: Restart APT cache
+
+    - name: Enable and start APT cache
+      ansible.builtin.systemd_service:
+        name: apt-cacher-ng
+        enabled: true
+        state: started
+
+    - name: Apply pending cache configuration
+      ansible.builtin.meta: flush_handlers
+
+    - name: Verify cache listener
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: 3142
+        timeout: 15
+
+  handlers:
+    - name: Restart APT cache
+      ansible.builtin.systemd_service:
+        name: apt-cacher-ng
+        state: restarted
