@@ -1,5 +1,5 @@
 - defaultTab: nodes
-  description: ''
+  description: Refresh the Git checkout, deploy build scripts to TNAS, then rebuild the Debian VM template.
   executionEnabled: true
   id: f6b047ce-60fa-4f8b-8b80-aa1b76515a4c
   loglevel: INFO
@@ -7,28 +7,28 @@
   nodeFilterEditable: false
   plugins:
     ExecutionLifecycle: {}
-  scheduleEnabled: true
+  scheduleEnabled: false
   sequence:
     commands:
     - description: Job reference
       jobref:
         group: jobs
         name: HomeLab - Update GitHub Checkout
-        nodeStep: 'true'
+        nodeStep: false
         project: HomeLab
         uuid: 310dfa4f-e27f-4945-be6a-7380ef75e586
     - description: Job reference
       jobref:
         group: jobs
         name: HomeLab - Deploy Build Scripts to TNAS
-        nodeStep: 'true'
+        nodeStep: false
         project: HomeLab
         uuid: 51192072-1984-48dd-9fe8-88d78c339b31
     - description: Job reference
       jobref:
         group: jobs
         name: Rebuild Debian Template
-        nodeStep: 'true'
+        nodeStep: false
         project: HomeLab
         uuid: f7e14266-54df-4e43-9de8-41bedf124c34
     keepgoing: false

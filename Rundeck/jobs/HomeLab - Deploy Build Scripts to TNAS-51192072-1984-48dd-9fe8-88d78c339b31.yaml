@@ -1,5 +1,5 @@
 - defaultTab: nodes
-  description: ''
+  description: Deploy the build scripts from the Rundeck checkout to their configured locations on TNAS.
   executionEnabled: true
   group: jobs
   id: 51192072-1984-48dd-9fe8-88d78c339b31

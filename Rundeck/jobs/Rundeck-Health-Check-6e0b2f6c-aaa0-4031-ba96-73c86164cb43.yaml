@@ -1,5 +1,5 @@
 - defaultTab: nodes
-  description: Test job
+  description: Report the target node hostname, Debian version, uptime, and root filesystem usage.
   executionEnabled: true
   group: jobs
   id: 6e0b2f6c-aaa0-4031-ba96-73c86164cb43

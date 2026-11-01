@@ -1,0 +1,158 @@
+Rundeck Jobs: Manual curl runs
+==============================
+
+
+
+HomeLab - AI Host Power
+=======================
+
+Project: HomeLab
+Job ID: 7d9a3328-c8df-4e31-bbf6-49a6d9ce5a11
+
+Required options: vmname (ai-agent or ai-worker) and action (wake or sleep). Sleep suspends the selected host.
+
+# Set these in your shell before running the curl command.
+RUNDECK_URL="${RUNDECK_URL:-http://192.168.0.51:4440}"
+RUNDECK_TOKEN="${RUNDECK_TOKEN:?Set RUNDECK_TOKEN to a Rundeck API token}"
+API_VERSION="${API_VERSION:-50}"
+
+curl --fail-with-body --silent --show-error \
+  -X POST "$RUNDECK_URL/api/$API_VERSION/job/7d9a3328-c8df-4e31-bbf6-49a6d9ce5a11/run" \
+  -H "X-Rundeck-Auth-Token: $RUNDECK_TOKEN" \
+  -H 'Accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{"options":{"vmname":"ai-agent","action":"wake"}}'
+
+The response includes the execution ID and execution URL. Save the execution ID to poll status or retrieve logs through the Rundeck execution API.
+
+HomeLab - Deploy Build Scripts to TNAS
+======================================
+
+Project: HomeLab
+Job ID: 51192072-1984-48dd-9fe8-88d78c339b31
+
+No run options are required.
+
+# Set these in your shell before running the curl command.
+RUNDECK_URL="${RUNDECK_URL:-http://192.168.0.51:4440}"
+RUNDECK_TOKEN="${RUNDECK_TOKEN:?Set RUNDECK_TOKEN to a Rundeck API token}"
+API_VERSION="${API_VERSION:-50}"
+
+curl --fail-with-body --silent --show-error \
+  -X POST "$RUNDECK_URL/api/$API_VERSION/job/51192072-1984-48dd-9fe8-88d78c339b31/run" \
+  -H "X-Rundeck-Auth-Token: $RUNDECK_TOKEN" \
+  -H 'Accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{}'
+
+The response includes the execution ID and execution URL. Save the execution ID to poll status or retrieve logs through the Rundeck execution API.
+
+HomeLab - Update GitHub Checkout
+================================
+
+Project: HomeLab
+Job ID: 310dfa4f-e27f-4945-be6a-7380ef75e586
+
+No run options are required. GitHub and Rundeck API credentials are read from Rundeck Key Storage.
+
+# Set these in your shell before running the curl command.
+RUNDECK_URL="${RUNDECK_URL:-http://192.168.0.51:4440}"
+RUNDECK_TOKEN="${RUNDECK_TOKEN:?Set RUNDECK_TOKEN to a Rundeck API token}"
+API_VERSION="${API_VERSION:-50}"
+
+curl --fail-with-body --silent --show-error \
+  -X POST "$RUNDECK_URL/api/$API_VERSION/job/310dfa4f-e27f-4945-be6a-7380ef75e586/run" \
+  -H "X-Rundeck-Auth-Token: $RUNDECK_TOKEN" \
+  -H 'Accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{}'
+
+The response includes the execution ID and execution URL. Save the execution ID to poll status or retrieve logs through the Rundeck execution API.
+
+Proxmox - Clone VM
+==================
+
+Project: HomeLab
+Job ID: 5c7a2428-7407-43cd-90ff-886e5f5447dd
+
+Required options: vmname, cores, memory (GB), and disk (GB). Proxmox assigns the VM ID.
+
+# Set these in your shell before running the curl command.
+RUNDECK_URL="${RUNDECK_URL:-http://192.168.0.51:4440}"
+RUNDECK_TOKEN="${RUNDECK_TOKEN:?Set RUNDECK_TOKEN to a Rundeck API token}"
+API_VERSION="${API_VERSION:-50}"
+
+curl --fail-with-body --silent --show-error \
+  -X POST "$RUNDECK_URL/api/$API_VERSION/job/5c7a2428-7407-43cd-90ff-886e5f5447dd/run" \
+  -H "X-Rundeck-Auth-Token: $RUNDECK_TOKEN" \
+  -H 'Accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{"options":{"vmname":"dhcptest","cores":"6","memory":"8","disk":"20"}}'
+
+The response includes the execution ID and execution URL. Save the execution ID to poll status or retrieve logs through the Rundeck execution API.
+
+Proxmox - Delete VM
+===================
+
+Project: HomeLab
+Job ID: 4eb507e0-9514-4cf2-babc-347df5faf73c
+
+Required option: target, the exact VM name or numeric VM ID. Template VMs are protected; running VMs are stopped before deletion.
+
+# Set these in your shell before running the curl command.
+RUNDECK_URL="${RUNDECK_URL:-http://192.168.0.51:4440}"
+RUNDECK_TOKEN="${RUNDECK_TOKEN:?Set RUNDECK_TOKEN to a Rundeck API token}"
+API_VERSION="${API_VERSION:-50}"
+
+curl --fail-with-body --silent --show-error \
+  -X POST "$RUNDECK_URL/api/$API_VERSION/job/4eb507e0-9514-4cf2-babc-347df5faf73c/run" \
+  -H "X-Rundeck-Auth-Token: $RUNDECK_TOKEN" \
+  -H 'Accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{"options":{"target":"dhcptest"}}'
+
+The response includes the execution ID and execution URL. Save the execution ID to poll status or retrieve logs through the Rundeck execution API.
+
+Rebuild Debian Template
+=======================
+
+Project: HomeLab
+Job ID: f7e14266-54df-4e43-9de8-41bedf124c34
+
+No run options are required.
+
+# Set these in your shell before running the curl command.
+RUNDECK_URL="${RUNDECK_URL:-http://192.168.0.51:4440}"
+RUNDECK_TOKEN="${RUNDECK_TOKEN:?Set RUNDECK_TOKEN to a Rundeck API token}"
+API_VERSION="${API_VERSION:-50}"
+
+curl --fail-with-body --silent --show-error \
+  -X POST "$RUNDECK_URL/api/$API_VERSION/job/f7e14266-54df-4e43-9de8-41bedf124c34/run" \
+  -H "X-Rundeck-Auth-Token: $RUNDECK_TOKEN" \
+  -H 'Accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{}'
+
+The response includes the execution ID and execution URL. Save the execution ID to poll status or retrieve logs through the Rundeck execution API.
+
+Rundeck-Health-Check
+====================
+
+Project: HomeLab
+Job ID: 6e0b2f6c-aaa0-4031-ba96-73c86164cb43
+
+No run options are required.
+
+# Set these in your shell before running the curl command.
+RUNDECK_URL="${RUNDECK_URL:-http://192.168.0.51:4440}"
+RUNDECK_TOKEN="${RUNDECK_TOKEN:?Set RUNDECK_TOKEN to a Rundeck API token}"
+API_VERSION="${API_VERSION:-50}"
+
+curl --fail-with-body --silent --show-error \
+  -X POST "$RUNDECK_URL/api/$API_VERSION/job/6e0b2f6c-aaa0-4031-ba96-73c86164cb43/run" \
+  -H "X-Rundeck-Auth-Token: $RUNDECK_TOKEN" \
+  -H 'Accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{}'
+
+The response includes the execution ID and execution URL. Save the execution ID to poll status or retrieve logs through the Rundeck execution API.

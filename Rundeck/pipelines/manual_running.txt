@@ -1,0 +1,72 @@
+Rundeck Pipelines: Manual curl runs
+===================================
+
+Proxmox - Manage VM
+===================
+
+Project: HomeLab
+Job ID: 769ed228-0054-4a3a-bee5-c110af96ff48
+
+Choose action `create` or `delete`. For `create`, provide vmname, cores, memory (GB), and disk (GB); the pipeline refreshes the Git checkout, deploys scripts to TNAS, then runs Proxmox - Clone VM. For `delete`, provide target as the exact VM name or numeric ID; the pipeline runs Proxmox - Delete VM. Template VMs are protected.
+
+# Set these in your shell before running either curl command.
+RUNDECK_URL="${RUNDECK_URL:-http://192.168.0.51:4440}"
+RUNDECK_TOKEN="${RUNDECK_TOKEN:?Set RUNDECK_TOKEN to a Rundeck API token}"
+API_VERSION="${API_VERSION:-50}"
+
+curl --fail-with-body --silent --show-error \
+  -X POST "$RUNDECK_URL/api/$API_VERSION/job/769ed228-0054-4a3a-bee5-c110af96ff48/run" \
+  -H "X-Rundeck-Auth-Token: $RUNDECK_TOKEN" \
+  -H 'Accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{"options":{"action":"create","vmname":"dhcptest","cores":"6","memory":"8","disk":"20"}}'
+
+Delete example (use either the exact VM name or numeric ID):
+
+curl --fail-with-body --silent --show-error \
+  -X POST "$RUNDECK_URL/api/$API_VERSION/job/769ed228-0054-4a3a-bee5-c110af96ff48/run" \
+  -H "X-Rundeck-Auth-Token: $RUNDECK_TOKEN" \
+  -H 'Accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{"options":{"action":"delete","target":"dhcptest"}}'
+
+The response includes the execution ID and execution URL. Save the execution ID to poll status or retrieve logs through the Rundeck execution API.
+
+Rebuild Debian Template Pipeline
+================================
+
+Project: HomeLab
+Job ID: f6b047ce-60fa-4f8b-8b80-aa1b76515a4c
+
+No run options are required. Refreshes the checkout and deploys scripts before rebuilding the template.
+
+# Set these in your shell before running the curl command.
+RUNDECK_URL="${RUNDECK_URL:-http://192.168.0.51:4440}"
+RUNDECK_TOKEN="${RUNDECK_TOKEN:?Set RUNDECK_TOKEN to a Rundeck API token}"
+API_VERSION="${API_VERSION:-50}"
+
+curl --fail-with-body --silent --show-error \
+  -X POST "$RUNDECK_URL/api/$API_VERSION/job/f6b047ce-60fa-4f8b-8b80-aa1b76515a4c/run" \
+  -H "X-Rundeck-Auth-Token: $RUNDECK_TOKEN" \
+  -H 'Accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{}'
+
+The response includes the execution ID and execution URL. Save the execution ID to poll status or retrieve logs through the Rundeck execution API.
+
+Sync Scripts to TNAS Pipeline
+=============================
+
+Project: HomeLab
+Job ID: 8b62ccfd-f2b8-4493-8fd1-d04a55671625
+
+No run options are required. Refreshes the checkout, then deploys the build scripts to TNAS.
+
+curl --fail-with-body --silent --show-error \
+  -X POST "$RUNDECK_URL/api/$API_VERSION/job/8b62ccfd-f2b8-4493-8fd1-d04a55671625/run" \
+  -H "X-Rundeck-Auth-Token: $RUNDECK_TOKEN" \
+  -H 'Accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{}'
+
+The response includes the execution ID and execution URL. Save the execution ID to poll status or retrieve logs through the Rundeck execution API.

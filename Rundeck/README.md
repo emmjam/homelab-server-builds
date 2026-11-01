@@ -26,6 +26,8 @@ The `HomeLab - Update GitHub Checkout` job pulls `main`, imports every YAML defi
 
 The refresh job needs the GitHub read token and a Rundeck API token in HomeLab Key Storage. The API token must have permission to import and delete jobs in the HomeLab project. Store it at `keys/project/HomeLab/rundeck_api_token`; do not place credentials in Git. All managed job YAML files must use matching `id` and `uuid` values and belong to the `jobs` or `pipelines` group. Both directories must remain present so the refresh can distinguish an intentionally empty job set from a missing checkout layout.
 
+The `Proxmox - Manage VM` pipeline uses Conditional Logic, which is generally available and enabled by default in Rundeck 6.3.0. The feature was early access behind `rundeck.feature.earlyAccessJobConditional.enabled=true` in 5.20 through 6.2. Conditional Logic is documented as a Runbook Automation commercial feature; confirm your edition includes it. It can be explicitly disabled with `rundeck.feature.earlyAccessJobConditional.enabled=false`.
+
 The importer uses Rundeck's [job import API](https://docs.rundeck.com/docs/api/#importing-jobs) with UUID preservation and update behavior. Review YAML changes in Git before merging them to `main`, because deleting a definition now deletes its corresponding live job on the next refresh.
 
 ## Rufus integration
