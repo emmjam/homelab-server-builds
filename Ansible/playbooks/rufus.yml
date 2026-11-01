@@ -53,7 +53,7 @@
         group: root
         mode: "0644"
         content: |
-          Acquire::http::Proxy "http://192.168.0.101:3142";
+          Acquire::http::Proxy "http://apt-cache:3142";
           Acquire::https::Proxy "DIRECT";
 
     - name: Update APT cache

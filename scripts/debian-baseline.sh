@@ -35,7 +35,7 @@ if [[ -f /etc/apt/mirrors/debian-security.list ]]; then
 fi
 
 cat > /etc/apt/apt.conf.d/02proxy <<'EOF'
-Acquire::http::Proxy "http://192.168.0.101:3142";
+Acquire::http::Proxy "http://apt-cache:3142";
 EOF
 
 cat > /etc/apt/apt.conf.d/03https-direct <<'EOF'

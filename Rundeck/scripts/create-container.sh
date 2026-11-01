@@ -117,7 +117,7 @@ pct exec "$CTID" -- bash -ec '
     test -s /etc/machine-id
     test -s /etc/ssh/ssh_host_ed25519_key
     test -z "$(dpkg --audit)"
-    apt-config dump | grep -Fx '\''Acquire::http::Proxy "http://192.168.0.101:3142";'\''
+    apt-config dump | grep -Fx '\''Acquire::http::Proxy "http://apt-cache:3142";'\''
     apt-config dump | grep -Fx '\''Acquire::https::Proxy "DIRECT";'\''
 '
 CREATED=0

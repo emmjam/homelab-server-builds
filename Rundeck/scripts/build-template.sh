@@ -162,7 +162,7 @@ case $MODE in
             sleep 2
         done
         pct exec "$CANDIDATE" -- bash -ec '
-            printf "%s\n" '\''Acquire::http::Proxy "http://192.168.0.101:3142";'\'' '\''Acquire::https::Proxy "DIRECT";'\'' > /etc/apt/apt.conf.d/02homelab-proxy
+            printf "%s\n" '\''Acquire::http::Proxy "http://apt-cache:3142";'\'' '\''Acquire::https::Proxy "DIRECT";'\'' > /etc/apt/apt.conf.d/02homelab-proxy
             export DEBIAN_FRONTEND=noninteractive
             apt-get update
             apt-get install -y python3
@@ -183,7 +183,7 @@ pct exec "$CANDIDATE" -- bash -ec '
     . /etc/os-release; test "$ID:$VERSION_ID" = debian:13
     test -z "$(dpkg --audit)"
     apt-get check
-    apt-config dump | grep -Fx '\''Acquire::http::Proxy "http://192.168.0.101:3142";'\''
+    apt-config dump | grep -Fx '\''Acquire::http::Proxy "http://apt-cache:3142";'\''
     apt-config dump | grep -Fx '\''Acquire::https::Proxy "DIRECT";'\''
     systemctl is-enabled homelab-lxc-identity.service apt-daily.timer apt-daily-upgrade.timer
     sshd -T | grep -Fx "passwordauthentication no"
