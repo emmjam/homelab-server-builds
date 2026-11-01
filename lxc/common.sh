@@ -13,7 +13,7 @@ safe_name() { [[ $2 =~ ^[a-zA-Z0-9][a-zA-Z0-9_-]{0,62}$ ]] || fail "Invalid $1: 
 protected() { case "$1" in 110) return 0;; esac; return 1; }
 root_and_lock() {
     [[ $EUID == 0 ]] || fail 'Run as root on Proxmox'
-    # Never load Ansible configuration from the caller-owned working directory.
+    # Resolve subsequent operations from the transferred repository tree.
     cd -- "$BASE/..";
     for cmd in pct pvesh pvesm jq flock timeout python3; do
         command -v "$cmd" >/dev/null || fail "Missing command: $cmd"

@@ -19,15 +19,16 @@ build defaults, checked again at execution. `vmbr0` was verified through SSH.
 
 ## Installation and Rundeck
 
-The administrator must install `ansible-core` on TNAS. Other dependencies are
+`ansible-core` runs on the Rundeck host. TNAS does not need Ansible; it requires
 Proxmox's `pct`, `pvesh`, `pveam`, `pvesm`, plus Python 3, jq, flock and coreutils.
-The custom Ansible `pct` connection runs on TNAS and requires no SSH or Ansible
-installation in the container; Python 3 is bootstrapped there.
+The custom `pct` connection runs on Rundeck, using its existing SSH key and the
+sudo build entry point on TNAS to reach only the active temporary build guest.
+Python 3 is bootstrapped inside that guest. No Ansible runtime is installed there.
 
 Each Rundeck job refreshes the Git checkout using the existing refresh job,
-then transfers the LXC scripts, baseline role, playbook, configuration and transport
-to `/opt/homelab-server-builds` on TNAS. Relative paths match Git, with entry points
-under `lxc/` and configuration under `Ansible/`. Transferred files are verified
+then transfers the LXC scripts to `/opt/homelab-server-builds/lxc` on TNAS.
+The Ansible role, playbook, configuration and transport stay in Rundeck's Git
+checkout. Transferred files are verified
 against checksums calculated from the current Rundeck checkout before execution.
 There is no separate installation or manual code update step.
 
@@ -51,12 +52,13 @@ Rundeck service account after refreshing the checkout. This runs no Proxmox oper
 
 ```sh
 sudo /opt/homelab-server-builds/lxc/build-template.sh --inspect
-sudo /opt/homelab-server-builds/lxc/build-template.sh --template-id 9100 --storage local-zfs --image-storage local --bridge vmbr0
+# On the Rundeck host, as the Rundeck service account after Git refresh:
+/opt/homelab-server-builds/Rundeck/scripts/invoke-lxc.sh build
 ```
 
 The builder selects the newest official Debian 13 standard amd64 image from
 `pveam`, downloads it and creates an unprivileged candidate using a live free ID.
-It applies the role twice, rejects non-idempotence, validates OS/APT/services,
+Rundeck then applies the role twice and rejects non-idempotence. TNAS validates OS/APT/services,
 network/DNS and the SSH banner, and cleans keys, machine ID, DHCP leases, logs and
 random seed before shutdown. Systemd regenerates machine identity; an enabled
 unit generates SSH keys before SSH on each boot (existing keys are retained).
@@ -67,7 +69,11 @@ first full-clones the old template into a new free backup ID. Backups are retain
 and logged; they are never automatically pruned. If publication fails after old-ID
 removal, the working backup survives at its logged ID. Inspect the failed target
 before retrying; there is intentionally no blind destroy/rollback of unknown state.
-The owned candidate is removed on failure or completion. Proxmox storage failures
+The owned candidate is removed on failure or completion. Root-created state under
+`/run/homelab-lxc-build.state` identifies the active guest and its unique ownership
+tag. Ansible transport calls must match both. The dispatcher invokes `--abort ID`
+if Ansible fails. A disconnected controller may leave the guest for recovery;
+inspect the logged candidate ID and use the same abort operation before retrying. Proxmox storage failures
 may still require operator recovery; cleanup failures are logged. Downloaded official
 images remain cached for reuse. A local flock serializes this project's LXC jobs;
 Proxmox validates IDs atomically against other administrators' concurrent operations.
@@ -140,18 +146,19 @@ Git-managed jobs:
 | Proxmox - Delete LXC Container | `52b08d85-d1fc-48c6-8bbd-04a69db365aa` |
 
 Use these jobs directly: they expose validated options and invoke the shared
-`Rundeck/scripts/invoke-lxc.sh` dispatcher. Each refreshes Git, transfers the required LXC files to TNAS, verifies their
-checksums, then executes the requested operation through sudo.
+`Rundeck/scripts/invoke-lxc.sh` dispatcher. Each refreshes Git, transfers the required LXC scripts to TNAS, verifies their
+checksums, then executes the requested operation through sudo. For template builds,
+Rundeck runs the Ansible role between TNAS prepare and complete phases.
 
 ## Validation record (1 November 2026)
 
 - Stage 1: five offline state-machine tests passed before lifecycle implementation.
-- Combined: fifteen offline tests cover template builds, retained backups, malformed
+- Combined: twenty-two offline tests cover template builds, retained backups, malformed
   parameters, MAC/resource settings, clone cleanup, confirmation, templates,
   protected containers and clean shutdown failures.
 - Ansible syntax check and ansible-lint passed. The custom transport also passed
   actual Ansible ping/module execution and file-copy tests using an isolated fake
-  pct executable under `/tmp`; no guest or host baseline was changed by that test.
+  SSH endpoint under `/tmp`; no guest or host baseline was changed by that test.
 - ShellCheck passed for new LXC scripts and the dispatcher. Bash syntax passed
   for every existing shell script as well as the new scripts. Existing VM files
   are unchanged. Existing VM baseline ShellCheck reports its pre-existing unused
@@ -163,10 +170,13 @@ checksums, then executes the requested operation through sudo.
   subsequently removed; jobs now transfer into the established TNAS checkout.
 - Live template, clone, identity uniqueness, SSH login, deletion and VM functional
   regression tests remain pending sudoers setup. No production
-  container or VM was changed during these checks.
+  Proxmox VM or container configuration was changed during these checks. The
+  Ansible runtime was installed on Rundeck for controller execution.
 
 CLI flags were checked against the upstream [Proxmox pct reference](https://github.com/proxmox/pve-docs/blob/master/generated/pct.1-synopsis.adoc).
 
-The deployment-pattern revision adds four dispatcher tests: transfer-only operation,
+The deployment-pattern revision adds five dispatcher tests: transfer-only operation,
 verification before execution, rejection of corrupted transfers, and rejection of
-unknown actions. Transfer-only mode excludes unrelated playbooks, including Rufus.
+unknown actions, plus aborting the prepared candidate after Ansible failure.
+Two additional tests reject transport access to production IDs and guests without
+the active ownership tag. Transfer-only mode excludes unrelated playbooks, including Rufus.

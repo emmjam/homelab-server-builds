@@ -3,49 +3,26 @@ set -Eeuo pipefail
 BASE=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck source=lxc/common.sh
 source "$BASE/common.sh"
-TEMPLATE_ID=9100
-STORAGE=local-zfs
-IMAGE_STORAGE=local
-BRIDGE=vmbr0
-CANDIDATE=''
-BACKUP=''
-OWNED=0
-PROMOTING=0
-TEMP=''
-usage() { echo "Usage: $0 [--template-id ID] [--storage NAME] [--image-storage NAME] [--bridge NAME] [--inspect]"; }
-while (($#)); do
-    case $1 in
-        --help|-h) usage; exit 0;;
-        --inspect)
-            (($# == 1)) || fail '--inspect must be used alone'
-            root_and_lock
-            resources
-            pvesh get "/nodes/$(hostname)/storage" --output-format json
-            pveam available --section system
-            exit 0;;
-        --template-id|--storage|--image-storage|--bridge)
-            (($# >= 2)) || fail "Missing value for $1"
-            case $1 in
-                --template-id) TEMPLATE_ID=$2;; --storage) STORAGE=$2;;
-                --image-storage) IMAGE_STORAGE=$2;; --bridge) BRIDGE=$2;;
-            esac
-            shift 2;;
-        *) fail "Unknown option $1";;
-    esac
-done
-id "$TEMPLATE_ID"
-protected "$TEMPLATE_ID" && fail 'Protected template ID'
-root_and_lock
-for cmd in pveam ansible-playbook; do command -v "$cmd" >/dev/null || fail "Missing $cmd"; done
-storage "$STORAGE" rootdir
-storage "$IMAGE_STORAGE" vztmpl
-bridge "$BRIDGE"
-EXISTING=$(resources)
-if jq -e --argjson id "$TEMPLATE_ID" 'any(.[]; .vmid == $id)' <<< "$EXISTING" >/dev/null; then
-    CONFIG=$(pct config "$TEMPLATE_ID") || fail 'Target ID belongs to a VM or inaccessible container'
-    grep -qx 'template: 1' <<< "$CONFIG" || fail 'Target is not a template'
-    grep -Eq '^tags: .*homelab-debian-lxc' <<< "$CONFIG" || fail 'Refusing replacement of an unmanaged template'
-fi
+TEMPLATE_ID=9100 STORAGE=local-zfs IMAGE_STORAGE=local BRIDGE=vmbr0
+CANDIDATE='' BACKUP='' BUILD_TOKEN=''
+OWNED=0 PROMOTING=0
+STATE_FILE=/run/homelab-lxc-build.state
+MODE=${1:-}
+usage() {
+    echo "Usage: $0 --prepare [--template-id ID] [--storage NAME] [--image-storage NAME] [--bridge NAME]"
+    echo "       $0 --complete ID | --abort ID | --ansible-exec ID BASE64_COMMAND | --inspect"
+    echo 'Rundeck runs Ansible between prepare and complete; no Ansible runtime is required on TNAS.'
+}
+load_build() {
+    [[ -f $STATE_FILE ]] || fail 'No active LXC template build'
+    # This state is created by root under /run, never in the writable checkout.
+    # shellcheck disable=SC1090
+    source "$STATE_FILE"
+    [[ $CANDIDATE == "$1" ]] || fail 'Candidate does not match the active build'
+    local config
+    config=$(pct config "$CANDIDATE") || fail 'Active build container is missing'
+    grep -Fq "$BUILD_TOKEN" <<< "$config" || fail 'Build ownership tag does not match'
+}
 cleanup() {
     local rc=$?
     trap - EXIT
@@ -59,49 +36,105 @@ cleanup() {
     fi
     if ((OWNED)); then
         pct stop "$CANDIDATE" >/dev/null 2>&1 || true
-        if ! pct destroy "$CANDIDATE" --purge 1; then log "WARNING: clean up owned candidate $CANDIDATE manually"; fi
+        if pct destroy "$CANDIDATE" --purge 1; then
+            rm -f -- "$STATE_FILE"
+        else
+            log "WARNING: clean up owned candidate $CANDIDATE manually; build state retained"
+        fi
     fi
-    [[ -z $TEMP ]] || rm -rf -- "$TEMP"
     exit "$rc"
 }
-trap cleanup EXIT
-trap 'exit 130' INT
-trap 'exit 143' TERM
-pveam update
-IMAGE=$(pveam available --section system | awk '$2 ~ /^debian-13-standard_.*_amd64\.tar\.(zst|xz|gz)$/ {print $2}' | sort -V | tail -1)
-[[ -n $IMAGE ]] || fail 'Official Debian 13 standard image is unavailable'
-log "Downloading official Proxmox Debian image $IMAGE"
-pveam download "$IMAGE_STORAGE" "$IMAGE"
-CANDIDATE=$(next_id)
-# Proxmox serializes create; the global lock serializes this project's LXC jobs.
-log "Creating temporary build container $CANDIDATE"
-pct create "$CANDIDATE" "$IMAGE_STORAGE:vztmpl/$IMAGE" \
-    --hostname debian-lxc-build --ostype debian --unprivileged 1 \
-    --cores 2 --memory 1024 --swap 0 --rootfs "$STORAGE:4" \
-    --net0 "name=eth0,bridge=$BRIDGE,ip=dhcp" --nameserver 192.168.0.2 --onboot 0 \
-    --tags homelab-debian-lxc-build
-OWNED=1
-pct start "$CANDIDATE"
-for ((i=0;i<90;i++)); do
-    if pct exec "$CANDIDATE" -- getent ahostsv4 deb.debian.org >/dev/null 2>&1; then break; fi
-    sleep 2
-done
-pct exec "$CANDIDATE" -- bash -ec '
-    printf "%s\n" '\''Acquire::http::Proxy "http://192.168.0.101:3142";'\'' '\''Acquire::https::Proxy "DIRECT";'\'' > /etc/apt/apt.conf.d/02homelab-proxy
-    export DEBIAN_FRONTEND=noninteractive
-    apt-get update
-    apt-get install -y python3
-'
-TEMP=$(mktemp -d)
-printf '[lxc]\n%s ansible_connection=pct ansible_python_interpreter=/usr/bin/python3\n' "$CANDIDATE" > "$TEMP/inventory"
-export ANSIBLE_CONFIG="$BASE/../Ansible/ansible.cfg"
-export ANSIBLE_CONNECTION_PLUGINS="$BASE/../Ansible/connection_plugins"
-export ANSIBLE_ROLES_PATH="$BASE/../Ansible/roles"
-export ANSIBLE_LOCAL_TEMP="$TEMP/ansible"
-ansible-playbook -i "$TEMP/inventory" "$BASE/../Ansible/playbooks/debian-lxc.yml"
-# A second application must make no changes before accepting the baseline.
-ANSIBLE_NOCOLOR=1 ansible-playbook -i "$TEMP/inventory" "$BASE/../Ansible/playbooks/debian-lxc.yml" | tee "$TEMP/repeat.log"
-grep -Eq 'changed=0[[:space:]]+unreachable=0[[:space:]]+failed=0' "$TEMP/repeat.log" || fail 'Baseline is not idempotent'
+case $MODE in
+    --help|-h) usage; exit 0;;
+    --inspect)
+        (($# == 1)) || fail '--inspect must be used alone'
+        root_and_lock
+        resources
+        pvesh get "/nodes/$(hostname)/storage" --output-format json
+        pveam available --section system
+        exit 0;;
+    --ansible-exec)
+        (($# == 3)) || fail 'Expected candidate ID and encoded guest command'
+        id "$2"
+        root_and_lock
+        load_build "$2"
+        COMMAND=$(printf '%s' "$3" | base64 -d) || fail 'Invalid command encoding'
+        # Only the active, ownership-tagged temporary build guest is accessible.
+        pct exec "$CANDIDATE" -- /bin/sh -c "$COMMAND"
+        exit $?;;
+    --complete|--abort)
+        (($# == 2)) || fail 'Expected candidate ID'
+        id "$2"
+        root_and_lock
+        load_build "$2"
+        OWNED=1
+        trap cleanup EXIT
+        trap 'exit 130' INT
+        trap 'exit 143' TERM
+        if [[ $MODE == --abort ]]; then log "Aborting owned build container $CANDIDATE"; exit 0; fi;;
+    --prepare)
+        shift
+        while (($#)); do
+            (($# >= 2)) || fail "Missing value for $1"
+            case $1 in
+                --template-id) TEMPLATE_ID=$2;; --storage) STORAGE=$2;;
+                --image-storage) IMAGE_STORAGE=$2;; --bridge) BRIDGE=$2;;
+                *) fail "Unknown option $1";;
+            esac
+            shift 2
+        done
+        id "$TEMPLATE_ID"
+        protected "$TEMPLATE_ID" && fail 'Protected template ID'
+        root_and_lock
+        [[ ! -e $STATE_FILE ]] || fail 'A previous build is active; inspect it before retrying'
+        command -v pveam >/dev/null || fail 'Missing pveam'
+        storage "$STORAGE" rootdir
+        storage "$IMAGE_STORAGE" vztmpl
+        bridge "$BRIDGE"
+        EXISTING=$(resources)
+        if jq -e --argjson id "$TEMPLATE_ID" 'any(.[]; .vmid == $id)' <<< "$EXISTING" >/dev/null; then
+            CONFIG=$(pct config "$TEMPLATE_ID") || fail 'Target ID belongs to a VM or inaccessible container'
+            grep -qx 'template: 1' <<< "$CONFIG" || fail 'Target is not a template'
+            grep -Eq '^tags: .*homelab-debian-lxc' <<< "$CONFIG" || fail 'Refusing replacement of an unmanaged template'
+        fi
+        BUILD_TOKEN="build-$(cat /proc/sys/kernel/random/uuid)"
+        trap cleanup EXIT
+        trap 'exit 130' INT
+        trap 'exit 143' TERM
+        pveam update
+        IMAGE=$(pveam available --section system | awk '$2 ~ /^debian-13-standard_.*_amd64\.tar\.(zst|xz|gz)$/ {print $2}' | sort -V | tail -1)
+        [[ -n $IMAGE ]] || fail 'Official Debian 13 standard image is unavailable'
+        log "Downloading official Proxmox Debian image $IMAGE"
+        pveam download "$IMAGE_STORAGE" "$IMAGE"
+        CANDIDATE=$(next_id)
+        # Proxmox serializes create; the global lock serializes this project's LXC jobs.
+        log "Creating temporary build container $CANDIDATE"
+        pct create "$CANDIDATE" "$IMAGE_STORAGE:vztmpl/$IMAGE" \
+            --hostname debian-lxc-build --ostype debian --unprivileged 1 \
+            --cores 2 --memory 1024 --swap 0 --rootfs "$STORAGE:4" \
+            --net0 "name=eth0,bridge=$BRIDGE,ip=dhcp" --nameserver 192.168.0.2 --onboot 0 \
+            --tags "homelab-debian-lxc-build;$BUILD_TOKEN"
+        OWNED=1
+        pct start "$CANDIDATE"
+        for ((i=0;i<90;i++)); do
+            if pct exec "$CANDIDATE" -- getent ahostsv4 deb.debian.org >/dev/null 2>&1; then break; fi
+            sleep 2
+        done
+        pct exec "$CANDIDATE" -- bash -ec '
+            printf "%s\n" '\''Acquire::http::Proxy "http://192.168.0.101:3142";'\'' '\''Acquire::https::Proxy "DIRECT";'\'' > /etc/apt/apt.conf.d/02homelab-proxy
+            export DEBIAN_FRONTEND=noninteractive
+            apt-get update
+            apt-get install -y python3
+        '
+        umask 077
+        printf 'CANDIDATE=%q\nTEMPLATE_ID=%q\nSTORAGE=%q\nBUILD_TOKEN=%q\n' \
+            "$CANDIDATE" "$TEMPLATE_ID" "$STORAGE" "$BUILD_TOKEN" > "$STATE_FILE"
+        log 'Candidate prepared; Rundeck will now apply the Ansible baseline'
+        printf 'LXC_CANDIDATE_ID=%s\n' "$CANDIDATE"
+        OWNED=0
+        exit 0;;
+    *) usage; fail 'Choose an explicit build phase';;
+esac
 wait_ready "$CANDIDATE" debian-lxc-build
 # The quoted script runs inside the guest.
 # shellcheck disable=SC2016

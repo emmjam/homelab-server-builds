@@ -30,13 +30,18 @@ import json,os,subprocess,sys
 from pathlib import Path
 command=sys.argv[-1]
 with open(os.environ['CALLS'],'a') as stream: stream.write(json.dumps(command)+'\\n')
-if command.startswith('sudo -n '): sys.exit(0)
+if command.startswith('sudo -n '):
+ if '--prepare' in command: print('LXC_CANDIDATE_ID=200')
+ sys.exit(0)
 result=subprocess.run(command,shell=True)
 if os.environ.get('CORRUPT') and 'tar -xf' in command:
  Path(os.environ['REMOTE'],'lxc/common.sh').write_text('corrupted')
 sys.exit(result.returncode)
 ''')
         fake.chmod(0o755)
+        ansible=self.bin / 'ansible-playbook'
+        ansible.write_text("#!/usr/bin/env python3\nimport os,json\nwith open(os.environ['CALLS'],'a') as f: f.write(json.dumps('ANSIBLE')+'\\n')\nif os.environ.get('BASELINE_FAIL'): raise SystemExit(1)\nprint('200 : ok=20 changed=0 unreachable=0 failed=0')\n")
+        ansible.chmod(0o755)
         text=(ROOT / 'Rundeck/scripts/invoke-lxc.sh').read_text()
         text=text.replace('REPO=/opt/homelab-server-builds',f'REPO={self.source}',1)
         text=text.replace('REMOTE_REPO=/opt/homelab-server-builds',f'REMOTE_REPO={self.remote}')
@@ -56,20 +61,28 @@ sys.exit(result.returncode)
         result,calls=self.run_dispatch('deploy')
         self.assertEqual(result.returncode,0,result.stdout+result.stderr)
         self.assertTrue((self.remote / 'lxc/build-template.sh').exists())
-        self.assertTrue((self.remote / 'Ansible/roles/debian_lxc/tasks/main.yml').exists())
+        self.assertFalse((self.remote / 'Ansible').exists())
         self.assertFalse((self.remote / 'Ansible/playbooks/rufus.yml').exists())
         self.assertFalse(any(c.startswith('sudo ') for c in calls))
 
     def test_build_executes_transferred_script_after_verification(self):
         result,calls=self.run_dispatch('build',RD_OPTION_TEMPLATE_ID='9100')
         self.assertEqual(result.returncode,0,result.stdout+result.stderr)
-        self.assertEqual(calls[-1],f'sudo -n {self.remote}/lxc/build-template.sh --template-id 9100')
-        self.assertIn('sha256sum -c',calls[-2])
+        self.assertEqual(calls[-1],f'sudo -n {self.remote}/lxc/build-template.sh --complete 200')
+        self.assertIn(f'sudo -n {self.remote}/lxc/build-template.sh --prepare --template-id 9100',calls)
+        self.assertEqual(calls.count('ANSIBLE'),2)
+        self.assertIn('sha256sum -c',calls[1])
 
     def test_failed_checksum_prevents_execution(self):
         result,calls=self.run_dispatch('build',CORRUPT='1')
         self.assertNotEqual(result.returncode,0)
         self.assertFalse(any(c.startswith('sudo ') for c in calls))
+
+    def test_ansible_failure_aborts_only_the_prepared_candidate(self):
+        result,calls=self.run_dispatch('build',BASELINE_FAIL='1')
+        self.assertNotEqual(result.returncode,0)
+        self.assertEqual(calls[-1],f'sudo -n {self.remote}/lxc/build-template.sh --abort 200')
+        self.assertFalse(any('--complete' in c for c in calls))
 
     def test_invalid_action_does_not_transfer(self):
         result,calls=self.run_dispatch('bad-action')

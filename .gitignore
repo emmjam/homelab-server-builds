@@ -12,3 +12,8 @@
 # Python cache files
 __pycache__/
 *.py[cod]
+
+# Local credentials: never commit
+secrets.txt
+secrets.txt.*
+.secrets.txt.swp

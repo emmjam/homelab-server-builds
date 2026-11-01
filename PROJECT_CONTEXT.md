@@ -640,7 +640,14 @@ The planned template ID is 9100, confirmed unused in the supplied live inventory
 and rechecked at runtime. Defaults use `local` for official image downloads,
 `local-zfs` for root disks and `vmbr0` for networking. VM automation is unchanged.
 See `docs/lxc.md` for Git-managed transfer and execution, the three Rundeck jobs,
-parameters, retained template backups and testing procedures. Live verification
+parameters, retained template backups and testing procedures. Ansible runs on the
+Rundeck controller; TNAS executes only the Proxmox operations through the transferred
+LXC scripts. Live verification
 is pending sudoers setup; implementation alone
 must not be treated as a successful production deployment. No Rufus playbook is
 run by this pipeline, and LXC 110 is excluded from testing.
+
+Temporary local credentials are held in `/home/ian/Projects/CRAP/secrets.txt`
+with mode 0600, outside this repository, pending a dedicated secrets solution.
+That file and its backups must never be committed. Existing operational SSH key
+files remain in place; the local file holds copies for the later migration.
