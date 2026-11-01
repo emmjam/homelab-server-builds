@@ -145,6 +145,12 @@ feature requests. No relative implementation order within this queue has been ag
 | VPN-01 | TODO | Implement the separately planned NordVPN/Squid proxy VM for selected traffic. | Project context sections 12 and 13. VPN failure must not cause a general network outage. |
 | MEDIA-01 | TODO | Finalise and deploy the separate Bobarr/Plex media-library project and authenticated HTTPS media access through `emmjam.linkpc.net`, using the proposed Debian VM/Nginx/Certbot arrangement. | Project context sections 2 and 4. Exact deployment details are undecided. This is separate from Rufus; no public exposure without authentication and HTTPS. |
 
+## Testing efficiency
+
+| ID | Status | Work and completion criteria | Evidence / dependency |
+|---|---|---|---|
+| TEST-01 | TODO | Review whether existing tests can be amalgamated into single scripts returning clear exit/status codes and concise output, reducing agent token use while retaining useful failure diagnostics. | Explicit user request on 1 November 2026. Review only; no test consolidation has been implemented. |
+
 ## Maintaining this backlog
 
 Update the existing ID when work starts, becomes blocked or completes. Add the

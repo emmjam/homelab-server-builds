@@ -16,9 +16,10 @@ Use the existing `Ansible/playbooks/rufus.yml`. Application-only deployments use
 connect as Ian with the existing administrator key and sudo. The completed baseline
 remains separate. This tag does not change existing SSH keys or sudo rules.
 
-The service runs as `rufus`, starts at boot and restarts after failures. Its
-`NoNewPrivileges` and empty capability set prevent sudo escalation even where the
-container account has a sudo rule. The service has no SSH or Proxmox credentials.
+The service runs as `rufus`, starts at boot and restarts after failures. It uses
+filesystem and device hardening. `NoNewPrivileges` is deliberately omitted to
+permit future explicitly approved local sudo; no sudo permission is granted to
+Rufus now. The service has no SSH or Proxmox credentials.
 
 ```bash
 sudo systemctl start rufus

@@ -219,4 +219,29 @@ failure with an incorrect password, and success with the intended password.
 Clear cached sudo credentials before each password test (`sudo -k`). Password
 checks must be interactive or use a non-logged temporary input; never put the
 plaintext password in a command line, Git, captured terminal output or documentation.
-These new password checks remain pending a supplied build hash and a fresh clone.
+Validation on 1 November 2026:
+
+- Template build [148](http://192.168.0.51:4440/project/HomeLab/execution/show/148)
+  succeeded, publishing template 9100 and retaining backup 104. The baseline
+  repeat run passed without changes; candidate 101 was removed.
+- Creation [149](http://192.168.0.51:4440/project/HomeLab/execution/show/149)
+  succeeded for isolated test CT 112, `lxc-account-test` (2 cores, 1 GB RAM,
+  8 GB disk). Its hostname resolved through DNS and Ian's laptop key login worked.
+- Ian's home, sudo membership, unlocked password status, exact supplied-hash
+  match, SSH ownership/modes and sudoers syntax all passed. Passwordless sudo
+  was rejected; sudo prompted and rejected a deliberately incorrect password.
+- The user verified successful authentication with the intended password on
+  1 November 2026: after clearing cached sudo credentials, `sudo -v` prompted
+  for Ian's password and `sudo id -u` returned `0`. All required Ian account
+  acceptance checks passed on the fresh clone. Test CT 112 was subsequently
+  deleted through execution [151](http://192.168.0.51:4440/project/HomeLab/execution/show/151)
+  at the user's request. Obsolete LXC backups 102, 103 and 104 were also deleted
+  after validating their names, template status and managed tags.
+- Commit `e813bd7` fixes the secret reader to accept the established transfer
+  ownership without changing the source file's owner or permissions. Both
+  baseline passes successfully read the user-managed file. Thirteen secrets
+  tests and twenty-two LXC tests passed locally.
+
+Leave the controller secrets file's ownership and permissions as set by the user.
+Do not change them to satisfy reader checks. Use hostnames for SSH/SCP wherever
+possible, investigating name-resolution failures rather than silently using IPs.
