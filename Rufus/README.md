@@ -13,7 +13,7 @@ Ansible runs on Rundeck and installs modules under `/opt/rufus/app`, configurati
 under `/opt/rufus/config`, SQLite under `/opt/rufus/data`, and `rufus.service`.
 Use the existing `Ansible/playbooks/rufus.yml`. Application-only deployments use
 `--tags rufus_application` against an existing provisioned `rufus` inventory host;
-connect as Ian with the existing administrator key and sudo. The completed baseline
+connect as Rundeck with the existing deployment key and sudo. The completed baseline
 remains separate. This tag does not change existing SSH keys or sudo rules.
 
 The service runs as `rufus`, starts at boot and restarts after failures. It uses
@@ -51,13 +51,14 @@ file or its SSH keys into Rufus. Values are parsed literally, never sourced or
 executed, and secret deployment tasks suppress output. Existing Git and SSH
 credentials remain unchanged. Do not put credentials on command lines or in Git.
 
-The initial dedicated Rundeck token expires **1 December 2026 at 15:32:50 UTC**.
+The current dedicated Rundeck token expires **1 November 2027 at 19:16:07 UTC**.
 Rotate it before then using Rundeck token management; update the temporary secret
 source and rerun the application deployment. Revocation and 401/403 errors are
 reported as integration failures. No automatic token renewal is implemented.
 
-Install the Git-managed `Rundeck/policies/rufus.aclpolicy` as a system ACL through
-Rundeck's system ACL API. It grants project visibility, read/run of health check
+The managed `Ansible/playbooks/rundeck.yml` installs
+`Rundeck/policies/rufus.aclpolicy` as a system ACL and sets
+`rundeck.api.tokens.duration.max=1y`. It grants project visibility, read/run of health check
 UUID `6e0b2f6c-aaa0-4031-ba96-73c86164cb43`, and node read/run needed by that job.
 It grants no ad-hoc commands, other jobs, job editing or key storage. The initial
 token is issued with **only** `rufus-api`, never the admin role.
@@ -144,3 +145,40 @@ See the acceptance record below for real results.
 Rundeck endpoints and ACL syntax follow the official
 [API reference](https://docs.rundeck.com/docs/api/) and
 [authorization reference](https://docs.rundeck.com/docs/administration/security/authorization.html).
+
+
+## Real acceptance record — 1 November 2026
+
+- Current template: LXC 9100. New Rufus: CT 111, hostname `rufus`, DHCP
+  `192.168.0.52`, 2 cores, 2 GB RAM, 8 GB disk. Creation
+  [150](http://192.168.0.51:4440/project/HomeLab/execution/show/150) succeeded.
+  The earlier experimental Rufus is absent from the live inventory; none was
+  deleted as part of this application acceptance test.
+- Full Rufus provisioning: `ok=23 changed=17 unreachable=0 failed=0 skipped=7`.
+  Local Ollama/model installation was skipped, retaining the separate inference plan.
+  Application credential deployment: `ok=8 changed=2 unreachable=0 failed=0`.
+- Managed token limit and restricted ACL applied successfully; Rundeck restarted
+  and its API returned. Identity `rufus` has only role `rufus-api`.
+  The replacement token expires 1 November 2027 at 19:16:07 UTC. The superseded
+  token, previously expiring 1 December 2026, was revoked after verification.
+  Controller and ignored laptop secret entries were synchronised without changing
+  either source file's ownership or permissions. No secret values are recorded here.
+- Real health-check execution
+  [157](http://192.168.0.51:4440/project/HomeLab/execution/show/157) succeeded
+  through Rufus: approved discovery, submission, ID tracking, polling and output
+  retrieval all passed. Output included `rundeck`, Debian version, uptime and disk
+  usage. The recorded result remained available after restarting Rufus.
+- Invalid bearer authentication returned 401. Invalid parameters returned 400.
+  An unapproved Rufus operation returned 403. The dedicated Rundeck identity
+  independently rejected an unapproved VM-deletion job run with 403.
+- Service is enabled and active as `rufus`; `ProtectSystem=strict`,
+  `PrivateTmp=yes`, `NoNewPrivileges=no`. Listener is only `127.0.0.1:8787`.
+  Rufus belongs only to its own group; no sudo was granted. Rundeck's existing
+  `NOPASSWD: ALL` inside the guest was verified unchanged.
+- Complete automated suite after the real test: **55 tests passed**, covering
+  Rufus, secret parsing, LXC lifecycle and VM relocation. Failure reporting and
+  unavailable/malformed upstream responses are verified by mocks, not induced
+  production failures.
+
+The first operational milestone is complete. LAN transport/VS Code integration,
+OpenBao and further automation expansion have not been started by this test.

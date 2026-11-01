@@ -644,6 +644,16 @@ This document should evolve with the infrastructure and remain a reliable source
 
 ## Debian LXC automation (1 November 2026)
 
+Current Rufus application status (1 November 2026): fresh CT 111, hostname
+`rufus`, DHCP `192.168.0.52`, is operational with the authenticated loopback API.
+Real Rundeck health-check execution 157 succeeded through Rufus, independent
+policy rejection passed, and execution tracking survived a service restart.
+The complete post-acceptance suite passed 55 tests. Rundeck's one-year token
+limit and restricted Rufus ACL are managed by Ansible; the restricted token
+expires 1 November 2027 at 19:16:07 UTC and its predecessor was revoked.
+See `Rufus/README.md` for the acceptance record. Earlier addresses below are
+historical validation results, not the current Rufus address.
+
 A separate Debian 13 LXC baseline and lifecycle implementation now lives under
 `Rundeck/scripts/`, `Ansible/roles/debian_lxc` and `Ansible/playbooks/debian-lxc.yml`.
 The planned template ID is 9100, confirmed unused in the supplied live inventory
