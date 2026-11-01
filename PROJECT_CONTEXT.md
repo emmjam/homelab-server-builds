@@ -268,9 +268,14 @@ Do not unnecessarily reimplement this functionality.
 
 ## APT configuration
 
-The TNAS has an APT caching proxy at:
+The dedicated Apt-Cache VM on TNAS provides the APT caching proxy at:
 
-`192.168.0.101:3142`
+`http://apt-cache:3142`
+
+Verified 1 November 2026: VM 112, 2 cores, 2 GB RAM, 64 GB total disk,
+DHCP address `192.168.0.116`. Ansible manages apt-cacher-ng, daily expiration
+and hourly disk monitoring; see `docs/apt-cache.md`. Future conversion to an
+LXC with TNAS-backed storage is CACHE-01 in `BACKLOG.md`.
 
 HTTPS Debian APT traffic should go directly to the repositories rather than through the HTTP caching proxy.
 

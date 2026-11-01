@@ -28,14 +28,22 @@
         update_cache: true
         cache_valid_time: 3600
 
-    - name: Configure cache listener
+    - name: Remove superseded cache configuration block
       ansible.builtin.blockinfile:
         path: /etc/apt-cacher-ng/acng.conf
         marker: '# {mark} ANSIBLE MANAGED HOMELAB CACHE'
-        block: |
-          Port: 3142
-          BindAddress: 0.0.0.0
-          ExThreshold: 4
+        state: absent
+      notify: Restart APT cache
+
+    - name: Configure cache listener and expiration
+      ansible.builtin.lineinfile:
+        path: /etc/apt-cacher-ng/acng.conf
+        regexp: '^{{ item.key }}\s*:'
+        line: '{{ item.key }}: {{ item.value }}'
+      loop:
+        - {key: Port, value: '3142'}
+        - {key: BindAddress, value: '0.0.0.0'}
+        - {key: ExThreshold, value: '4'}
       notify: Restart APT cache
 
     - name: Enable and start APT cache
