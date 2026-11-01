@@ -9,7 +9,7 @@
     dispatch:
       keepgoing: false
       threadcount: 1
-    filter: name: localhost
+    filter: "name: localhost"
   options:
   - hidden: true
     name: rundeck_api_token
