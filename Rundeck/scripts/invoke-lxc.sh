@@ -67,8 +67,16 @@ export ANSIBLE_ROLES_PATH="$REPO/Ansible/roles"
 export ANSIBLE_LOCAL_TEMP="$TEMP/ansible"
 log_message='Applying Debian LXC baseline from the Rundeck Ansible controller'
 printf '%s\n' "$log_message"
-ansible-playbook -i "$TEMP/inventory" "$REPO/Ansible/playbooks/debian-lxc.yml"
-ANSIBLE_NOCOLOR=1 ansible-playbook -i "$TEMP/inventory" "$REPO/Ansible/playbooks/debian-lxc.yml" | tee "$TEMP/repeat.log"
+apply_baseline() {
+    if ansible-playbook -i "$TEMP/inventory" "$REPO/Ansible/playbooks/debian-lxc.yml"; then return 0; fi
+    # Collect guest-side failure details before the existing cleanup trap removes it.
+    local diagnostic
+    diagnostic=$(printf '%s' '/usr/sbin/sshd -t; systemctl --no-pager --full status ssh; journalctl --no-pager -u ssh -n 40' | base64 -w0)
+    ssh "${SSH[@]}" "$DEST" "sudo -n $REMOTE_REPO/scripts/build-template.sh --ansible-exec $ACTIVE_CANDIDATE $diagnostic" || true
+    return 1
+}
+apply_baseline
+ANSIBLE_NOCOLOR=1 apply_baseline | tee "$TEMP/repeat.log"
 grep -Eq 'changed=0[[:space:]]+unreachable=0[[:space:]]+failed=0' "$TEMP/repeat.log" || { echo 'Baseline is not idempotent' >&2; exit 1; }
 ssh "${SSH[@]}" "$DEST" "sudo -n $REMOTE_REPO/scripts/build-template.sh --complete $ACTIVE_CANDIDATE"
 ACTIVE_CANDIDATE=''

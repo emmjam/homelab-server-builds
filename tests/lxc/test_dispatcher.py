@@ -84,6 +84,7 @@ sys.exit(result.returncode)
         self.assertNotEqual(result.returncode,0)
         self.assertEqual(calls[-1],f'sudo -n {self.remote}/scripts/build-template.sh --abort 200')
         self.assertFalse(any('--complete' in c for c in calls))
+        self.assertTrue(any('--ansible-exec 200 ' in c for c in calls))
 
     def test_invalid_action_does_not_transfer(self):
         result,calls=self.run_dispatch('bad-action')
