@@ -19,8 +19,8 @@ def read_secret(name, path=SECRETS_FILE, optional=False):
         raise ValueError('Cannot read /tmp/secrets.txt as the Rundeck service account') from None
     with os.fdopen(fd, 'r') as stream:
         info = os.fstat(stream.fileno())
-        if not stat.S_ISREG(info.st_mode) or info.st_mode & 0o077:
-            raise ValueError('/tmp/secrets.txt must be a regular file with mode 0600')
+        if not stat.S_ISREG(info.st_mode):
+            raise ValueError('/tmp/secrets.txt must be a regular file')
         if info.st_uid not in {0, os.geteuid()}:
             raise ValueError('/tmp/secrets.txt has an unexpected owner')
         matches = []

@@ -39,10 +39,9 @@ class SecretTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'Missing RUNDECK_TOKEN'):
             reader.read_secret('RUNDECK_TOKEN',self.path)
 
-    def test_world_readable_file_is_rejected(self):
-        self.write('RUNDECK_TOKEN=dummy\n');self.path.chmod(0o644)
-        with self.assertRaisesRegex(ValueError,'mode 0600'):
-            reader.read_secret('RUNDECK_TOKEN',self.path)
+    def test_temporary_mode_777_is_accepted(self):
+        self.write('RUNDECK_TOKEN=dummy\n');self.path.chmod(0o777)
+        self.assertEqual(reader.read_secret('RUNDECK_TOKEN',self.path),'dummy')
 
     def test_symlink_is_rejected(self):
         actual=self.path.with_name('actual');actual.write_text('RUNDECK_TOKEN=dummy\n');actual.chmod(0o600)

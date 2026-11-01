@@ -654,6 +654,6 @@ files remain in place; the local file holds copies for the later migration.
 
 Rundeck API-calling scripts read `RUNDECK_TOKEN` from `/tmp/secrets.txt` on the
 Rundeck host. The local laptop's `CRAP/update_secrets.sh` transfers the file and
-sets owner `rundeck:rundeck`, mode 0600. `GITHUB_TOKEN` may also be supplied there;
+sets owner `rundeck:rundeck` and the user-requested temporary mode 0777. `GITHUB_TOKEN` may also be supplied there;
 otherwise Git refresh retains the existing GitHub Key Storage option. Existing
 Rundeck SSH key files and authentication paths remain unchanged.

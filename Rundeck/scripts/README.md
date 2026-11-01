@@ -6,9 +6,9 @@ This directory contains the flat set of shell scripts referenced by Rundeck job 
 
 API-calling jobs read `RUNDECK_TOKEN` from `/tmp/secrets.txt` on the Rundeck host
 using `read-secret.py`. Copy the local `CRAP/secrets.txt` there manually, owned by
-`rundeck` with mode `0600`. The file is parsed as literal data, never sourced as a
+`rundeck` with the temporary mode `0777`. The file is parsed as literal data, never sourced as a
 shell script; private-key blocks are ignored and no SSH key files are changed.
-Missing, unreadable or insecure files stop the job before API operations.
+Missing or unreadable files stop the job before API operations.
 
 The checkout job uses `GITHUB_TOKEN` from the same file when supplied. Otherwise
 it retains the existing secure GitHub option at
@@ -26,6 +26,6 @@ Push the local credentials using the laptop's existing script:
 ```
 
 That script copies `/home/ian/Projects/CRAP/secrets.txt` to `/tmp/secrets.txt` on
-Rundeck and sets ownership to `rundeck:rundeck` and mode `0600`. It is a local
+Rundeck and sets ownership to `rundeck:rundeck` and temporary mode `0777`. It is a local
 operational file, not part of this Git repository. Existing SSH key blocks in the
 secrets file are not extracted or used by these jobs.
