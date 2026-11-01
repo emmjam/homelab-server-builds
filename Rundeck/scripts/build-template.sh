@@ -146,7 +146,7 @@ pct exec "$CANDIDATE" -- bash -ec '
     apt-config dump | grep -Fx '\''Acquire::https::Proxy "DIRECT";'\''
     systemctl is-enabled homelab-lxc-identity.service apt-daily.timer apt-daily-upgrade.timer
     sshd -T | grep -Fx "passwordauthentication no"
-    sshd -T | grep -Fx "permitrootlogin without-password"
+    sshd -T | grep -Fx "permitrootlogin no"
     locale -a | grep -ix en_GB.utf8
     test "$(readlink /etc/localtime)" = /usr/share/zoneinfo/Europe/London
     apt-get clean

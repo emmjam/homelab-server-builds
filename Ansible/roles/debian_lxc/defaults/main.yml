@@ -23,3 +23,6 @@ debian_lxc_packages:
 
 # Public half of the existing Rundeck deployment key; never a private key.
 debian_lxc_rundeck_public_key: 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIH7sqNxz3jGPLaD/xMTRulYsJuhTYQQKYtPquR7+6UEZ rundeck-targets'
+
+# Ian's public key follows the Debian VM preseed; password login is disabled.
+debian_lxc_ian_public_key: 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHpT3hhS4RJ9pYhmAbwGZ+t9G4z0ULd+/8nkgef3b4q/ ian@Laptop'

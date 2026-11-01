@@ -26,6 +26,43 @@
     name: '{{ debian_lxc_packages }}'
     state: present
 
+- name: Create Ian administrative account as in the VM template
+  ansible.builtin.user:
+    name: ian
+    comment: Ian
+    shell: /bin/bash
+    groups: sudo
+    append: true
+    create_home: true
+    password: NP
+    state: present
+
+- name: Create Ian SSH directory
+  ansible.builtin.file:
+    path: /home/ian/.ssh
+    state: directory
+    owner: ian
+    group: ian
+    mode: '0700'
+
+- name: Authorise Ian laptop public key
+  ansible.builtin.copy:
+    dest: /home/ian/.ssh/authorized_keys
+    content: "{{ debian_lxc_ian_public_key }}\n"
+    owner: ian
+    group: ian
+    mode: '0600'
+
+- name: Read template default editor
+  ansible.builtin.command: update-alternatives --query editor
+  register: debian_lxc_editor
+  changed_when: false
+
+- name: Set template default editor to vi as in the VM template
+  ansible.builtin.command: update-alternatives --set editor /usr/bin/vim.tiny
+  when: "'Value: /usr/bin/vim.tiny' not in debian_lxc_editor.stdout_lines"
+  changed_when: true
+
 - name: Create Rundeck deployment account
   ansible.builtin.user:
     name: rundeck
@@ -92,7 +129,7 @@
   ansible.builtin.copy:
     dest: /etc/ssh/sshd_config.d/00-homelab-hardening.conf
     content: |
-      PermitRootLogin prohibit-password
+      PermitRootLogin no
       PubkeyAuthentication yes
       PasswordAuthentication no
       KbdInteractiveAuthentication no
