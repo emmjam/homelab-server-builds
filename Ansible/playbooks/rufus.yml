@@ -5,6 +5,10 @@
   gather_facts: true
 
   vars:
+    ian_password_hash: >-
+      {{ lookup('ansible.builtin.pipe', 'python3 ' ~
+         ((playbook_dir ~ '/../../Rundeck/scripts/read-secret.py') | quote) ~
+         ' IAN_PASSWORD_HASH') }}
     rufus_home: /opt/rufus
     rufus_venv: /opt/rufus/venv
     rufus_directories:
