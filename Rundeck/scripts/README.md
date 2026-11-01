@@ -1,6 +1,9 @@
 # Rundeck Scripts
 
-This directory contains the flat set of shell scripts referenced by Rundeck job definitions. The scripts must be available in the Rundeck checkout at `/opt/homelab-server-builds/Rundeck/scripts/`.
+This directory contains the shell scripts referenced by Rundeck job definitions.
+The four LXC execution scripts live directly in this directory. The existing
+deployment job copies them to `/opt/homelab-server-builds/scripts/` on TNAS
+before the LXC job invokes them. The scripts must be available in the Rundeck checkout at `/opt/homelab-server-builds/Rundeck/scripts/`.
 
 `invoke-provision-vm.sh`, `invoke-template-rebuild.sh`, and `invoke-delete-vm.sh` call the deployed Proxmox scripts on TNAS. `power-ai-host.sh` handles the allowlisted AI-host wake/sleep job and verifies the result. `deploy-build-scripts-to-tnas.sh` copies the Proxmox scripts and `scripts/debian-baseline.sh` from the local checkout to the established TNAS paths. `update-github-checkout.sh` refreshes the checkout, imports and updates the YAML definitions in `Rundeck/jobs/` and `Rundeck/pipelines/`, and deletes Rundeck jobs in the managed `jobs` and `pipelines` groups whose UUIDs are no longer in Git. All job YAML files must specify matching `id` and `uuid` values and use one of those two groups.
 

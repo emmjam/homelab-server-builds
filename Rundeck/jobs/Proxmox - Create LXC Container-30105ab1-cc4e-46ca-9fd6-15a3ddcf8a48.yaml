@@ -67,6 +67,12 @@
         nodeStep: false
         project: HomeLab
         uuid: 310dfa4f-e27f-4945-be6a-7380ef75e586
+    - jobref:
+        group: jobs
+        name: HomeLab - Deploy Build Scripts to TNAS
+        nodeStep: false
+        project: HomeLab
+        uuid: 51192072-1984-48dd-9fe8-88d78c339b31
     - scriptfile: /opt/homelab-server-builds/Rundeck/scripts/invoke-lxc.sh
       args: create
     keepgoing: false

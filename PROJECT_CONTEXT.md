@@ -635,7 +635,7 @@ This document should evolve with the infrastructure and remain a reliable source
 ## Debian LXC automation (1 November 2026)
 
 A separate Debian 13 LXC baseline and lifecycle implementation now lives under
-`lxc/`, `Ansible/roles/debian_lxc` and `Ansible/playbooks/debian-lxc.yml`.
+`Rundeck/scripts/`, `Ansible/roles/debian_lxc` and `Ansible/playbooks/debian-lxc.yml`.
 The planned template ID is 9100, confirmed unused in the supplied live inventory
 and rechecked at runtime. Defaults use `local` for official image downloads,
 `local-zfs` for root disks and `vmbr0` for networking. VM automation is unchanged.

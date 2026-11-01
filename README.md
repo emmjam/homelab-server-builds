@@ -6,7 +6,7 @@ GitHub is the source of truth for homelab automation definitions and supporting 
 
 - `Rundeck/jobs/` — versioned YAML definitions for reusable Rundeck jobs.
 - `Rundeck/pipelines/` — versioned YAML definitions for complete workflows.
-- `Rundeck/scripts/` — flat collection of Rundeck helper scripts and Proxmox scripts deployed to TNAS.
+- `Rundeck/scripts/` — Rundeck helpers and Proxmox scripts deployed to TNAS; LXC execution scripts live in `Rundeck/scripts/`.
 - `scripts/` — flat collection of shared Debian, PXE, LXC, system, and service scripts.
 - `Ansible/` — reserved for future inventory, roles, and playbooks; none are currently defined.
 - `docs/` — operational documentation.

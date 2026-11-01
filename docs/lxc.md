@@ -26,10 +26,12 @@ sudo build entry point on TNAS to reach only the active temporary build guest.
 Python 3 is bootstrapped inside that guest. No Ansible runtime is installed there.
 
 Each Rundeck job refreshes the Git checkout using the existing refresh job,
-then transfers the LXC scripts to `/opt/homelab-server-builds/lxc` on TNAS.
+then transfers the Git-managed scripts from `Rundeck/scripts/` to
+`/opt/homelab-server-builds/scripts` on TNAS. The destination follows the existing VM deployment pattern; sudoers must name
+the commands under `scripts/`.
 The Ansible role, playbook, configuration and transport stay in Rundeck's Git
-checkout. Transferred files are verified
-against checksums calculated from the current Rundeck checkout before execution.
+checkout. The existing deployment script copies the files with SCP, sets their
+permissions and checks that they are non-empty before execution.
 There is no separate installation or manual code update step.
 
 As with the existing VM scripts, Rundeck owns the transferred files and executes
@@ -37,21 +39,21 @@ specific entry points through sudo. Use `sudo visudo -f /etc/sudoers.d/homelab-l
 to add these three entries:
 
 ```sudoers
-rundeck ALL=(root) NOPASSWD: /opt/homelab-server-builds/lxc/build-template.sh
-rundeck ALL=(root) NOPASSWD: /opt/homelab-server-builds/lxc/create-container.sh
-rundeck ALL=(root) NOPASSWD: /opt/homelab-server-builds/lxc/delete-container.sh
+rundeck ALL=(root) NOPASSWD: /opt/homelab-server-builds/scripts/build-template.sh
+rundeck ALL=(root) NOPASSWD: /opt/homelab-server-builds/scripts/create-container.sh
+rundeck ALL=(root) NOPASSWD: /opt/homelab-server-builds/scripts/delete-container.sh
 ```
 
 Existing VM permissions are unchanged. This follows the existing trust model:
 the Rundeck account can update the code of the commands it is permitted to run.
-The dispatcher serializes LXC transfer and execution on the Rundeck host.
+The dispatcher serializes LXC execution on the Rundeck host.
 For transfer-only verification, run `Rundeck/scripts/invoke-lxc.sh deploy` as the
 Rundeck service account after refreshing the checkout. This runs no Proxmox operations.
 
 ## Template procedure
 
 ```sh
-sudo /opt/homelab-server-builds/lxc/build-template.sh --inspect
+sudo /opt/homelab-server-builds/scripts/build-template.sh --inspect
 # On the Rundeck host, as the Rundeck service account after Git refresh:
 /opt/homelab-server-builds/Rundeck/scripts/invoke-lxc.sh build
 ```
@@ -82,7 +84,7 @@ Proxmox validates IDs atomically against other administrators' concurrent operat
 
 ```sh
 python3 -m unittest discover -s tests/lxc -v
-shellcheck lxc/*.sh Rundeck/scripts/invoke-lxc.sh
+shellcheck Rundeck/scripts/{build-template,common,create-container,delete-container,invoke-lxc}.sh
 ANSIBLE_ROLES_PATH="$PWD/Ansible/roles" ansible-playbook -i '200,' --syntax-check Ansible/playbooks/debian-lxc.yml
 ansible-lint --offline Ansible/playbooks/debian-lxc.yml Ansible/roles/debian_lxc
 git diff --check
@@ -100,7 +102,7 @@ The three sudoers entries above cover all lifecycle operations.
 Create a container (ID 9200 is an example; availability is checked live):
 
 ```sh
-sudo /opt/homelab-server-builds/lxc/create-container.sh \
+sudo /opt/homelab-server-builds/scripts/create-container.sh \
   --id 9200 --hostname debian-lxc-test --cores 2 --memory 1 --disk 8 \
   --storage local-zfs --bridge vmbr0 --ip dhcp --dns '192.168.0.2' \
   --template-id 9100
@@ -126,7 +128,7 @@ remaining target is left for inspection rather than blindly destroyed.
 Delete a container:
 
 ```sh
-sudo /opt/homelab-server-builds/lxc/delete-container.sh --id 9200 --confirm DELETE-9200
+sudo /opt/homelab-server-builds/scripts/delete-container.sh --id 9200 --confirm DELETE-9200
 ```
 
 Deletion accepts only a numeric ID and exact ID-specific confirmation. It refuses
@@ -146,8 +148,8 @@ Git-managed jobs:
 | Proxmox - Delete LXC Container | `52b08d85-d1fc-48c6-8bbd-04a69db365aa` |
 
 Use these jobs directly: they expose validated options and invoke the shared
-`Rundeck/scripts/invoke-lxc.sh` dispatcher. Each refreshes Git, transfers the required LXC scripts to TNAS, verifies their
-checksums, then executes the requested operation through sudo. For template builds,
+`Rundeck/scripts/invoke-lxc.sh` dispatcher. Each refreshes Git, runs the existing TNAS deployment job, then executes the
+requested operation through sudo. For template builds,
 Rundeck runs the Ansible role between TNAS prepare and complete phases.
 
 ## Validation record (1 November 2026)

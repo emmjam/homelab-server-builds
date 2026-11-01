@@ -25,7 +25,7 @@ cleanup() {
     local rc=$?
     trap - EXIT
     if [[ -n $ACTIVE_CANDIDATE ]]; then
-        ssh "${SSH[@]}" "$DEST" "sudo -n $REMOTE_REPO/lxc/build-template.sh --abort $ACTIVE_CANDIDATE" ||
+        ssh "${SSH[@]}" "$DEST" "sudo -n $REMOTE_REPO/scripts/build-template.sh --abort $ACTIVE_CANDIDATE" ||
             echo "WARNING: inspect unfinished build candidate $ACTIVE_CANDIDATE" >&2
     fi
     rm -rf -- "$TEMP"
@@ -35,19 +35,11 @@ trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 cd "$REPO"
-FILES=(lxc)
-# Stage only the LXC code. No secrets, unrelated playbooks or existing VM scripts.
-find lxc -type f ! -path '*/__pycache__/*' -print > "$TEMP/files"
-while IFS= read -r file; do sha256sum "$file"; done < "$TEMP/files" > "$TEMP/manifest"
-# Transfer the Git-managed LXC tree into the established TNAS checkout on every run.
-# Ansible roles and the transport stay in the Rundeck checkout.
-tar --exclude='__pycache__' -cf - "${FILES[@]}" | \
-    ssh "${SSH[@]}" "$DEST" \
-        "set -eu; mkdir -p '$REMOTE_REPO'; tar -xf - -C '$REMOTE_REPO'; chmod 700 '$REMOTE_REPO'/lxc/*.sh"
-ssh "${SSH[@]}" "$DEST" \
-    "set -eu; cd '$REMOTE_REPO'; sha256sum -c -" < "$TEMP/manifest"
-printf 'LXC scripts transferred and verified on TNAS.\n'
-[[ $MODE != deploy ]] || exit 0
+# Normal jobs run the existing deployment job before this execution step.
+if [[ $MODE == deploy ]]; then
+    bash "$REPO/Rundeck/scripts/deploy-build-scripts-to-tnas.sh"
+    exit 0
+fi
 ARGS=()
 for option in "${OPTIONS[@]}"; do
     variable="RD_OPTION_${option^^}"
@@ -56,9 +48,9 @@ for option in "${OPTIONS[@]}"; do
 done
 if [[ $MODE == build ]]; then
     command -v ansible-playbook >/dev/null || { echo 'Install ansible-core on the Rundeck host' >&2; exit 1; }
-    REMOTE="sudo -n $REMOTE_REPO/lxc/$SCRIPT --prepare"
+    REMOTE="sudo -n $REMOTE_REPO/scripts/$SCRIPT --prepare"
 else
-    REMOTE="sudo -n $REMOTE_REPO/lxc/$SCRIPT"
+    REMOTE="sudo -n $REMOTE_REPO/scripts/$SCRIPT"
 fi
 for arg in "${ARGS[@]}"; do REMOTE+=" $(printf '%q' "$arg")"; done
 if [[ $MODE != build ]]; then
@@ -78,5 +70,5 @@ printf '%s\n' "$log_message"
 ansible-playbook -i "$TEMP/inventory" "$REPO/Ansible/playbooks/debian-lxc.yml"
 ANSIBLE_NOCOLOR=1 ansible-playbook -i "$TEMP/inventory" "$REPO/Ansible/playbooks/debian-lxc.yml" | tee "$TEMP/repeat.log"
 grep -Eq 'changed=0[[:space:]]+unreachable=0[[:space:]]+failed=0' "$TEMP/repeat.log" || { echo 'Baseline is not idempotent' >&2; exit 1; }
-ssh "${SSH[@]}" "$DEST" "sudo -n $REMOTE_REPO/lxc/build-template.sh --complete $ACTIVE_CANDIDATE"
+ssh "${SSH[@]}" "$DEST" "sudo -n $REMOTE_REPO/scripts/build-template.sh --complete $ACTIVE_CANDIDATE"
 ACTIVE_CANDIDATE=''

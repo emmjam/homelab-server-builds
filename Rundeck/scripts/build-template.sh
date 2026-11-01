@@ -1,7 +1,7 @@
 #!/bin/bash
 set -Eeuo pipefail
 BASE=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
-# shellcheck source=lxc/common.sh
+# shellcheck source=Rundeck/scripts/common.sh
 source "$BASE/common.sh"
 TEMPLATE_ID=9100 STORAGE=local-zfs IMAGE_STORAGE=local BRIDGE=vmbr0
 CANDIDATE='' BACKUP='' BUILD_TOKEN=''

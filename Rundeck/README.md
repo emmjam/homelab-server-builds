@@ -8,7 +8,7 @@ Job group names intentionally mirror their repository directories:
 
 - `pipelines/` contains end-to-end workflow jobs. Pipeline jobs call reusable job UUIDs and pass options through job references.
 - `jobs/` contains reusable operations.
-- `scripts/` contains the flat set of helper scripts executed by Rundeck and scripts deployed to TNAS.
+- `scripts/` contains Rundeck helpers and scripts deployed to TNAS. LXC execution scripts live directly under `scripts/` in Git and are copied to `/opt/homelab-server-builds/scripts/` on TNAS.
 
 A definition is stored as one YAML file named `${job.name}-${job.id}.yaml` directly inside `jobs/` or `pipelines/`; the matching Rundeck group is `jobs` or `pipelines`. Keep an existing job UUID stable. New jobs need a stable UUID, a useful description, validated parameters, least-privilege execution, clear logging, and meaningful failure exit codes. Pipeline definitions should reference jobs by UUID and must not duplicate their work.
 

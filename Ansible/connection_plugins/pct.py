@@ -31,7 +31,7 @@ class Connection(ConnectionBase):
     def _run(self, command, data=None):
         self._connect()
         encoded = base64.b64encode(command.encode()).decode()
-        remote = ('sudo -n /opt/homelab-server-builds/lxc/build-template.sh '
+        remote = ('sudo -n /opt/homelab-server-builds/scripts/build-template.sh '
                   f'--ansible-exec {self._play_context.remote_addr} {encoded}')
         process = subprocess.Popen(
             ['ssh', '-T', '-i', '/var/lib/rundeck/.ssh/target_ed25519',

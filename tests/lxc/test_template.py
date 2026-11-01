@@ -68,8 +68,10 @@ class ProxmoxFixture(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.base = Path(self.temp.name)
-        shutil.copytree(ROOT / 'lxc', self.base / 'lxc')
-        with (self.base / 'lxc/common.sh').open('a') as stream:
+        (self.base / 'scripts').mkdir()
+        for name in ['build-template.sh','common.sh','create-container.sh','delete-container.sh']:
+            shutil.copy(ROOT / 'Rundeck/scripts' / name, self.base / 'scripts' / name)
+        with (self.base / 'scripts/common.sh').open('a') as stream:
             stream.write('\nroot_and_lock() { :; }\nstorage() { :; }\nbridge() { :; }\nwait_ready() { :; }\n')
         self.bin = self.base / 'bin'
         self.bin.mkdir()
@@ -78,17 +80,17 @@ class ProxmoxFixture(unittest.TestCase):
             p.write_text(FAKE)
             p.chmod(0o755)
         # The production PATH is intentionally fixed; adapt only the test copy.
-        common = self.base / 'lxc/common.sh'
+        common = self.base / 'scripts/common.sh'
         common.write_text(common.read_text().replace('export PATH=/usr/sbin:/usr/bin:/sbin:/bin', f'export PATH={self.bin}:/usr/sbin:/usr/bin:/sbin:/bin'))
         self.state = self.base / 'state.json'
         self.build_state = self.base / 'build.state'
-        script = self.base / 'lxc/build-template.sh'
+        script = self.base / 'scripts/build-template.sh'
         script.write_text(script.read_text().replace('/run/homelab-lxc-build.state',str(self.build_state)))
 
     def run_build(self, cts=None, failure=''):
         self.state.write_text(json.dumps({'cts': cts or {}, 'calls': []}))
         env=dict(os.environ, STATE=str(self.state), FAIL=failure)
-        script=str(self.base / 'lxc/build-template.sh')
+        script=str(self.base / 'scripts/build-template.sh')
         result=subprocess.run(['bash',script,'--prepare'],env=env,capture_output=True,text=True)
         if result.returncode == 0:
             import re
@@ -133,14 +135,14 @@ class TemplateTests(ProxmoxFixture):
     def test_guest_transport_rejects_production_id(self):
         self.state.write_text(json.dumps({'cts':{'110':'rufus'},'calls':[]}))
         self.build_state.write_text("CANDIDATE=200\nTEMPLATE_ID=9100\nSTORAGE=local-zfs\nBUILD_TOKEN=build-test\n")
-        result=subprocess.run(['bash',str(self.base/'lxc/build-template.sh'),'--ansible-exec','110','aWQ='],env=dict(os.environ,STATE=str(self.state)),capture_output=True,text=True)
+        result=subprocess.run(['bash',str(self.base/'scripts/build-template.sh'),'--ansible-exec','110','aWQ='],env=dict(os.environ,STATE=str(self.state)),capture_output=True,text=True)
         self.assertNotEqual(result.returncode,0)
         self.assertFalse(json.loads(self.state.read_text())['calls'])
 
     def test_guest_transport_rejects_wrong_ownership_tag(self):
         self.state.write_text(json.dumps({'cts':{'200':'tags: unrelated\n'},'calls':[]}))
         self.build_state.write_text("CANDIDATE=200\nTEMPLATE_ID=9100\nSTORAGE=local-zfs\nBUILD_TOKEN=build-test\n")
-        result=subprocess.run(['bash',str(self.base/'lxc/build-template.sh'),'--ansible-exec','200','aWQ='],env=dict(os.environ,STATE=str(self.state)),capture_output=True,text=True)
+        result=subprocess.run(['bash',str(self.base/'scripts/build-template.sh'),'--ansible-exec','200','aWQ='],env=dict(os.environ,STATE=str(self.state)),capture_output=True,text=True)
         self.assertNotEqual(result.returncode,0)
         self.assertFalse(any(c[:2]==['pct','exec'] for c in json.loads(self.state.read_text())['calls']))
 

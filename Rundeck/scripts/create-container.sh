@@ -1,7 +1,7 @@
 #!/bin/bash
 set -Eeuo pipefail
 BASE=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
-# shellcheck source=lxc/common.sh
+# shellcheck source=Rundeck/scripts/common.sh
 source "$BASE/common.sh"
 CTID='' HOSTNAME='' CORES='' MEMORY='' DISK='' STORAGE='' BRIDGE='' IP='' GATEWAY='' DNS='' SEARCH_DOMAIN='' TEMPLATE_ID='' SSH_PUBLIC_KEY=''
 CREATED=0

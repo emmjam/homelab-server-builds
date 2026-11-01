@@ -9,7 +9,7 @@ BASELINE = 'tags: homelab-debian-lxc\ntemplate: 1\nrootfs: local-zfs:base-9100-d
 class LifecycleTests(ProxmoxFixture):
     def run_action(self, script, args, cts=None, failure='', statuses=None):
         self.state.write_text(json.dumps({'cts': cts or {}, 'calls': [], 'status': statuses or {}}))
-        result = subprocess.run(['bash', str(self.base / 'lxc' / script), *args],
+        result = subprocess.run(['bash', str(self.base / 'scripts' / script), *args],
             env=dict(os.environ, STATE=str(self.state), FAIL=failure), capture_output=True, text=True)
         return result, json.loads(self.state.read_text())
 
