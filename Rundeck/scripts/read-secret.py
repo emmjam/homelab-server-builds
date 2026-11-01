@@ -21,8 +21,8 @@ def read_secret(name, path=SECRETS_FILE, optional=False):
         info = os.fstat(stream.fileno())
         if not stat.S_ISREG(info.st_mode):
             raise ValueError('/tmp/secrets.txt must be a regular file')
-        if info.st_uid not in {0, os.geteuid()}:
-            raise ValueError('/tmp/secrets.txt has an unexpected owner')
+        # The established transfer process leaves this file owned by Ian.
+        # Rely on OS read access; never alter its owner or permissions here.
         matches = []
         for line in stream:
             match = re.fullmatch(r'([A-Z][A-Z0-9_]*)=(.*)', line.strip())

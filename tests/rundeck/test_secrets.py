@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import tempfile
 import unittest
+from unittest import mock
 
 ROOT=Path(__file__).resolve().parents[2]
 spec=importlib.util.spec_from_file_location('secret_reader',ROOT/'Rundeck/scripts/read-secret.py')
@@ -47,6 +48,17 @@ class SecretTests(unittest.TestCase):
     def test_temporary_mode_777_is_accepted(self):
         self.write('RUNDECK_TOKEN=dummy\n');self.path.chmod(0o777)
         self.assertEqual(reader.read_secret('RUNDECK_TOKEN',self.path),'dummy')
+
+    def test_transfer_owner_is_accepted_without_metadata_changes(self):
+        self.write('RUNDECK_TOKEN=dummy\n')
+        self.path.chmod(0o777)
+        before = self.path.stat()
+        transferred = os.stat_result(tuple(before)[:4] + (98765,) + tuple(before)[5:])
+        with mock.patch.object(reader.os, 'fstat', return_value=transferred):
+            self.assertEqual(reader.read_secret('RUNDECK_TOKEN', self.path), 'dummy')
+        after = self.path.stat()
+        self.assertEqual((before.st_uid, before.st_gid, before.st_mode),
+                         (after.st_uid, after.st_gid, after.st_mode))
 
     def test_symlink_is_rejected(self):
         actual=self.path.with_name('actual');actual.write_text('RUNDECK_TOKEN=dummy\n');actual.chmod(0o600)
