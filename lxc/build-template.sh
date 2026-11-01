@@ -124,6 +124,7 @@ pct exec "$CANDIDATE" -- bash -ec '
     rm -rf /var/log/journal/* /tmp/* /var/tmp/*
     find /var/log -type f -exec truncate -s 0 {} +
     rm -f /root/.bash_history
+    rm -rf /root/.ansible /root/.cache
 '
 pct shutdown "$CANDIDATE" --timeout 60
 pct status "$CANDIDATE" | grep -qx 'status: stopped' || fail 'Candidate did not stop cleanly'

@@ -5,11 +5,13 @@ set -Eeuo pipefail
 MODE=${1:-}
 REPO=/opt/homelab-server-builds
 DEST=rundeck@192.168.0.101
-STAGING=/opt/homelab-lxc-staging
+STAGING=/home/rundeck/homelab-lxc-staging
 KEY=/var/lib/rundeck/.ssh/target_ed25519
 SSH=( -i "$KEY" -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=10 )
 case $MODE in
     build) SCRIPT=build-template.sh; OPTIONS=(template_id storage image_storage bridge);;
+    create) SCRIPT=create-container.sh; OPTIONS=(id hostname cores memory disk storage bridge ip gateway dns search_domain template_id ssh_public_key);;
+    delete) SCRIPT=delete-container.sh; OPTIONS=(id confirm);;
     *) echo 'Unsupported LXC action' >&2; exit 1;;
 esac
 [[ -r $KEY ]] || { echo 'Missing Rundeck SSH key' >&2; exit 1; }

@@ -631,3 +631,16 @@ Keep the distinction between:
 - **Retired:** No longer part of the architecture.
 
 This document should evolve with the infrastructure and remain a reliable source of project context for future AI-assisted development.
+
+## Debian LXC automation (1 November 2026)
+
+A separate Debian 13 LXC baseline and lifecycle implementation now lives under
+`lxc/`, `Ansible/roles/debian_lxc` and `Ansible/playbooks/debian-lxc.yml`.
+The planned template ID is 9100, confirmed unused in the supplied live inventory
+and rechecked at runtime. Defaults use `local` for official image downloads,
+`local-zfs` for root disks and `vmbr0` for networking. VM automation is unchanged.
+See `docs/lxc.md` for installation, root-owned execution, the three Rundeck jobs,
+parameters, retained template backups and testing procedures. Live verification
+is pending administrator installation and sudoers setup; implementation alone
+must not be treated as a successful production deployment. No Rufus playbook is
+run by this pipeline, and LXC 110 is excluded from testing.

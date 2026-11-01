@@ -11,6 +11,8 @@ short_description: Execute Ansible through the local Proxmox pct command
 description:
   - Inventory hosts must be numeric container IDs on the current Proxmox node.
 author: Homelab
+extends_documentation_fragment:
+  - connection_pipelining
 """
 
 class Connection(ConnectionBase):

@@ -1,0 +1,32 @@
+- defaultTab: output
+  description: LXC lifecycle automation from Git; validates all parameters on TNAS
+    before changes.
+  executionEnabled: true
+  group: jobs
+  id: 52b08d85-d1fc-48c6-8bbd-04a69db365aa
+  loglevel: INFO
+  name: Proxmox - Delete LXC Container
+  nodeFilterEditable: false
+  options:
+  - name: id
+    required: true
+    regex: '[1-9][0-9]{2,5}'
+  - name: confirm
+    required: true
+    regex: DELETE-[1-9][0-9]{2,5}
+    description: Enter DELETE- followed by the exact container ID
+  scheduleEnabled: false
+  sequence:
+    commands:
+    - jobref:
+        group: jobs
+        name: HomeLab - Update GitHub Checkout
+        nodeStep: false
+        project: HomeLab
+        uuid: 310dfa4f-e27f-4945-be6a-7380ef75e586
+    - scriptfile: /opt/homelab-server-builds/Rundeck/scripts/invoke-lxc.sh
+      args: delete
+    keepgoing: false
+    strategy: node-first
+  user: ian
+  uuid: 52b08d85-d1fc-48c6-8bbd-04a69db365aa

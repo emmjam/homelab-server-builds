@@ -25,12 +25,12 @@ The custom Ansible `pct` connection runs on TNAS and requires no SSH or Ansible
 installation in the container; Python 3 is bootstrapped there.
 
 The Rundeck job refreshes the Git checkout using the existing refresh job, stages
-only LXC files at `/opt/homelab-lxc-staging`, and compares installed checksums.
+only LXC files at `/home/rundeck/homelab-lxc-staging`, and compares installed checksums.
 It refuses to run outdated installed code. The first invocation stages files and
 stops until an administrator installs them:
 
 ```sh
-sudo bash /opt/homelab-lxc-staging/lxc/install.sh
+sudo bash /home/rundeck/homelab-lxc-staging/lxc/install.sh
 ```
 
 The installer copies only LXC code into root-owned `/opt/homelab-lxc`, removing
@@ -83,3 +83,91 @@ Offline state-machine tests simulate Proxmox and test template publication,
 backup preservation and cleanup. They do not establish live guest compatibility.
 Live validation requires administrator installation and sudoers configuration;
 record execution URLs and guest evidence before considering the pipeline production verified.
+
+## Container lifecycle
+
+The administrator adds the following two entries alongside the builder entry in
+`/etc/sudoers.d/homelab-lxc`, using `visudo`:
+
+```sudoers
+rundeck ALL=(root) NOPASSWD: /opt/homelab-lxc/lxc/create-container.sh
+rundeck ALL=(root) NOPASSWD: /opt/homelab-lxc/lxc/delete-container.sh
+```
+
+All three job commands execute root-owned installed files. No permission to run
+arbitrary `pct`, shell commands or a user-writable script is required.
+
+Create a container (ID 9200 is an example; availability is checked live):
+
+```sh
+sudo /opt/homelab-lxc/lxc/create-container.sh \
+  --id 9200 --hostname debian-lxc-test --cores 2 --memory 1 --disk 8 \
+  --storage local-zfs --bridge vmbr0 --ip dhcp --dns '192.168.0.2' \
+  --template-id 9100
+```
+
+For static IPv4, supply `--ip 192.168.0.220/24 --gateway 192.168.0.1`, after
+reserving that address in the network's DHCP configuration. Optional flags are
+`--search-domain lan` and `--ssh-public-key 'ssh-ed25519 AAAA... comment'`.
+Only one public key without authorized_keys options is accepted. No user account
+is created. Without a key, use `pct enter ID` for administration; the SSH listener
+is checked but SSH login is unavailable. IPv6-only provisioning is not implemented.
+
+Creation requires an unused numeric ID, a unique hostname and a managed baseline
+template. It makes a full clone with a fresh locally administered MAC, applies
+resource and network settings, grows the root disk, starts the guest, optionally
+installs the supplied root public key, and verifies hostname, resources, routing,
+DNS, SSH banner, Debian baseline and regenerated identity. RAM and disk use whole
+GB at the interface (RAM is converted to MiB for Proxmox). Disk shrinking is refused.
+A post-clone failure cleans up only the container created by that invocation.
+If the clone command itself fails, Proxmox performs its clone rollback; any unknown
+remaining target is left for inspection rather than blindly destroyed.
+
+Delete a container:
+
+```sh
+sudo /opt/homelab-lxc/lxc/delete-container.sh --id 9200 --confirm DELETE-9200
+```
+
+Deletion accepts only a numeric ID and exact ID-specific confirmation. It refuses
+Proxmox templates, an existing Proxmox protection flag, and infrastructure ID 110.
+There is no added Plex ID protection and no changes are made to existing protection
+flags. A running container must shut down cleanly within 60 seconds. Failure to
+stop aborts deletion; there is no forced-stop fallback. Protection and stopped
+state are checked immediately before destroying that ID. VM deletion behaviour
+is unchanged.
+
+Git-managed jobs:
+
+| Job | UUID |
+|---|---|
+| Proxmox - Build Debian LXC Template | `ad03d069-5b55-477b-bf75-27d85a04e8a3` |
+| Proxmox - Create LXC Container | `30105ab1-cc4e-46ca-9fd6-15a3ddcf8a48` |
+| Proxmox - Delete LXC Container | `52b08d85-d1fc-48c6-8bbd-04a69db365aa` |
+
+Use these jobs directly: they expose validated options and invoke the shared
+`Rundeck/scripts/invoke-lxc.sh` dispatcher. Each refreshes Git before staging and
+checks installed checksums; the administrator must reinstall after code changes.
+
+## Validation record (1 November 2026)
+
+- Stage 1: five offline state-machine tests passed before lifecycle implementation.
+- Combined: fifteen offline tests cover template builds, retained backups, malformed
+  parameters, MAC/resource settings, clone cleanup, confirmation, templates,
+  protected containers and clean shutdown failures.
+- Ansible syntax check and ansible-lint passed. The custom transport also passed
+  actual Ansible ping/module execution and file-copy tests using an isolated fake
+  pct executable under `/tmp`; no guest or host baseline was changed by that test.
+- ShellCheck passed for new LXC scripts and the dispatcher. Bash syntax passed
+  for every existing shell script as well as the new scripts. Existing VM files
+  are unchanged. Existing VM baseline ShellCheck reports its pre-existing unused
+  `attempt` variable; no unrelated VM changes were made to silence it.
+- All Rundeck YAML parses and all job IDs match their UUIDs and managed groups.
+- Initial live setup execution [131](http://192.168.0.51:4440/project/HomeLab/execution/show/131)
+  confirmed checkout refresh/job import, then failed before container operations
+  because `/opt` staging was not writable. Staging now uses the service user's home.
+- Live template, clone, identity uniqueness, SSH login, deletion and VM functional
+  regression tests remain pending installation and sudoers setup. No production
+  container or VM was changed during these checks.
+
+CLI flags were checked against the upstream [Proxmox pct reference](https://github.com/proxmox/pve-docs/blob/master/generated/pct.1-synopsis.adoc).
