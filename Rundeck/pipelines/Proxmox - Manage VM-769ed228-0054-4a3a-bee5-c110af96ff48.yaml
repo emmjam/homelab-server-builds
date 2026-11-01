@@ -45,14 +45,14 @@
   sequence:
     commands:
     - description: Run creation workflow when action is create
-      type: conditional.logic
+      type: conditional
       nodeStep: false
+      invertLogic: false
       conditionGroups:
-      - conditions:
-        - field: "${option.action}"
-          operator: equals
+      - - key: "${option.action}"
+          operator: "=="
           value: create
-      steps:
+      subSteps:
       - description: Refresh Rundeck job definitions from Git
         jobref:
           group: jobs
@@ -76,14 +76,14 @@
           project: HomeLab
           uuid: 5c7a2428-7407-43cd-90ff-886e5f5447dd
     - description: Run deletion when action is delete
-      type: conditional.logic
+      type: conditional
       nodeStep: false
+      invertLogic: false
       conditionGroups:
-      - conditions:
-        - field: "${option.action}"
-          operator: equals
+      - - key: "${option.action}"
+          operator: "=="
           value: delete
-      steps:
+      subSteps:
       - description: Delete VM by exact name or numeric ID
         jobref:
           args: "-target '${option.target}'"
