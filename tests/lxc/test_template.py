@@ -36,7 +36,7 @@ elif cmd=='pct':
  elif op=='clone':
   target=a[2]
   if target in s['cts']: fail()
-  if os.environ.get('FAIL')=='publish' and target=='9100': fail()
+  if os.environ.get('FAIL')=='publish' and target=='9001': fail()
   s['cts'][target]=s['cts'][ct].replace('template: 1\n','')
  elif op=='template': s['cts'][ct]+='template: 1\n'
  elif op=='destroy': s['cts'].pop(ct,None)
@@ -103,45 +103,90 @@ class ProxmoxFixture(unittest.TestCase):
 
 
 class TemplateTests(ProxmoxFixture):
+    def test_migrate_template_ids_and_preserve_conflicts(self):
+        original = 'tags: homelab-debian-lxc\ntemplate: 1\n'
+        for occupied in (False, True):
+            with self.subTest(occupied=occupied):
+                cts = {'9100': original}
+                if occupied:
+                    cts['9001'] = 'Apt-Cache'
+                self.state.write_text(json.dumps({'cts': cts, 'calls': []}))
+                result = subprocess.run(['bash', str(self.base/'scripts/build-template.sh'),
+                    '--migrate-template-ids'], env=dict(os.environ, STATE=str(self.state)),
+                    capture_output=True, text=True)
+                state = json.loads(self.state.read_text())
+                self.assertEqual(result.returncode == 0, not occupied, result.stdout + result.stderr)
+                if occupied:
+                    self.assertEqual(state['cts'], cts)
+                else:
+                    self.assertEqual(set(state['cts']), {'9001', '9998'})
+                    self.assertIn('template: 1', state['cts']['9001'])
+                    self.assertIn('template: 1', state['cts']['9998'])
+
+    def test_delete_obsolete_backup_is_scoped(self):
+        configs = [
+            ('hostname: debian-lxc-backup-102\ntemplate: 1\ntags: homelab-debian-lxc\n', True),
+            ('hostname: rufus\ntemplate: 1\ntags: homelab-debian-lxc\n', False),
+            ('hostname: debian-lxc-backup-102\ntemplate: 1\ntags: homelab-debian-lxc\nprotection: 1\n', False),
+            ('hostname: debian-lxc-backup-102\ntemplate: 1\n', False),
+        ]
+        for config, allowed in configs:
+            with self.subTest(config=config):
+                self.state.write_text(json.dumps({'cts': {'102': config, '111': 'rufus'}, 'calls': []}))
+                result = subprocess.run(['bash', str(self.base/'scripts/build-template.sh'),
+                    '--delete-obsolete-backup', '102', 'DELETE-102'],
+                    env=dict(os.environ, STATE=str(self.state)), capture_output=True, text=True)
+                state = json.loads(self.state.read_text())
+                self.assertEqual(result.returncode == 0, allowed, result.stdout + result.stderr)
+                self.assertEqual('102' not in state['cts'], allowed)
+                self.assertIn('111', state['cts'])
+
+    def test_unrelated_backup_id_is_preserved(self):
+        result, state = self.run_build({'9001': 'tags: homelab-debian-lxc\ntemplate: 1\n',
+                                        '9998': 'hostname: unrelated\ntemplate: 1\n'})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('9001', state['cts'])
+        self.assertEqual(state['cts']['9998'], 'hostname: unrelated\ntemplate: 1\n')
+
     def test_first_build(self):
         result, state = self.run_build({'110': 'hostname: rufus\n'})
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertIn('template: 1', state['cts']['9100'])
-        self.assertEqual(set(state['cts']), {'110', '9100'})
+        self.assertIn('template: 1', state['cts']['9001'])
+        self.assertEqual(set(state['cts']), {'110', '9001'})
 
     def test_baseline_failure_preserves_existing(self):
         original = 'tags: homelab-debian-lxc\ntemplate: 1\n'
-        result, state = self.run_build({'9100': original, '110': 'rufus'}, 'baseline')
+        result, state = self.run_build({'9001': original, '110': 'rufus'}, 'baseline')
         self.assertNotEqual(result.returncode, 0)
-        self.assertEqual(state['cts'], {'9100': original, '110': 'rufus'})
+        self.assertEqual(state['cts'], {'9001': original, '110': 'rufus'})
 
     def test_rebuild_keeps_backup(self):
-        result, state = self.run_build({'9100': 'tags: homelab-debian-lxc\ntemplate: 1\n'})
+        result, state = self.run_build({'9001': 'tags: homelab-debian-lxc\ntemplate: 1\n'})
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertEqual(set(state['cts']), {'201', '9100'})
-        self.assertIn('template: 1', state['cts']['201'])
+        self.assertEqual(set(state['cts']), {'9998', '9001'})
+        self.assertIn('template: 1', state['cts']['9998'])
 
     def test_failed_publication_keeps_working_backup(self):
-        result, state = self.run_build({'9100': 'tags: homelab-debian-lxc\ntemplate: 1\n'}, 'publish')
+        result, state = self.run_build({'9001': 'tags: homelab-debian-lxc\ntemplate: 1\n'}, 'publish')
         self.assertNotEqual(result.returncode, 0)
-        self.assertEqual(set(state['cts']), {'201'})
-        self.assertIn('template: 1', state['cts']['201'])
+        self.assertEqual(set(state['cts']), {'9998'})
+        self.assertIn('template: 1', state['cts']['9998'])
 
     def test_refuse_unmanaged_target(self):
-        result, state = self.run_build({'9100': 'template: 1\n'})
+        result, state = self.run_build({'9001': 'template: 1\n'})
         self.assertNotEqual(result.returncode, 0)
         self.assertFalse(any(call[:2] == ['pct', 'destroy'] for call in state['calls']))
 
     def test_guest_transport_rejects_production_id(self):
         self.state.write_text(json.dumps({'cts':{'110':'rufus'},'calls':[]}))
-        self.build_state.write_text("CANDIDATE=200\nTEMPLATE_ID=9100\nSTORAGE=local-zfs\nBUILD_TOKEN=build-test\n")
+        self.build_state.write_text("CANDIDATE=200\nTEMPLATE_ID=9001\nSTORAGE=local-zfs\nBUILD_TOKEN=build-test\n")
         result=subprocess.run(['bash',str(self.base/'scripts/build-template.sh'),'--ansible-exec','110','aWQ='],env=dict(os.environ,STATE=str(self.state)),capture_output=True,text=True)
         self.assertNotEqual(result.returncode,0)
         self.assertFalse(json.loads(self.state.read_text())['calls'])
 
     def test_guest_transport_rejects_wrong_ownership_tag(self):
         self.state.write_text(json.dumps({'cts':{'200':'tags: unrelated\n'},'calls':[]}))
-        self.build_state.write_text("CANDIDATE=200\nTEMPLATE_ID=9100\nSTORAGE=local-zfs\nBUILD_TOKEN=build-test\n")
+        self.build_state.write_text("CANDIDATE=200\nTEMPLATE_ID=9001\nSTORAGE=local-zfs\nBUILD_TOKEN=build-test\n")
         result=subprocess.run(['bash',str(self.base/'scripts/build-template.sh'),'--ansible-exec','200','aWQ='],env=dict(os.environ,STATE=str(self.state)),capture_output=True,text=True)
         self.assertNotEqual(result.returncode,0)
         self.assertFalse(any(c[:2]==['pct','exec'] for c in json.loads(self.state.read_text())['calls']))

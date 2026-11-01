@@ -9,7 +9,7 @@
   nodeFilterEditable: false
   options:
   - name: template_id
-    value: '9100'
+    value: '9001'
     required: true
     regex: '[1-9][0-9]{2,5}'
   - name: storage

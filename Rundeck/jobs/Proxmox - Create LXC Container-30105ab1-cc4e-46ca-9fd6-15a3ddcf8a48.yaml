@@ -52,7 +52,7 @@
     regex: '[a-zA-Z0-9.-]+'
   - name: template_id
     required: true
-    value: '9100'
+    value: '9001'
     regex: '[1-9][0-9]{2,5}'
   - name: ssh_public_key
     required: false

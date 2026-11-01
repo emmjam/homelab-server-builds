@@ -1,6 +1,64 @@
 #!/bin/bash
 set -Eeuo pipefail
 
+# Explicitly requested service-ID migration, separate from template provisioning.
+if [[ ${1:-} == --relocate-service ]]; then
+    [[ $# == 3 && $EUID == 0 ]] || { echo 'Expected source and destination IDs as root'; exit 1; }
+    source_id=$2 target_id=$3
+    case "$source_id:$target_id" in
+        9001:112) service_name=Apt-Cache; service_unit=apt-cacher-ng;;
+        9002:113) service_name=rundeck; service_unit=rundeckd;;
+        *) echo 'Unapproved service migration pair'; exit 1;;
+    esac
+    exec 8>/run/lock/homelab-service-migration.lock
+    flock -n 8 || { echo 'Service migration already running'; exit 1; }
+    config=$(qm config "$source_id")
+    grep -qx "name: $service_name" <<< "$config" || { echo 'Unexpected source VM'; exit 1; }
+    ! grep -qx 'template: 1' <<< "$config" || exit 1
+    ! grep -qx 'protection: 1' <<< "$config" || exit 1
+    pvesh get /cluster/resources --output-format json | jq -e --argjson id "$target_id" 'all(.[]; .vmid != $id)' >/dev/null || { echo 'Destination ID occupied'; exit 1; }
+    qm agent "$source_id" ping
+    stopped_source=0 cloned_target=0
+    # Invoked by the EXIT trap.
+    # shellcheck disable=SC2329
+    rollback_service() {
+        rc=$?
+        trap - EXIT
+        if ((rc && stopped_source)); then
+            if ((cloned_target)); then qm stop "$target_id" --timeout 30 || exit "$rc"; fi
+            qm start "$source_id" || true
+            echo 'Migration failed; original VM restarted, destination retained for inspection'
+        fi
+        exit "$rc"
+    }
+    trap rollback_service EXIT
+    qm shutdown "$source_id" --timeout 120
+    qm status "$source_id" | grep -qx 'status: stopped'
+    stopped_source=1
+    qm clone "$source_id" "$target_id" --full 1 --name "$service_name"
+    cloned_target=1
+    # Preserve DHCP reservations and the existing network identity while IDs change.
+    while IFS= read -r line; do
+        [[ $line =~ ^(net[0-9]+):\ (.*)$ ]] || continue
+        qm set "$target_id" "--${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
+    done <<< "$config"
+    qm start "$target_id"
+    ready=0
+    for ((attempt=0;attempt<90;attempt++)); do
+        if qm agent "$target_id" ping >/dev/null 2>&1; then
+            result=$(qm guest exec "$target_id" --timeout 30 -- systemctl is-active "$service_unit" 2>/dev/null || true)
+            if jq -e '.exitcode == 0' <<< "$result" >/dev/null 2>&1; then ready=1; break; fi
+        fi
+        sleep 3
+    done
+    ((ready)) || { echo 'Destination service did not become healthy'; exit 1; }
+    qm status "$source_id" | grep -qx 'status: stopped'
+    qm destroy "$source_id" --purge 1
+    stopped_source=0
+    echo "SUCCESS: $service_name moved from $source_id to $target_id; $service_unit active"
+    exit 0
+fi
+
 # Provision a new Debian VM from Proxmox template 9000.
 # Run as root on the Proxmox host.
 

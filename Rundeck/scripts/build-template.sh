@@ -3,7 +3,7 @@ set -Eeuo pipefail
 BASE=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck source=Rundeck/scripts/common.sh
 source "$BASE/common.sh"
-TEMPLATE_ID=9100 STORAGE=local-zfs IMAGE_STORAGE=local BRIDGE=vmbr0
+TEMPLATE_ID=9001 STORAGE=local-zfs IMAGE_STORAGE=local BRIDGE=vmbr0
 CANDIDATE='' BACKUP='' BUILD_TOKEN=''
 OWNED=0 PROMOTING=0
 STATE_FILE=/run/homelab-lxc-build.state
@@ -45,6 +45,39 @@ cleanup() {
     exit "$rc"
 }
 case $MODE in
+    --migrate-template-ids)
+        (($# == 1)) || fail 'Use --migrate-template-ids alone'
+        root_and_lock
+        free_id 9001
+        free_id 9998
+        CONFIG=$(pct config 9100) || fail 'Original template 9100 is missing'
+        grep -qx 'template: 1' <<< "$CONFIG" || fail 'Source is not a template'
+        grep -Eq '^tags: .*homelab-debian-lxc' <<< "$CONFIG" || fail 'Source is unmanaged'
+        ! grep -qx 'protection: 1' <<< "$CONFIG" || fail 'Source is protected'
+        pct clone 9100 9001 --full 1 --hostname debian-lxc-template --storage local-zfs
+        pct template 9001
+        pct config 9001 | grep -qx 'template: 1' || fail 'New template validation failed'
+        pct clone 9100 9998 --full 1 --hostname debian-lxc-template-backup --storage local-zfs
+        pct template 9998
+        pct config 9998 | grep -qx 'template: 1' || fail 'New backup validation failed'
+        pct destroy 9100 --purge 1
+        log 'SUCCESS: debian-lxc-template=9001 debian-lxc-template-backup=9998'
+        exit 0;;
+    --delete-obsolete-backup)
+        (($# == 3)) || fail 'Expected backup ID and DELETE-ID confirmation'
+        id "$2"
+        [[ $3 == "DELETE-$2" ]] || fail 'Incorrect backup deletion confirmation'
+        root_and_lock
+        CONFIG=$(pct config "$2") || fail 'Backup not found'
+        grep -qx "hostname: debian-lxc-backup-$2" <<< "$CONFIG" || fail 'Not an obsolete LXC backup'
+        grep -qx 'template: 1' <<< "$CONFIG" || fail 'Backup must be a template'
+        grep -Eq '^tags: .*homelab-debian-lxc' <<< "$CONFIG" || fail 'Unmanaged backup'
+        ! grep -qx 'protection: 1' <<< "$CONFIG" || fail 'Protected backup'
+        pct status "$2" | grep -qx 'status: stopped' || fail 'Backup is not stopped'
+        pct destroy "$2" --purge 1
+        free_id "$2"
+        log "SUCCESS: obsolete LXC backup $2 deleted"
+        exit 0;;
     --help|-h) usage; exit 0;;
     --inspect)
         (($# == 1)) || fail '--inspect must be used alone'
@@ -161,12 +194,23 @@ pct exec "$CANDIDATE" -- bash -ec '
 '
 pct shutdown "$CANDIDATE" --timeout 60
 pct status "$CANDIDATE" | grep -qx 'status: stopped' || fail 'Candidate did not stop cleanly'
-pct set "$CANDIDATE" --hostname debian-13-lxc-template --tags homelab-debian-lxc
+pct set "$CANDIDATE" --hostname debian-lxc-template --tags homelab-debian-lxc
 pct template "$CANDIDATE"
 if pct config "$TEMPLATE_ID" >/dev/null 2>&1; then
-    BACKUP=$(next_id)
+    BACKUP=9998
+    if pct config "$BACKUP" >/dev/null 2>&1; then
+        BACKUP_CONFIG=$(pct config "$BACKUP")
+        grep -qx 'hostname: debian-lxc-template-backup' <<< "$BACKUP_CONFIG" || fail 'Backup ID 9998 is occupied by another guest'
+        grep -qx 'template: 1' <<< "$BACKUP_CONFIG" || fail 'Backup ID is not a template'
+        grep -Eq '^tags: .*homelab-debian-lxc' <<< "$BACKUP_CONFIG" || fail 'Backup ID is unmanaged'
+        ! grep -qx 'protection: 1' <<< "$BACKUP_CONFIG" || fail 'Backup is protected'
+        pct status "$BACKUP" | grep -qx 'status: stopped' || fail 'Backup is not stopped'
+        pct destroy "$BACKUP" --purge 1
+    else
+        free_id "$BACKUP"
+    fi
     log "Preserving working template $TEMPLATE_ID at backup ID $BACKUP"
-    pct clone "$TEMPLATE_ID" "$BACKUP" --full 1 --hostname "debian-lxc-backup-$BACKUP" --storage "$STORAGE"
+    pct clone "$TEMPLATE_ID" "$BACKUP" --full 1 --hostname debian-lxc-template-backup --storage "$STORAGE"
     pct template "$BACKUP"
     pct config "$BACKUP" | grep -qx 'template: 1' || fail 'Backup validation failed'
     PROMOTING=1
@@ -175,7 +219,7 @@ else
     free_id "$TEMPLATE_ID"
 fi
 log "Publishing validated template at ID $TEMPLATE_ID"
-pct clone "$CANDIDATE" "$TEMPLATE_ID" --full 1 --hostname debian-13-lxc-template --storage "$STORAGE"
+pct clone "$CANDIDATE" "$TEMPLATE_ID" --full 1 --hostname debian-lxc-template --storage "$STORAGE"
 pct template "$TEMPLATE_ID"
 pct config "$TEMPLATE_ID" | grep -qx 'template: 1' || fail 'Published target is not a template'
 log "SUCCESS: Debian 13 LXC template $TEMPLATE_ID; retained backup=${BACKUP:-none}"
