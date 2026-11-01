@@ -1,0 +1,10 @@
+---
+- name: Configure consistent Debian guest DNS without restarting networking
+  hosts: managed_debian
+  become: true
+  gather_facts: true
+  pre_tasks:
+    - name: Discover services before selecting DNS behaviour
+      ansible.builtin.service_facts:
+  roles:
+    - debian_dns

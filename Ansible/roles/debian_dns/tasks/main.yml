@@ -1,0 +1,52 @@
+---
+- name: Require managed Debian guest
+  ansible.builtin.assert:
+    that:
+      - ansible_facts.distribution == 'Debian'
+
+- name: Install shared manager-aware DNS policy
+  ansible.builtin.copy:
+    src: configure-debian-dns.sh
+    dest: /usr/local/sbin/homelab-configure-dns
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Apply persistent DNS policy and resolver-only runtime settings
+  ansible.builtin.command: /usr/local/sbin/homelab-configure-dns
+  register: homelab_dns_result
+  changed_when: "'DNS_POLICY_CHANGED=1' in homelab_dns_result.stdout"
+
+- name: Install DNS verification utilities and cron
+  ansible.builtin.apt:
+    name: [bind9-dnsutils, cron]
+    state: present
+
+- name: Install manager-aware boot hostname verification
+  ansible.builtin.copy:
+    src: homelab-hostname-registration
+    dest: /usr/local/sbin/homelab-hostname-registration
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Install persistent boot DNS verification
+  ansible.builtin.copy:
+    dest: /etc/cron.d/homelab-hostname-registration
+    owner: root
+    group: root
+    mode: '0644'
+    content: |
+      @reboot root /usr/local/sbin/homelab-hostname-registration
+
+- name: Enable boot verification scheduler
+  ansible.builtin.systemd_service:
+    name: cron
+    enabled: true
+    state: started
+
+- name: Remove obsolete independent DHCP renewal service
+  ansible.builtin.systemd_service:
+    name: homelab-dhcp-renew.service
+    enabled: false
+  when: "'homelab-dhcp-renew.service' in (ansible_facts.services | default({}))"
