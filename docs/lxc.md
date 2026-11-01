@@ -193,3 +193,30 @@ verification before execution, rejection of corrupted transfers, and rejection o
 unknown actions, plus aborting the prepared candidate after Ansible failure.
 Two additional tests reject transport access to production IDs and guests without
 the active ownership tag. Transfer-only mode excludes unrelated playbooks, including Rufus.
+
+## Ian administrative account and build secret
+
+The Debian LXC template creates Ian at `/home/ian`, with membership in `sudo`
+and the established laptop public key. `.ssh` is `ian:ian`/0700 and
+`authorized_keys` is `ian:ian`/0600. No private keys are included. SSH remains
+key-only; the account password is for local sudo authentication.
+
+Template builds require `IAN_PASSWORD_HASH` in the ignored laptop
+`CRAP/secrets.txt`, transferred to controller `/tmp/secrets.txt` by the existing
+secret-transfer process. Generate a SHA-512 crypt hash with `openssl passwd -6`.
+The Ansible controller reads it literally through the existing secret reader;
+it is not a Rundeck option, command-line argument or committed variable value.
+Validation and account tasks use `no_log`; the role rejects missing, empty,
+locked or malformed hashes and explicitly unlocks the account. Rundeck's
+existing deployment sudo permissions are unchanged.
+
+`/etc/sudoers.d/zz-ian` requires `PASSWD` and `authenticate` for Ian. No Ian
+`NOPASSWD` rule is installed. Rufus provisioning no longer creates this account.
+
+Required live verification on a **fresh clone**: Ian key login, home/key ownership
+and modes, `passwd -S ian` reporting `P`, sudo-group membership, a password prompt,
+failure with an incorrect password, and success with the intended password.
+Clear cached sudo credentials before each password test (`sudo -k`). Password
+checks must be interactive or use a non-logged temporary input; never put the
+plaintext password in a command line, Git, captured terminal output or documentation.
+These new password checks remain pending a supplied build hash and a fresh clone.

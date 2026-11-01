@@ -5,6 +5,13 @@
       - ansible_facts.distribution == 'Debian'
       - ansible_facts.distribution_major_version == '13'
 
+- name: Require a usable Ian password hash from controller secrets
+  ansible.builtin.assert:
+    that:
+      - debian_lxc_ian_password_hash is match('^\$6\$(rounds=[0-9]+\$)?[./0-9A-Za-z]{1,16}\$[./0-9A-Za-z]{86}$')
+    fail_msg: IAN_PASSWORD_HASH must contain an unlocked SHA-512 crypt password hash.
+  no_log: true
+
 - name: Configure APT proxy and direct HTTPS
   ansible.builtin.copy:
     dest: /etc/apt/apt.conf.d/02homelab-proxy
@@ -27,15 +34,29 @@
     state: present
 
 - name: Create Ian administrative account as in the VM template
+  no_log: true
   ansible.builtin.user:
     name: ian
+    home: /home/ian
     comment: Ian
     shell: /bin/bash
     groups: sudo
     append: true
     create_home: true
-    password: NP
+    password: "{{ debian_lxc_ian_password_hash }}"
+    password_lock: false
     state: present
+
+- name: Require password authentication for Ian sudo
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/zz-ian
+    content: |
+      Defaults:ian authenticate
+      ian ALL=(ALL:ALL) PASSWD: ALL
+    owner: root
+    group: root
+    mode: '0440'
+    validate: /usr/sbin/visudo -cf %s
 
 - name: Create Ian SSH directory
   ansible.builtin.file:

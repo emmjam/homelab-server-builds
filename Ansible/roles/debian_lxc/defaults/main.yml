@@ -26,3 +26,9 @@ debian_lxc_rundeck_public_key: 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIH7sqNxz3jGP
 
 # Ian's public key follows the Debian VM preseed; password login is disabled.
 debian_lxc_ian_public_key: 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHpT3hhS4RJ9pYhmAbwGZ+t9G4z0ULd+/8nkgef3b4q/ ian@Laptop'
+
+# Read only on the Rundeck Ansible controller; never pass via job options or argv.
+debian_lxc_ian_password_hash: >-
+  {{ lookup('ansible.builtin.pipe', 'python3 ' ~
+     ((playbook_dir ~ '/../../Rundeck/scripts/read-secret.py') | quote) ~
+     ' IAN_PASSWORD_HASH') }}
