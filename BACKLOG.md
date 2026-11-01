@@ -156,6 +156,7 @@ feature requests. No relative implementation order within this queue has been ag
 | ID | Status | Work and completion criteria | Evidence / dependency |
 |---|---|---|---|
 | CACHE-01 | TODO | Migrate Apt-Cache from a VM to an LXC container with its cache storage backed by TNAS. Assess Samba/SMB and select the storage protocol and mount arrangement before implementation; verify caching, expiration and disk monitoring after migration. | Explicit user request on 1 November 2026. Samba is a proposal, not an agreed choice. Preserve the working cache until the replacement is verified. |
+| CACHE-02 | TODO | Standardise APT cache settings across templates, provisioning scripts, Ansible playbooks and existing clients. Identify inconsistencies, define one managed configuration and verify consistent HTTP proxy, HTTPS DIRECT and cache-server bootstrap behaviour. | Explicit user request on 1 November 2026; review and implementation remain outstanding. |
 
 ## Testing efficiency
 
