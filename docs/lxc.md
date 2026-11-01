@@ -42,6 +42,13 @@ rundeck ALL=(root) NOPASSWD: /opt/homelab-server-builds/lxc/create-container.sh
 rundeck ALL=(root) NOPASSWD: /opt/homelab-server-builds/lxc/delete-container.sh
 ```
 
+The same entries are supplied in `lxc/homelab-lxc.sudoers`. After Rundeck transfers
+and validates that file on TNAS, an administrator can install it with:
+
+```sh
+sudo install -o root -g root -m 0440 /opt/homelab-server-builds/lxc/homelab-lxc.sudoers /etc/sudoers.d/homelab-lxc
+```
+
 Existing VM permissions are unchanged. This follows the existing trust model:
 the Rundeck account can update the code of the commands it is permitted to run.
 The dispatcher serializes LXC transfer and execution on the Rundeck host.

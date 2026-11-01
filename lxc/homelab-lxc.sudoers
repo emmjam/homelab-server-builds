@@ -1,0 +1,5 @@
+# LXC automation entry points transferred by Rundeck from the Git checkout.
+# Keep the existing SSH keys and VM sudo permissions unchanged.
+rundeck ALL=(root) NOPASSWD: /opt/homelab-server-builds/lxc/build-template.sh
+rundeck ALL=(root) NOPASSWD: /opt/homelab-server-builds/lxc/create-container.sh
+rundeck ALL=(root) NOPASSWD: /opt/homelab-server-builds/lxc/delete-container.sh
