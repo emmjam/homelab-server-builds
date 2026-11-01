@@ -600,6 +600,8 @@ The user has several explicit preferences that should guide all development.
 - Test before declaring a change successful.
 - Do not claim an operation succeeded until its result has been verified.
 - Clearly distinguish recommendations from implemented changes.
+- Whenever directives are updated, immediately commit and push those directive changes to Git. This is standing authorisation for directive updates; keep unrelated changes out of those commits.
+- Leave the Rundeck host's secrets file ownership and permissions as set by the user; do not change them unless explicitly instructed.
 
 ## Architecture
 
