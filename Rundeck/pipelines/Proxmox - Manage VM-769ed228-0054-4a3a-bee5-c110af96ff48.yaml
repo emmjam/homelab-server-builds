@@ -11,13 +11,6 @@
       threadcount: 1
     filter: "name: localhost"
   options:
-  - hidden: true
-    name: rundeck_api_token
-    required: true
-    secure: true
-    valueExposed: true
-    storagePath: keys/project/HomeLab/rundeck_api_token
-    type: text
   - description: Choose whether to create a VM or delete an existing VM.
     enforced: true
     label: Action

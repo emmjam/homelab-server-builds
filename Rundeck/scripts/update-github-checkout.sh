@@ -1,4 +1,5 @@
 #!/bin/sh
+set +x
 set -eu
 
 REPO="/opt/homelab-server-builds"
@@ -6,8 +7,11 @@ PROJECT="HomeLab"
 RUNDECK_URL="${RD_URL:-http://192.168.0.51:4440}"
 API_VERSION="50"
 
-: "${RD_OPTION_GITHUB_TOKEN:?Rundeck GitHub token option is required}"
-: "${RD_OPTION_RUNDECK_API_TOKEN:?Rundeck API token option is required}"
+RD_OPTION_RUNDECK_API_TOKEN=$(python3 "$REPO/Rundeck/scripts/read-secret.py" RUNDECK_TOKEN)
+file_github_token=$(python3 "$REPO/Rundeck/scripts/read-secret.py" GITHUB_TOKEN --optional)
+if [ -n "$file_github_token" ]; then RD_OPTION_GITHUB_TOKEN=$file_github_token; fi
+: "${RD_OPTION_GITHUB_TOKEN:?Provide GITHUB_TOKEN in /tmp/secrets.txt or the existing GitHub Key Storage option}"
+export RD_OPTION_GITHUB_TOKEN
 
 cd "$REPO"
 

@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
+set +x
 set -Eeuo pipefail
 
 RUNDECK_URL="${RD_URL:-http://192.168.0.51:4440}"
 API_VERSION="50"
-TOKEN="${RD_OPTION_RUNDECK_API_TOKEN:-}"
+TOKEN=$(python3 /opt/homelab-server-builds/Rundeck/scripts/read-secret.py RUNDECK_TOKEN)
 ACTION="${RD_OPTION_ACTION:-}"
 VMNAME="${RD_OPTION_VMNAME:-}"
 CORES="${RD_OPTION_CORES:-}"
@@ -16,7 +17,7 @@ fail() {
   exit 1
 }
 
-[[ -n "$TOKEN" ]] || fail 'Rundeck API token is missing from project Key Storage.'
+[[ -n "$TOKEN" ]] || fail 'RUNDECK_TOKEN is missing from /tmp/secrets.txt.'
 case "$ACTION" in
   create)
     [[ "$VMNAME" =~ ^[a-zA-Z0-9]([a-zA-Z0-9._-]{0,61}[a-zA-Z0-9])?$ ]] || fail 'Provide a valid VM hostname.'
