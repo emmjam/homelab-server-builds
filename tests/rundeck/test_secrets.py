@@ -24,6 +24,11 @@ class SecretTests(unittest.TestCase):
         self.write('# Local credentials\nRUNDECK_URL=http://example.invalid\nRUNDECK_TOKEN=dummy-api-token\n# Source: existing key\n-----BEGIN EXAMPLE KEY-----\nignored\n-----END EXAMPLE KEY-----\n')
         self.assertEqual(reader.read_secret('RUNDECK_TOKEN',self.path),'dummy-api-token')
 
+    def test_password_hash_preserves_literal_dollar_signs(self):
+        self.write("IAN_PASSWORD_HASH='$6$dummy-salt$dummy-hash'\n")
+        self.assertEqual(reader.read_secret('IAN_PASSWORD_HASH', self.path),
+                         '$6$dummy-salt$dummy-hash')
+
     def test_optional_github_entry(self):
         self.write('RUNDECK_TOKEN=dummy\n')
         self.assertEqual(reader.read_secret('GITHUB_TOKEN',self.path,optional=True),'')

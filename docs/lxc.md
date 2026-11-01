@@ -170,10 +170,21 @@ Rundeck runs the Ansible role between TNAS prepare and complete phases.
   confirmed checkout refresh/job import, then failed before container operations
   because `/opt` staging was not writable. The separate installation design was
   subsequently removed; jobs now transfer into the established TNAS checkout.
-- Live template, clone, identity uniqueness, SSH login, deletion and VM functional
-  regression tests remain pending sudoers setup. No production
-  Proxmox VM or container configuration was changed during these checks. The
-  Ansible runtime was installed on Rundeck for controller execution.
+- Template build [141](http://192.168.0.51:4440/project/HomeLab/execution/show/141)
+  succeeded, publishing template 9100 and removing temporary candidate 101. The
+  baseline ran twice; the second run reported no changes. Earlier failed builds
+  also removed their owned candidates. SSH uses the service with socket activation
+  disabled, avoiding the observed socket-activated reload failure.
+- Creation [142](http://192.168.0.51:4440/project/HomeLab/execution/show/142)
+  succeeded for Rufus CT 111: two cores, 2 GB RAM, 8 GB disk, DHCP address
+  `192.168.0.189`. Guest readiness, APT proxy and direct HTTPS configuration passed.
+- The existing Rufus playbook ran from Rundeck against CT 111 with
+  `ok=18 changed=12 unreachable=0 failed=0`. Ian's SSH login was verified after
+  hardening. Optional local Ollama tasks were skipped. This provisions dependencies
+  and accounts only; no Rufus application or service was deployed.
+- All three flat script paths passed live `sudo -n -l`. Template rebuild/retained
+  backup, cross-clone identity uniqueness, deletion and VM functional regression
+  tests remain outstanding. No Rufus playbook repeat-run result is claimed.
 
 CLI flags were checked against the upstream [Proxmox pct reference](https://github.com/proxmox/pve-docs/blob/master/generated/pct.1-synopsis.adoc).
 
