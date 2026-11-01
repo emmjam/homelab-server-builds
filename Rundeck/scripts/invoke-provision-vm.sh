@@ -23,6 +23,8 @@ command -v ssh >/dev/null 2>&1 || fail "Required command not found: ssh"
     fail "Invalid VM name '$VMNAME'."
 
 SCRIPT_ARGS=("$VMNAME")
+if [[ -n ${RD_OPTION_ID:-} ]]; then SCRIPT_ARGS+=(--id "$RD_OPTION_ID"); fi
+if [[ ${RD_OPTION_DIRECT_APT:-false} == true ]]; then SCRIPT_ARGS+=(--direct-apt); fi
 if [[ -n "$CORES" ]]; then SCRIPT_ARGS+=(--cores "$CORES"); fi
 if [[ -n "$MEMORY" ]]; then SCRIPT_ARGS+=(--memory "$MEMORY"); fi
 if [[ -n "$DISK" ]]; then SCRIPT_ARGS+=(--disk "$DISK"); fi

@@ -66,6 +66,8 @@ TEMPLATE_ID="${TEMPLATE_ID:-9000}"
 VM_CREATED=0
 
 NAME=""
+REQUESTED_ID=""
+DIRECT_APT=0
 CORES=""
 MEMORY=""
 DISK=""
@@ -88,6 +90,8 @@ Required Parameters:
   VM name               Name / hostname for the new VM; Proxmox assigns the lowest available VM ID
 
 Optional Parameters:
+  --id <num>           Explicit unused VM ID (default: next available)
+  --direct-apt         Bootstrap a cache server without an existing APT proxy
   --cores <num>         Number of CPU cores (default: inherit from template)
   --memory <GB>         RAM in GB (default: inherit from template)
   --disk <GB>           Disk size in GB (default: inherit from template)
@@ -119,6 +123,13 @@ trap cleanup EXIT
 # Parse command line options and arguments
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --id)
+            [[ $# -ge 2 ]] || fail 'Missing VM ID'
+            REQUESTED_ID=$2
+            shift 2;;
+        --direct-apt)
+            DIRECT_APT=1
+            shift;;
         --help|-h)
             usage
             ;;
@@ -194,12 +205,18 @@ MEMORY=$(( $MEMORY * 1024 ))
 
 # Ask Proxmox to select the lowest available VM ID. Keep the returned ID
 # numeric and within the supported range before using it in qm commands.
+if [[ -n $REQUESTED_ID ]]; then
+    [[ $REQUESTED_ID =~ ^[1-9][0-9]{2,5}$ && $REQUESTED_ID -lt 9000 ]] || fail 'Explicit VM ID must be between 100 and 8999'
+    pvesh get /cluster/resources --output-format json | jq -e --argjson id "$REQUESTED_ID" 'all(.[]; .vmid != $id)' >/dev/null || fail 'Requested VM ID is occupied'
+    VMID=$REQUESTED_ID
+else
 VMID="$(pvesh get /cluster/nextid 2>/dev/null)" ||
     fail "Could not obtain the next available VM ID from Proxmox."
 VMID="$(printf '%s' "$VMID" | tr -d '\r\n')"
 [[ "$VMID" =~ ^[1-9][0-9]{1,5}$ ]] ||
     fail "Proxmox returned an invalid next VM ID: '${VMID}'."
 log "Proxmox selected the lowest available VM ID: ${VMID}."
+fi
 
 # Template verification
 qm status "$TEMPLATE_ID" >/dev/null 2>&1 ||
@@ -329,6 +346,9 @@ exit 1
 CHECKER_SCRIPT
 )"
 guest_install="set -e; export DEBIAN_FRONTEND=noninteractive; apt-get update; apt-get install -y cron bind9-dnsutils isc-dhcp-client; printf '%s' '${CHECKER_PAYLOAD}' | base64 -d > /usr/local/sbin/homelab-hostname-registration; chmod 0755 /usr/local/sbin/homelab-hostname-registration; printf '%s\\n' '@reboot root /usr/local/sbin/homelab-hostname-registration; rm -f /usr/local/sbin/homelab-hostname-registration' > /etc/cron.d/homelab-hostname-registration; chmod 0644 /etc/cron.d/homelab-hostname-registration; systemctl enable --now cron"
+if ((DIRECT_APT)); then
+    guest_install="printf '%s\\n' 'Acquire::http::Proxy \"DIRECT\";' 'Acquire::https::Proxy \"DIRECT\";' > /etc/apt/apt.conf.d/99apt-cache-direct; $guest_install"
+fi
 guest_result="$(qm guest exec "$VMID" --synchronous 1 --timeout 0 -- /bin/bash -c "$guest_install" 2>&1)" ||
     fail "Could not install hostname-registration cron job in VM ${VMID}: ${guest_result}"
 if jq -e '.exitcode != 0' >/dev/null <<<"$guest_result"; then
