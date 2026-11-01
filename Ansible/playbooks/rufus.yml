@@ -14,6 +14,8 @@
       - /opt/rufus/data
       - /opt/rufus/logs
 
+    install_ollama: false
+    install_ollama_model: true
     ollama_model: qwen3:4b
     ollama_host: "127.0.0.1:11434"
 
@@ -37,8 +39,8 @@
     - name: Verify Debian 13
       ansible.builtin.assert:
         that:
-          - ansible_distribution == "Debian"
-          - ansible_distribution_major_version == "13"
+          - ansible_facts.distribution == "Debian"
+          - ansible_facts.distribution_major_version == "13"
         fail_msg: "Rufus requires Debian 13."
 
   tasks:
@@ -89,6 +91,7 @@
     # --------------------------------------------------
 
     - name: Create ian account
+      no_log: true
       ansible.builtin.user:
         name: ian
         comment: Administrator
@@ -121,7 +124,7 @@
 
     - name: Configure SSH authentication
       ansible.builtin.copy:
-        dest: /etc/ssh/sshd_config.d/20-rufus.conf
+        dest: /etc/ssh/sshd_config.d/00-homelab-hardening.conf
         owner: root
         group: root
         mode: "0644"
@@ -181,54 +184,65 @@
     # OLLAMA
     # --------------------------------------------------
 
-    - name: Download Ollama installer
-      ansible.builtin.get_url:
-        url: https://ollama.com/install.sh
-        dest: /tmp/rufus-install-ollama.sh
-        mode: "0700"
-      when: install_ollama | default(true) | bool
+    - name: Configure optional local inference
+      when: install_ollama | bool
+      block:
+        - name: Download Ollama installer
+          ansible.builtin.get_url:
+            url: https://ollama.com/install.sh
+            dest: /tmp/rufus-install-ollama.sh
+            mode: "0700"
 
-    - name: Install Ollama
-      ansible.builtin.command:
-        cmd: /tmp/rufus-install-ollama.sh
-        creates: /usr/local/bin/ollama
-      when: install_ollama | default(true) | bool
+        - name: Install Ollama
+          ansible.builtin.command:
+            cmd: /tmp/rufus-install-ollama.sh
+            creates: /usr/local/bin/ollama
 
-    - name: Configure Ollama network binding
-      ansible.builtin.copy:
-        dest: /etc/systemd/system/ollama.service.d/override.conf
-        owner: root
-        group: root
-        mode: "0644"
-        content: |
-          [Service]
-          Environment="OLLAMA_HOST={{ ollama_host }}"
-      notify:
-        - Reload systemd
-        - Restart Ollama
+        - name: Create Ollama service override directory
+          ansible.builtin.file:
+            path: /etc/systemd/system/ollama.service.d
+            state: directory
+            owner: root
+            group: root
+            mode: "0755"
 
-    - name: Enable and start Ollama
-      ansible.builtin.systemd_service:
-        name: ollama
-        enabled: true
-        state: started
+        - name: Configure Ollama network binding
+          ansible.builtin.copy:
+            dest: /etc/systemd/system/ollama.service.d/override.conf
+            owner: root
+            group: root
+            mode: "0644"
+            content: |
+              [Service]
+              Environment="OLLAMA_HOST={{ ollama_host }}"
+          notify:
+            - Reload systemd
+            - Restart Ollama
 
-    - name: Apply pending Ollama configuration
-      ansible.builtin.meta: flush_handlers
+        - name: Enable and start Ollama
+          ansible.builtin.systemd_service:
+            name: ollama
+            enabled: true
+            state: started
+            daemon_reload: true
 
-    - name: Check installed Ollama models
-      ansible.builtin.command:
-        cmd: ollama list
-      register: ollama_models
-      changed_when: false
-      when: install_ollama_model | default(true) | bool
+        - name: Apply pending Ollama configuration
+          ansible.builtin.meta: flush_handlers
 
-    - name: Install Qwen model
-      ansible.builtin.command:
-        cmd: "ollama pull {{ ollama_model }}"
-      when:
-        - install_ollama_model | default(true) | bool
-        - ollama_model not in ollama_models.stdout
+        - name: Check installed Ollama models
+          ansible.builtin.command:
+            cmd: ollama list
+          register: ollama_models
+          changed_when: false
+          when: install_ollama_model | bool
+
+        - name: Install Qwen model
+          ansible.builtin.command:
+            cmd: "ollama pull {{ ollama_model }}"
+          when:
+            - install_ollama_model | bool
+            - ollama_model not in ollama_models.stdout.split()
+          changed_when: true
 
   handlers:
     - name: Reload systemd
