@@ -45,6 +45,14 @@ cleanup() {
     exit "$rc"
 }
 case $MODE in
+    --inspect-service-vm)
+        (($# == 2)) || fail 'Expected service VM ID'
+        case $2 in 112|113) :;; *) fail 'Not a relocated service VM';; esac
+        [[ $EUID == 0 ]] || fail 'Run as root'
+        qm config "$2" | grep -E '^(name|agent|net[0-9]+|ipconfig[0-9]+):'
+        qm agent "$2" ping
+        qm guest exec "$2" --timeout 15 -- systemctl is-active apt-cacher-ng rundeckd
+        exit 0;;
     --migrate-template-ids)
         (($# == 1)) || fail 'Use --migrate-template-ids alone'
         root_and_lock
