@@ -1,6 +1,6 @@
 - defaultTab: output
-  description: Build Debian 13 LXC template; preserve a full backup on rebuild. Requires
-    root-owned LXC installation on TNAS.
+  description: Build Debian 13 LXC template; preserve a full backup on rebuild. Transfers Git-managed LXC files to
+    TNAS before execution; requires the specific LXC sudoers permissions.
   executionEnabled: true
   group: jobs
   id: ad03d069-5b55-477b-bf75-27d85a04e8a3

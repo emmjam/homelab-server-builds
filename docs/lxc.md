@@ -24,31 +24,34 @@ Proxmox's `pct`, `pvesh`, `pveam`, `pvesm`, plus Python 3, jq, flock and coreuti
 The custom Ansible `pct` connection runs on TNAS and requires no SSH or Ansible
 installation in the container; Python 3 is bootstrapped there.
 
-The Rundeck job refreshes the Git checkout using the existing refresh job, stages
-only LXC files at `/home/rundeck/homelab-lxc-staging`, and compares installed checksums.
-It refuses to run outdated installed code. The first invocation stages files and
-stops until an administrator installs them:
+Each Rundeck job refreshes the Git checkout using the existing refresh job,
+then transfers the LXC scripts, baseline role, playbook, configuration and transport
+to `/opt/homelab-server-builds` on TNAS. Relative paths match Git, with entry points
+under `lxc/` and configuration under `Ansible/`. Transferred files are verified
+against checksums calculated from the current Rundeck checkout before execution.
+There is no separate installation or manual code update step.
 
-```sh
-sudo bash /home/rundeck/homelab-lxc-staging/lxc/install.sh
-```
-
-The installer copies only LXC code into root-owned `/opt/homelab-lxc`, removing
-write permission for other users. It does not edit sudoers. Use `sudo visudo -f
-/etc/sudoers.d/homelab-lxc` to authorize only this entry point initially:
+As with the existing VM scripts, Rundeck owns the transferred files and executes
+specific entry points through sudo. Use `sudo visudo -f /etc/sudoers.d/homelab-lxc`
+to add these three entries:
 
 ```sudoers
-rundeck ALL=(root) NOPASSWD: /opt/homelab-lxc/lxc/build-template.sh
+rundeck ALL=(root) NOPASSWD: /opt/homelab-server-builds/lxc/build-template.sh
+rundeck ALL=(root) NOPASSWD: /opt/homelab-server-builds/lxc/create-container.sh
+rundeck ALL=(root) NOPASSWD: /opt/homelab-server-builds/lxc/delete-container.sh
 ```
 
-Do not authorize a user-writable checkout via sudo. Administrator installation
-is deliberately required after code updates. Existing VM permissions are unchanged.
+Existing VM permissions are unchanged. This follows the existing trust model:
+the Rundeck account can update the code of the commands it is permitted to run.
+The dispatcher serializes LXC transfer and execution on the Rundeck host.
+For transfer-only verification, run `Rundeck/scripts/invoke-lxc.sh deploy` as the
+Rundeck service account after refreshing the checkout. This runs no Proxmox operations.
 
 ## Template procedure
 
 ```sh
-sudo /opt/homelab-lxc/lxc/build-template.sh --inspect
-sudo /opt/homelab-lxc/lxc/build-template.sh --template-id 9100 --storage local-zfs --image-storage local --bridge vmbr0
+sudo /opt/homelab-server-builds/lxc/build-template.sh --inspect
+sudo /opt/homelab-server-builds/lxc/build-template.sh --template-id 9100 --storage local-zfs --image-storage local --bridge vmbr0
 ```
 
 The builder selects the newest official Debian 13 standard amd64 image from
@@ -81,26 +84,17 @@ git diff --check
 
 Offline state-machine tests simulate Proxmox and test template publication,
 backup preservation and cleanup. They do not establish live guest compatibility.
-Live validation requires administrator installation and sudoers configuration;
+Live validation requires the Ansible prerequisite and sudoers configuration;
 record execution URLs and guest evidence before considering the pipeline production verified.
 
 ## Container lifecycle
 
-The administrator adds the following two entries alongside the builder entry in
-`/etc/sudoers.d/homelab-lxc`, using `visudo`:
-
-```sudoers
-rundeck ALL=(root) NOPASSWD: /opt/homelab-lxc/lxc/create-container.sh
-rundeck ALL=(root) NOPASSWD: /opt/homelab-lxc/lxc/delete-container.sh
-```
-
-All three job commands execute root-owned installed files. No permission to run
-arbitrary `pct`, shell commands or a user-writable script is required.
+The three sudoers entries above cover all lifecycle operations.
 
 Create a container (ID 9200 is an example; availability is checked live):
 
 ```sh
-sudo /opt/homelab-lxc/lxc/create-container.sh \
+sudo /opt/homelab-server-builds/lxc/create-container.sh \
   --id 9200 --hostname debian-lxc-test --cores 2 --memory 1 --disk 8 \
   --storage local-zfs --bridge vmbr0 --ip dhcp --dns '192.168.0.2' \
   --template-id 9100
@@ -126,7 +120,7 @@ remaining target is left for inspection rather than blindly destroyed.
 Delete a container:
 
 ```sh
-sudo /opt/homelab-lxc/lxc/delete-container.sh --id 9200 --confirm DELETE-9200
+sudo /opt/homelab-server-builds/lxc/delete-container.sh --id 9200 --confirm DELETE-9200
 ```
 
 Deletion accepts only a numeric ID and exact ID-specific confirmation. It refuses
@@ -146,8 +140,8 @@ Git-managed jobs:
 | Proxmox - Delete LXC Container | `52b08d85-d1fc-48c6-8bbd-04a69db365aa` |
 
 Use these jobs directly: they expose validated options and invoke the shared
-`Rundeck/scripts/invoke-lxc.sh` dispatcher. Each refreshes Git before staging and
-checks installed checksums; the administrator must reinstall after code changes.
+`Rundeck/scripts/invoke-lxc.sh` dispatcher. Each refreshes Git, transfers the required LXC files to TNAS, verifies their
+checksums, then executes the requested operation through sudo.
 
 ## Validation record (1 November 2026)
 
@@ -165,9 +159,14 @@ checks installed checksums; the administrator must reinstall after code changes.
 - All Rundeck YAML parses and all job IDs match their UUIDs and managed groups.
 - Initial live setup execution [131](http://192.168.0.51:4440/project/HomeLab/execution/show/131)
   confirmed checkout refresh/job import, then failed before container operations
-  because `/opt` staging was not writable. Staging now uses the service user's home.
+  because `/opt` staging was not writable. The separate installation design was
+  subsequently removed; jobs now transfer into the established TNAS checkout.
 - Live template, clone, identity uniqueness, SSH login, deletion and VM functional
-  regression tests remain pending installation and sudoers setup. No production
+  regression tests remain pending sudoers setup. No production
   container or VM was changed during these checks.
 
 CLI flags were checked against the upstream [Proxmox pct reference](https://github.com/proxmox/pve-docs/blob/master/generated/pct.1-synopsis.adoc).
+
+The deployment-pattern revision adds four dispatcher tests: transfer-only operation,
+verification before execution, rejection of corrupted transfers, and rejection of
+unknown actions. Transfer-only mode excludes unrelated playbooks, including Rufus.

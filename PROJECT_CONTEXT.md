@@ -639,8 +639,8 @@ A separate Debian 13 LXC baseline and lifecycle implementation now lives under
 The planned template ID is 9100, confirmed unused in the supplied live inventory
 and rechecked at runtime. Defaults use `local` for official image downloads,
 `local-zfs` for root disks and `vmbr0` for networking. VM automation is unchanged.
-See `docs/lxc.md` for installation, root-owned execution, the three Rundeck jobs,
+See `docs/lxc.md` for Git-managed transfer and execution, the three Rundeck jobs,
 parameters, retained template backups and testing procedures. Live verification
-is pending administrator installation and sudoers setup; implementation alone
+is pending sudoers setup; implementation alone
 must not be treated as a successful production deployment. No Rufus playbook is
 run by this pipeline, and LXC 110 is excluded from testing.
