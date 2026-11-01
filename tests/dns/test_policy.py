@@ -41,3 +41,28 @@ class PolicyTests(unittest.TestCase):
   p=next((ROOT/'Rundeck/jobs').glob('Proxmox - Create LXC Container-*.yaml'))
   option=next(x for x in yaml.safe_load(p.read_text())[0]['options'] if x['name']=='search_domain')
   self.assertEqual(option['value'],'lan')
+
+class RegistrationTests(unittest.TestCase):
+ def test_waits_for_dns_publication_without_starting_a_dhcp_client(self):
+  with tempfile.TemporaryDirectory() as temp:
+   base=Path(temp);b=base/'bin';b.mkdir()
+   fake='''#!/usr/bin/env python3
+import os,sys,pathlib,json
+n=pathlib.Path(sys.argv[0]).name
+p=pathlib.Path(os.environ['STATE']);d=json.loads(p.read_text());d['calls'].append([n]+sys.argv[1:])
+if n=='ip': print('default via 10.0.0.1 dev eth0' if 'route' in sys.argv else '2: eth0 inet 10.0.0.20/24 scope global eth0')
+elif n=='hostname':print('dns-test')
+elif n=='dig':
+ d['queries']+=1
+ if d['queries']>2:print('10.0.0.20')
+p.write_text(json.dumps(d))
+'''
+   for name in ['ip','hostname','dig','sleep','cloud-init','timeout']:
+    p=b/name;p.write_text(fake);p.chmod(0o755)
+   state=base/'state';state.write_text(json.dumps({'calls':[],'queries':0}))
+   original=(ROOT/'Ansible/roles/debian_dns/files/homelab-hostname-registration').read_text()
+   script=base/'checker';script.write_text(original.replace('export PATH=/usr/sbin:/usr/bin:/sbin:/bin','export PATH='+str(b)+':/usr/bin:/bin').replace('/var/log/homelab-hostname-registration.log',str(base/'log')))
+   r=subprocess.run(['bash',str(script)],env=dict(os.environ,STATE=str(state)),capture_output=True,text=True)
+   self.assertEqual(r.returncode,0,r.stdout+r.stderr)
+   d=json.loads(state.read_text());self.assertGreater(d['queries'],2)
+   self.assertIn('SUCCESS',r.stdout);self.assertFalse(any(c[0] in ['dhclient','networkctl'] for c in d['calls']))

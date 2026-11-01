@@ -313,7 +313,7 @@ guest_install="set -e; export DEBIAN_FRONTEND=noninteractive; apt-get update; ap
 if ((DIRECT_APT)); then
     guest_install="printf '%s\\n' 'Acquire::http::Proxy \"DIRECT\";' 'Acquire::https::Proxy \"DIRECT\";' > /etc/apt/apt.conf.d/99apt-cache-direct; $guest_install"
 fi
-guest_install="systemctl disable homelab-dhcp-renew.service 2>/dev/null || true; printf '%s' '$DNS_PAYLOAD' | base64 -d > /usr/local/sbin/homelab-configure-dns; chmod 0755 /usr/local/sbin/homelab-configure-dns; /usr/local/sbin/homelab-configure-dns; $guest_install"
+guest_install="set -e; systemctl disable homelab-dhcp-renew.service 2>/dev/null || true; printf '%s' '$DNS_PAYLOAD' | base64 -d > /usr/local/sbin/homelab-configure-dns; chmod 0755 /usr/local/sbin/homelab-configure-dns; /usr/local/sbin/homelab-configure-dns; $guest_install"
 guest_result="$(qm guest exec "$VMID" --synchronous 1 --timeout 0 -- /bin/bash -c "$guest_install" 2>&1)" ||
     fail "Could not install hostname-registration cron job in VM ${VMID}: ${guest_result}"
 if jq -e '.exitcode != 0' >/dev/null <<<"$guest_result"; then
