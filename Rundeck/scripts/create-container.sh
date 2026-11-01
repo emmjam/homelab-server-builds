@@ -3,7 +3,7 @@ set -Eeuo pipefail
 BASE=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck source=Rundeck/scripts/common.sh
 source "$BASE/common.sh"
-CTID='' HOSTNAME='' CORES='' MEMORY='' DISK='' STORAGE='' BRIDGE='' IP='' GATEWAY='' DNS='' SEARCH_DOMAIN='' TEMPLATE_ID='' SSH_PUBLIC_KEY=''
+CTID='' HOSTNAME='' CORES='' MEMORY='' DISK='' STORAGE='' BRIDGE='' IP='' GATEWAY='' DNS=192.168.0.2 SEARCH_DOMAIN=lan TEMPLATE_ID='' SSH_PUBLIC_KEY=''
 CREATED=0
 TEMP=''
 usage() {
@@ -101,6 +101,10 @@ if [[ -n $SSH_PUBLIC_KEY ]]; then
     pct push "$CTID" "$TEMP/authorized_keys" /root/.ssh/authorized_keys --perms 0600 --user 0 --group 0
 fi
 wait_ready "$CTID" "$HOSTNAME"
+pct push "$CTID" "$BASE/configure-debian-dns.sh" /usr/local/sbin/homelab-configure-dns --perms 0755 --user 0 --group 0
+pct exec "$CTID" -- /usr/local/sbin/homelab-configure-dns
+pct push "$CTID" "$BASE/homelab-hostname-registration" /usr/local/sbin/homelab-hostname-registration --perms 0755 --user 0 --group 0
+pct exec "$CTID" -- /usr/local/sbin/homelab-hostname-registration
 if [[ $IP != dhcp ]]; then
     ACTUAL=$(pct exec "$CTID" -- ip -4 -o addr show dev eth0 scope global)
     grep -Fq " ${IP} " <<< "$ACTUAL" || fail 'Static IPv4 configuration did not take effect'
@@ -120,5 +124,7 @@ pct exec "$CTID" -- bash -ec '
     apt-config dump | grep -Fx '\''Acquire::http::Proxy "http://apt-cache:3142";'\''
     apt-config dump | grep -Fx '\''Acquire::https::Proxy "DIRECT";'\''
 '
+pct exec "$CTID" -- cat /etc/machine-id
+pct exec "$CTID" -- cat /etc/ssh/ssh_host_ed25519_key.pub
 CREATED=0
 log "SUCCESS: container=$CTID hostname=$HOSTNAME cores=$CORES memory=${MEMORY}GB disk=${DISK}GB MAC=$MAC template=$TEMPLATE_ID"

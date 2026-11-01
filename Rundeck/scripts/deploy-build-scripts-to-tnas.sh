@@ -79,3 +79,7 @@ ssh "${SSH_OPTS[@]}" "$DEST" \
      test -s '$REMOTE_REPO/scripts/delete-container.sh'"
 
 echo "Deployment completed and destination files verified."
+
+# Shared DNS policy and provisioned-guest checker use the existing flat transfer pattern.
+scp "${SSH_OPTS[@]}" "$REPO/Ansible/roles/debian_dns/files/configure-debian-dns.sh" "$DEST:$REMOTE_REPO/scripts/configure-debian-dns.sh"
+scp "${SSH_OPTS[@]}" "$REPO/Ansible/roles/debian_dns/files/homelab-hostname-registration" "$DEST:$REMOTE_REPO/scripts/homelab-hostname-registration"

@@ -1,6 +1,14 @@
 #!/bin/bash
 set -Eeuo pipefail
 
+# Update metadata on the existing stopped VM template without booting it.
+if [[ ${1:-} == --configure-template-dns ]]; then
+    [[ $# == 1 && $EUID == 0 ]] || exit 1
+    qm config 9000 | grep -qx 'template: 1'
+    qm set 9000 --nameserver 192.168.0.2 --searchdomain lan
+    exit 0
+fi
+
 # Explicitly requested service-ID migration, separate from template provisioning.
 if [[ ${1:-} == --relocate-service ]]; then
     [[ $# == 3 && $EUID == 0 ]] || { echo 'Expected source and destination IDs as root'; exit 1; }
@@ -259,6 +267,9 @@ if [[ -n "$CORES" || -n "$MEMORY" || -n "$DISK" ]]; then
     fi
 fi
 
+# Cloud-Init DNS defaults are generic; final identity is supplied by this clone.
+qm set "$VMID" --nameserver 192.168.0.2 --searchdomain lan
+
 # Start VM
 log "Starting VM ${VMID} (${NAME})..."
 qm start "$VMID"
@@ -295,60 +306,14 @@ fi
 # Install a boot-time guest-side check after Cloud-Init has supplied the VM's
 # final hostname. QEMU Guest Agent is already used above to read interfaces.
 log "Installing Pi-hole hostname registration cron job in VM ${VMID}..."
-CHECKER_PAYLOAD="$(base64 -w0 <<'CHECKER_SCRIPT'
-#!/bin/bash
-set -uo pipefail
-PATH="/usr/sbin:/usr/bin:/sbin:/bin"
-LOG_TAG="homelab-hostname-registration"
-LOG_FILE="/var/log/homelab-hostname-registration.log"
-DNS_SERVER="192.168.0.2"
-log() {
-    local message="$*"
-    printf '[%s] %s\n' "$(date --iso-8601=seconds)" "$message" >> "$LOG_FILE"
-    logger -t "$LOG_TAG" -- "$message" 2>/dev/null || true
-}
-hostname="$(hostname -s)"
-interface=""
-current_ip=""
-for ((attempt = 1; attempt <= 120; attempt++)); do
-    interface="$(ip -4 route show default | awk 'NR == 1 { for (i = 1; i <= NF; i++) if ($i == "dev") { print $(i + 1); exit } }')"
-    if [[ -n "$interface" ]]; then
-        current_ip="$(ip -4 -o addr show dev "$interface" scope global | awk 'NR == 1 { sub(/\/.*/, "", $4); print $4 }')"
-        [[ -n "$current_ip" ]] && break
-    fi
-    sleep 1
-done
-if [[ -z "$hostname" || -z "$interface" || -z "$current_ip" ]]; then
-    log "ERROR: Hostname, active IPv4 interface, or address unavailable after waiting 120 seconds."
-    exit 1
-fi
-registered_ip="$(dig +time=2 +tries=1 +short A "$hostname" @"$DNS_SERVER" | awk '/^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/ { print; exit }')"
-if [[ "$registered_ip" == "$current_ip" ]]; then
-    log "SUCCESS: Pi-hole registration for ${hostname} matches ${current_ip}; no DHCP renewal needed."
-    exit 0
-fi
-log "Hostname ${hostname} resolves to '${registered_ip:-<missing>}' at ${DNS_SERVER}; current DHCP address is ${current_ip}. Renewing lease on ${interface}."
-if ! dhclient -v "$interface" >> "$LOG_FILE" 2>&1; then
-    log "ERROR: DHCP lease renewal failed for ${interface}."
-    exit 1
-fi
-for attempt in 1 2 3 4 5; do
-    sleep 5
-    current_ip="$(ip -4 -o addr show dev "$interface" scope global | awk 'NR == 1 { sub(/\/.*/, "", $4); print $4 }')"
-    registered_ip="$(dig +time=2 +tries=1 +short A "$hostname" @"$DNS_SERVER" | awk '/^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/ { print; exit }')"
-    if [[ -n "$current_ip" && "$registered_ip" == "$current_ip" ]]; then
-        log "SUCCESS: Pi-hole registration for ${hostname} now matches ${current_ip} after DHCP renewal."
-        exit 0
-    fi
-done
-log "ERROR: After DHCP renewal, ${hostname} resolves to '${registered_ip:-<missing>}' while ${interface} has '${current_ip:-<missing>}' (Pi-hole ${DNS_SERVER})."
-exit 1
-CHECKER_SCRIPT
-)"
-guest_install="set -e; export DEBIAN_FRONTEND=noninteractive; apt-get update; apt-get install -y cron bind9-dnsutils isc-dhcp-client; printf '%s' '${CHECKER_PAYLOAD}' | base64 -d > /usr/local/sbin/homelab-hostname-registration; chmod 0755 /usr/local/sbin/homelab-hostname-registration; printf '%s\\n' '@reboot root /usr/local/sbin/homelab-hostname-registration; rm -f /usr/local/sbin/homelab-hostname-registration' > /etc/cron.d/homelab-hostname-registration; chmod 0644 /etc/cron.d/homelab-hostname-registration; systemctl enable --now cron"
+BASE_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+CHECKER_PAYLOAD=$(base64 -w0 "$BASE_DIR/homelab-hostname-registration")
+DNS_PAYLOAD=$(base64 -w0 "$BASE_DIR/configure-debian-dns.sh")
+guest_install="set -e; export DEBIAN_FRONTEND=noninteractive; apt-get update; apt-get install -y cron bind9-dnsutils; printf '%s' '${CHECKER_PAYLOAD}' | base64 -d > /usr/local/sbin/homelab-hostname-registration; chmod 0755 /usr/local/sbin/homelab-hostname-registration; printf '%s\\n' '@reboot root /usr/local/sbin/homelab-hostname-registration' > /etc/cron.d/homelab-hostname-registration; chmod 0644 /etc/cron.d/homelab-hostname-registration; systemctl enable --now cron"
 if ((DIRECT_APT)); then
     guest_install="printf '%s\\n' 'Acquire::http::Proxy \"DIRECT\";' 'Acquire::https::Proxy \"DIRECT\";' > /etc/apt/apt.conf.d/99apt-cache-direct; $guest_install"
 fi
+guest_install="systemctl disable homelab-dhcp-renew.service 2>/dev/null || true; printf '%s' '$DNS_PAYLOAD' | base64 -d > /usr/local/sbin/homelab-configure-dns; chmod 0755 /usr/local/sbin/homelab-configure-dns; /usr/local/sbin/homelab-configure-dns; $guest_install"
 guest_result="$(qm guest exec "$VMID" --synchronous 1 --timeout 0 -- /bin/bash -c "$guest_install" 2>&1)" ||
     fail "Could not install hostname-registration cron job in VM ${VMID}: ${guest_result}"
 if jq -e '.exitcode != 0' >/dev/null <<<"$guest_result"; then
@@ -377,4 +342,6 @@ log "VM ${VMID} rebooted and QEMU Guest Agent is responsive."
 log "Source template ${TEMPLATE_ID} preserved."
 log "=================================================="
 
+identity=$(qm guest exec "$VMID" --synchronous 1 --timeout 30 -- /bin/sh -c 'cat /etc/machine-id; cat /etc/ssh/ssh_host_ed25519_key.pub')
+jq -r '.["out-data"]' <<< "$identity"
 VM_CREATED=0

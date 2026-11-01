@@ -45,6 +45,32 @@ cleanup() {
     exit "$rc"
 }
 case $MODE in
+    --inspect-network)
+        (($# == 2)) || fail 'Expected LXC ID'
+        id "$2"
+        [[ $EUID == 0 ]] || fail 'Run as root'
+        pct config "$2" | grep -E '^(hostname|ostype|nameserver|searchdomain|net[0-9]+):'
+        pct exec "$2" -- /bin/sh -c 'cat /etc/os-release; ip -4 -o addr show scope global; cat /etc/resolv.conf; cat /etc/network/interfaces; systemctl is-active networking systemd-networkd systemd-resolved; cat /etc/ssh/ssh_host_ed25519_key.pub'
+        exit 0;;
+    --configure-guest-dns)
+        (($# == 2)) || fail 'Expected managed LXC ID'
+        id "$2"
+        root_and_lock
+        CONFIG=$(pct config "$2")
+        grep -Eq '^tags: .*homelab-lxc' <<< "$CONFIG" || fail 'Not a managed guest'
+        ! grep -qx 'template: 1' <<< "$CONFIG" || fail 'Use template DNS action'
+        pct set "$2" --nameserver 192.168.0.2 --searchdomain lan
+        exit 0;;
+    --configure-template-dns)
+        (($# == 2)) || fail 'Expected LXC template ID'
+        id "$2"
+        root_and_lock
+        CONFIG=$(pct config "$2")
+        grep -qx 'template: 1' <<< "$CONFIG" || fail 'Not a template'
+        grep -Eq '^tags: .*homelab-debian-lxc' <<< "$CONFIG" || fail 'Unmanaged template'
+        pct set "$2" --nameserver 192.168.0.2 --searchdomain lan
+        exit 0;;
+
     --inspect-service-vm)
         (($# == 2)) || fail 'Expected service VM ID'
         case $2 in 112|113|9001|9002) :;; *) fail 'Not a relocated service VM';; esac
@@ -153,7 +179,7 @@ case $MODE in
         pct create "$CANDIDATE" "$IMAGE_STORAGE:vztmpl/$IMAGE" \
             --hostname debian-lxc-build --ostype debian --unprivileged 1 \
             --cores 2 --memory 1024 --swap 0 --rootfs "$STORAGE:4" \
-            --net0 "name=eth0,bridge=$BRIDGE,ip=dhcp" --nameserver 192.168.0.2 --onboot 0 \
+            --net0 "name=eth0,bridge=$BRIDGE,ip=dhcp" --nameserver 192.168.0.2 --searchdomain lan --onboot 0 \
             --tags "homelab-debian-lxc-build;$BUILD_TOKEN"
         OWNED=1
         pct start "$CANDIDATE"

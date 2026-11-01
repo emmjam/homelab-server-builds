@@ -23,6 +23,16 @@ fail() {
 
 export DEBIAN_FRONTEND=noninteractive
 
+# Generic DNS policy precedes APT so the cache hostname resolves during builds.
+curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 \
+    https://raw.githubusercontent.com/emmjam/homelab-server-builds/main/Ansible/roles/debian_dns/files/configure-debian-dns.sh \
+    --output /usr/local/sbin/homelab-configure-dns
+chmod 0755 /usr/local/sbin/homelab-configure-dns
+/usr/local/sbin/homelab-configure-dns
+if [[ -f /etc/systemd/system/homelab-dhcp-renew.service ]]; then
+    systemctl disable homelab-dhcp-renew.service
+fi
+
 # Configure Debian repositories to use the TNAS apt-cacher-ng proxy.
 if [[ -f /etc/apt/mirrors/debian.list ]]; then
     sed -i 's|https://deb.debian.org|http://deb.debian.org|g' \
@@ -58,7 +68,6 @@ apt-get install -y \
     fail2ban \
     unattended-upgrades \
     openssh-server \
-    isc-dhcp-client \
     vim-tiny \
     tree
 

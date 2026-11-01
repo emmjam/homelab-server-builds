@@ -205,3 +205,16 @@
 - name: Validate SSH configuration
   ansible.builtin.command: /usr/sbin/sshd -t
   changed_when: false
+
+- name: Install generic manager-aware DNS defaults
+  ansible.builtin.copy:
+    src: '{{ role_path }}/../debian_dns/files/configure-debian-dns.sh'
+    dest: /usr/local/sbin/homelab-configure-dns
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Apply generic LXC DNS defaults
+  ansible.builtin.command: /usr/local/sbin/homelab-configure-dns
+  register: debian_lxc_dns_result
+  changed_when: "'DNS_POLICY_CHANGED=1' in debian_lxc_dns_result.stdout"
