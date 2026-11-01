@@ -1,3 +1,6 @@
 # Ansible
 
-Ansible is reserved for configuration management and coordinated configuration across multiple machines. There are no Ansible playbooks or roles in this repository yet. Add them only when a concrete configuration-management task is identified; Rundeck remains responsible for orchestrating approved workflows.
+`playbooks/debian-lxc.yml` and `roles/debian_lxc` implement the reusable Debian 13
+LXC baseline. The local Proxmox transport lives in `connection_plugins/pct.py`.
+Rundeck orchestrates template builds; see [LXC procedures](../docs/lxc.md).
+The existing VM baseline remains in `scripts/debian-baseline.sh`.

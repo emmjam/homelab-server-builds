@@ -31,12 +31,7 @@
     path: /etc/locale.gen
     regexp: '^#?\s*{{ debian_lxc_locale | regex_escape }} UTF-8$'
     line: '{{ debian_lxc_locale }} UTF-8'
-  register: debian_lxc_locale_definition
-
-- name: Generate locale
-  ansible.builtin.command: locale-gen
-  when: debian_lxc_locale_definition.changed
-  changed_when: true
+  notify: Generate locale
 
 - name: Set default locale
   ansible.builtin.copy:

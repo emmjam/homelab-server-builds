@@ -5,11 +5,13 @@ import subprocess
 from ansible.errors import AnsibleConnectionFailure
 from ansible.plugins.connection import ConnectionBase
 
-DOCUMENTATION = r'''
+DOCUMENTATION = r"""
 name: pct
-short_description: Execute Ansible tasks through local Proxmox pct
- description: unused
-'''.replace(' description: unused\n', '')
+short_description: Execute Ansible through the local Proxmox pct command
+description:
+  - Inventory hosts must be numeric container IDs on the current Proxmox node.
+author: Homelab
+"""
 
 class Connection(ConnectionBase):
     transport = 'pct'

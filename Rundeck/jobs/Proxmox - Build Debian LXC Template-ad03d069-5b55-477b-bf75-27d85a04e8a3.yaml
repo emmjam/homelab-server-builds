@@ -1,0 +1,41 @@
+- defaultTab: output
+  description: Build Debian 13 LXC template; preserve a full backup on rebuild. Requires
+    root-owned LXC installation on TNAS.
+  executionEnabled: true
+  group: jobs
+  id: ad03d069-5b55-477b-bf75-27d85a04e8a3
+  loglevel: INFO
+  name: Proxmox - Build Debian LXC Template
+  nodeFilterEditable: false
+  options:
+  - name: template_id
+    value: '9100'
+    required: true
+    regex: '[1-9][0-9]{2,5}'
+  - name: storage
+    value: local-zfs
+    required: true
+    regex: '[a-zA-Z0-9][a-zA-Z0-9_-]{0,62}'
+  - name: image_storage
+    value: local
+    required: true
+    regex: '[a-zA-Z0-9][a-zA-Z0-9_-]{0,62}'
+  - name: bridge
+    value: vmbr0
+    required: true
+    regex: '[a-zA-Z0-9][a-zA-Z0-9_-]{0,62}'
+  scheduleEnabled: false
+  sequence:
+    commands:
+    - jobref:
+        group: jobs
+        name: HomeLab - Update GitHub Checkout
+        nodeStep: false
+        project: HomeLab
+        uuid: 310dfa4f-e27f-4945-be6a-7380ef75e586
+    - scriptfile: /opt/homelab-server-builds/Rundeck/scripts/invoke-lxc.sh
+      args: build
+    keepgoing: false
+    strategy: node-first
+  user: ian
+  uuid: ad03d069-5b55-477b-bf75-27d85a04e8a3

@@ -3,3 +3,7 @@
   ansible.builtin.systemd_service:
     name: ssh
     state: reloaded
+
+- name: Generate locale
+  ansible.builtin.command: locale-gen
+  changed_when: true

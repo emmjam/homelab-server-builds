@@ -4,12 +4,17 @@ set -Eeuo pipefail
 export PATH=/usr/sbin:/usr/bin:/sbin:/bin
 log() { printf '[%s] %s\n' "$(date --iso-8601=seconds)" "$*"; }
 fail() { log "ERROR: $*" >&2; exit 1; }
-uint() { [[ $2 =~ ^[1-9][0-9]{0,5}$ ]] && (( 10#$2 <= $3 )) || fail "Invalid $1: $2"; }
+uint() {
+    if [[ ! $2 =~ ^[1-9][0-9]{0,5}$ ]]; then fail "Invalid $1: $2"; fi
+    (( 10#$2 <= $3 )) || fail "Invalid $1: $2"
+}
 id() { uint ID "$1" 999999; (( $1 >= 100 )) || fail 'IDs must be at least 100'; }
 safe_name() { [[ $2 =~ ^[a-zA-Z0-9][a-zA-Z0-9_-]{0,62}$ ]] || fail "Invalid $1: $2"; }
 protected() { case "$1" in 110) return 0;; esac; return 1; }
 root_and_lock() {
-    [[ $EUID == 0 ]] || fail 'Run as root on Proxmox';
+    [[ $EUID == 0 ]] || fail 'Run as root on Proxmox'
+    # Never load Ansible configuration from the caller-owned working directory.
+    cd -- "$BASE/..";
     for cmd in pct pvesh pvesm jq flock timeout python3; do
         command -v "$cmd" >/dev/null || fail "Missing command: $cmd"
     done
@@ -70,7 +75,6 @@ not_template() {
 wait_ready() {
     local ct=$1 expected=$2 address=''
     for ((i=0;i<90;i++)); do
-        if pct exec "$ct" -- systemctl is-system-running --wait >/dev/null 2>&1; then :; fi
         address=$(pct exec "$ct" -- ip -4 -o addr show dev eth0 scope global 2>/dev/null | awk 'NR==1 {split($4,a,"/"); print a[1]}' || true)
         if [[ -n $address ]] && pct exec "$ct" -- systemctl is-active --quiet ssh; then break; fi
         sleep 2
@@ -80,6 +84,8 @@ wait_ready() {
     pct exec "$ct" -- ip -4 route show default | grep -q '^default ' || fail 'No default IPv4 route'
     pct exec "$ct" -- getent ahostsv4 deb.debian.org >/dev/null || fail 'DNS lookup failed'
     pct exec "$ct" -- /usr/sbin/sshd -t
+    # Guest address and arguments are passed as data to the child shell.
+    # shellcheck disable=SC2016
     timeout 5 bash -c 'exec 3<>/dev/tcp/$1/22; read -r -t 3 banner <&3; [[ $banner == SSH-* ]]' _ "$address" || fail "SSH not reachable at $address"
     log "Container $ct ready: hostname=$expected IPv4=$address SSH=reachable"
 }

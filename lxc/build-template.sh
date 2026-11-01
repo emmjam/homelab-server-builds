@@ -58,7 +58,7 @@ cleanup() {
         fi
     fi
     if ((OWNED)); then
-        pct stop "$CANDIDATE" --skiplock 0 >/dev/null 2>&1 || true
+        pct stop "$CANDIDATE" >/dev/null 2>&1 || true
         if ! pct destroy "$CANDIDATE" --purge 1; then log "WARNING: clean up owned candidate $CANDIDATE manually"; fi
     fi
     [[ -z $TEMP ]] || rm -rf -- "$TEMP"
@@ -94,6 +94,7 @@ pct exec "$CANDIDATE" -- bash -ec '
 '
 TEMP=$(mktemp -d)
 printf '[lxc]\n%s ansible_connection=pct ansible_python_interpreter=/usr/bin/python3\n' "$CANDIDATE" > "$TEMP/inventory"
+export ANSIBLE_CONFIG="$BASE/../Ansible/ansible.cfg"
 export ANSIBLE_CONNECTION_PLUGINS="$BASE/../Ansible/connection_plugins"
 export ANSIBLE_ROLES_PATH="$BASE/../Ansible/roles"
 export ANSIBLE_LOCAL_TEMP="$TEMP/ansible"
@@ -102,6 +103,8 @@ ansible-playbook -i "$TEMP/inventory" "$BASE/../Ansible/playbooks/debian-lxc.yml
 ANSIBLE_NOCOLOR=1 ansible-playbook -i "$TEMP/inventory" "$BASE/../Ansible/playbooks/debian-lxc.yml" | tee "$TEMP/repeat.log"
 grep -Eq 'changed=0[[:space:]]+unreachable=0[[:space:]]+failed=0' "$TEMP/repeat.log" || fail 'Baseline is not idempotent'
 wait_ready "$CANDIDATE" debian-lxc-build
+# The quoted script runs inside the guest.
+# shellcheck disable=SC2016
 pct exec "$CANDIDATE" -- bash -ec '
     . /etc/os-release; test "$ID:$VERSION_ID" = debian:13
     test -z "$(dpkg --audit)"
