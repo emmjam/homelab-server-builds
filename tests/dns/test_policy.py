@@ -13,7 +13,7 @@ class PolicyTests(unittest.TestCase):
    commands={'ip':'echo "default via 192.168.0.1 dev eth0"','netplan':':','networkctl':'echo "Network File: /run/systemd/network/10-netplan-eth0.network"' if manager=='netplan' else 'echo unmanaged','resolvectl':':','ifquery':'exit 0' if manager=='ifupdown' else 'exit 1','pgrep':'echo "42 dhclient eth0"' if manager=='ifupdown' else 'exit 1'}
    for name,body in commands.items():
     p=bin/name;p.write_text('#!/bin/sh\nprintf "%s\\n" "'+name+' $*" >> "$CALLS"\n'+body+'\n');p.chmod(0o755)
-   script=base/'policy';script.write_text(POLICY.read_text().replace('[[ $EUID == 0 ]]','[[ 1 == 1 ]]').replace('/etc/',str(etc)+'/'))
+   script=base/'policy';script.write_text(POLICY.read_text().replace('[[ $EUID == 0 ]]','[[ 1 == 1 ]]').replace('/etc/',str(etc)+'/').replace('export PATH=/usr/sbin:/usr/bin:/sbin:/bin','export PATH='+str(bin)+':/usr/sbin:/usr/bin:/sbin:/bin'))
    env=dict(os.environ,PATH=str(bin)+':'+os.environ['PATH'],CALLS=str(base/'calls'))
    r=subprocess.run(['bash',str(script)],env=env,capture_output=True,text=True)
    first=r.stdout
@@ -32,7 +32,7 @@ class PolicyTests(unittest.TestCase):
   r,first,c,calls=self.run_policy('ifupdown',True);self.assertEqual(r.returncode,0,r.stderr)
   self.assertIn('CHANGED=0',r.stdout);self.assertEqual(c['dhcp/dhclient.conf'].count('# BEGIN HOMELAB DNS'),1)
   self.assertIn('supersede domain-search "lan";',c['dhcp/dhclient.conf'])
-  self.assertNotIn('netplan generate',calls);self.assertNotIn('dhclient -',calls)
+  self.assertNotIn('ifquery --state',calls);self.assertNotIn('netplan generate',calls);self.assertNotIn('dhclient -',calls)
   self.assertEqual(c['resolv.conf'],'search lan\nnameserver 192.168.0.2\n')
  def test_unknown_manager_fails_before_writing_network_settings(self):
   r,_,c,_=self.run_policy('unknown');self.assertNotEqual(r.returncode,0)

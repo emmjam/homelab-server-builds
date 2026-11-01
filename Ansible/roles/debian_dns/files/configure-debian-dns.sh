@@ -1,6 +1,7 @@
 #!/bin/bash
 # Configure only the existing network manager; never replace resolv.conf or bounce a link.
 set -Eeuo pipefail
+export PATH=/usr/sbin:/usr/bin:/sbin:/bin
 [[ $EUID == 0 ]] || exit 1
 IFACE=$(ip -4 route show default | awk 'NR==1 {for(i=1;i<=NF;i++) if($i=="dev") {print $(i+1); exit}}')
 [[ $IFACE =~ ^[a-zA-Z0-9_.-]+$ ]] || { echo 'No valid default-route interface'; exit 1; }
@@ -15,7 +16,7 @@ write_file() {
         CHANGED=1
     fi
 }
-if command -v netplan >/dev/null && networkctl status "$IFACE" --no-pager 2>/dev/null | grep -q '/run/systemd/network/.*netplan'; then
+if command -v netplan >/dev/null && networkctl status "$IFACE" --no-pager 2>/dev/null | grep '/run/systemd/network/.*netplan' >/dev/null; then
     MANAGER=netplan-networkd
     write_file /etc/netplan/90-homelab-dns.yaml 0600 <<EOF
 network:
@@ -45,7 +46,7 @@ EOF
     resolvectl domain "$IFACE" lan
     resolvectl llmnr "$IFACE" no
     resolvectl mdns "$IFACE" no
-elif command -v ifquery >/dev/null && ifquery --state "$IFACE" >/dev/null 2>&1 && pgrep -a dhclient | grep -qE "(^| )$IFACE( |$)"; then
+elif command -v ifquery >/dev/null && ifquery "$IFACE" >/dev/null 2>&1 && pgrep -a dhclient | grep -qE "(^| )$IFACE( |$)"; then
     MANAGER=ifupdown-dhclient
     [[ -f /etc/dhcp/dhclient.conf ]] || { echo 'No existing dhclient configuration'; exit 1; }
     sed '/^# BEGIN HOMELAB DNS$/,/^# END HOMELAB DNS$/d' /etc/dhcp/dhclient.conf > "$TMP/dhclient"

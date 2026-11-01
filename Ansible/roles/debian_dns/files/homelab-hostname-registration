@@ -20,7 +20,7 @@ check() {
     [[ $fqdn == "$IP" && $short == "$IP" ]]
 }
 if ! check; then
-    if networkctl status "$IFACE" --no-pager 2>/dev/null | grep -q '/run/systemd/network/.*netplan'; then
+    if networkctl status "$IFACE" --no-pager 2>/dev/null | grep '/run/systemd/network/.*netplan' >/dev/null; then
         networkctl renew "$IFACE"
         sleep 5
     else
