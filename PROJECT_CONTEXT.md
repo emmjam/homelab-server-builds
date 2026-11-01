@@ -601,6 +601,7 @@ The user has several explicit preferences that should guide all development.
 - Do not claim an operation succeeded until its result has been verified.
 - Clearly distinguish recommendations from implemented changes.
 - Whenever directives are updated, immediately commit and push those directive changes to Git. This is standing authorisation for directive updates; keep unrelated changes out of those commits.
+- Allocate template IDs using the next available ID counting upwards from 9000. Allocate backup template IDs using the next available ID counting downwards from 9999. Allocate VM and container IDs using the next available ID counting upwards from 100. Check the shared Proxmox guest-ID namespace before allocation. This supersedes earlier fixed-ID allocation instructions; existing guests require an explicitly authorised migration before renumbering.
 - Leave the Rundeck host's secrets file ownership and permissions as set by the user; do not change them unless explicitly instructed.
 
 ## Architecture
