@@ -1,11 +1,23 @@
 - defaultTab: nodes
-  description: 'Create or delete a Proxmox VM. Choose create to refresh and deploy scripts, then clone the Debian template. Choose delete to remove the exact VM name or numeric ID. Create assigns the lowest available VM ID; template VMs are protected from deletion.'
+  description: Create or delete a Proxmox VM by invoking the existing Rundeck jobs. Creation refreshes the checkout and deploys scripts before cloning; deletion calls the protected delete job directly.
   executionEnabled: true
   id: 769ed228-0054-4a3a-bee5-c110af96ff48
   loglevel: INFO
   name: Proxmox - Manage VM
   nodeFilterEditable: false
+  nodefilters:
+    dispatch:
+      keepgoing: false
+      threadcount: 1
+    filter: name: localhost
   options:
+  - hidden: true
+    name: rundeck_api_token
+    required: true
+    secure: true
+    valueExposed: true
+    storagePath: keys/project/HomeLab/rundeck_api_token
+    type: text
   - description: Choose whether to create a VM or delete an existing VM.
     enforced: true
     label: Action
@@ -44,54 +56,9 @@
   scheduleEnabled: false
   sequence:
     commands:
-    - description: Run creation workflow when action is create
-      type: conditional
-      nodeStep: false
-      invertLogic: false
-      conditionGroups:
-      - - key: "${option.action}"
-          operator: "=="
-          value: create
-      subSteps:
-      - description: Refresh Rundeck job definitions from Git
-        jobref:
-          group: jobs
-          name: HomeLab - Update GitHub Checkout
-          nodeStep: false
-          project: HomeLab
-          uuid: 310dfa4f-e27f-4945-be6a-7380ef75e586
-      - description: Deploy build scripts to TNAS
-        jobref:
-          group: jobs
-          name: HomeLab - Deploy Build Scripts to TNAS
-          nodeStep: false
-          project: HomeLab
-          uuid: 51192072-1984-48dd-9fe8-88d78c339b31
-      - description: Clone VM from the Debian template
-        jobref:
-          args: "-vmname '${option.vmname}' -cores ${option.cores} -memory ${option.memory} -disk ${option.disk}"
-          group: jobs
-          name: Proxmox - Clone VM
-          nodeStep: false
-          project: HomeLab
-          uuid: 5c7a2428-7407-43cd-90ff-886e5f5447dd
-    - description: Run deletion when action is delete
-      type: conditional
-      nodeStep: false
-      invertLogic: false
-      conditionGroups:
-      - - key: "${option.action}"
-          operator: "=="
-          value: delete
-      subSteps:
-      - description: Delete VM by exact name or numeric ID
-        jobref:
-          args: "-target '${option.target}'"
-          group: jobs
-          name: Proxmox - Delete VM
-          nodeStep: false
-          project: HomeLab
-          uuid: 4eb507e0-9514-4cf2-babc-347df5faf73c
+    - description: Validate the action and run the matching Rundeck job sequence
+      scriptfile: /opt/homelab-server-builds/Rundeck/scripts/manage-vm-pipeline.sh
+      scriptInterpreter: /bin/bash
     keepgoing: false
     strategy: node-first
   user: ian
