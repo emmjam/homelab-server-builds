@@ -1,0 +1,23 @@
+description: Rufus can view HomeLab and run only the health check.
+context:
+  application: rundeck
+for:
+  project:
+    - equals:
+        name: HomeLab
+      allow: read
+by:
+  group: rufus-api
+---
+description: Rufus health-check execution and output only.
+context:
+  project: HomeLab
+for:
+  job:
+    - equals:
+        uuid: 6e0b2f6c-aaa0-4031-ba96-73c86164cb43
+      allow: [read, run]
+  node:
+    - allow: [read, run]
+by:
+  group: rufus-api

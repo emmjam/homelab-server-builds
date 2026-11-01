@@ -5,10 +5,14 @@
   gather_facts: true
 
   vars:
-    ian_password_hash: >-
+    rufus_rundeck_token: >-
       {{ lookup('ansible.builtin.pipe', 'python3 ' ~
          ((playbook_dir ~ '/../../Rundeck/scripts/read-secret.py') | quote) ~
-         ' IAN_PASSWORD_HASH') }}
+         ' RUFUS_RUNDECK_TOKEN') }}
+    rufus_api_token: >-
+      {{ lookup('ansible.builtin.pipe', 'python3 ' ~
+         ((playbook_dir ~ '/../../Rundeck/scripts/read-secret.py') | quote) ~
+         ' RUFUS_API_TOKEN') }}
     rufus_home: /opt/rufus
     rufus_venv: /opt/rufus/venv
     rufus_directories:
@@ -30,15 +34,6 @@
       - requests
 
   pre_tasks:
-    - name: Validate required deployment variables
-      ansible.builtin.assert:
-        that:
-          - ian_ssh_public_key is defined
-          - ian_ssh_public_key | length > 0
-          - ian_password_hash is defined
-          - ian_password_hash | length > 0
-        fail_msg: "SSH public key and encrypted password hash are required."
-
     - name: Verify Debian 13
       ansible.builtin.assert:
         that:
@@ -89,37 +84,15 @@
           - build-essential
         state: present
 
-    # --------------------------------------------------
-    # IAN ADMINISTRATIVE ACCOUNT
-    # --------------------------------------------------
+    - name: Read default editor selection
+      ansible.builtin.command: update-alternatives --query editor
+      register: rufus_editor_alternative
+      changed_when: false
 
-    - name: Create ian account
-      no_log: true
-      ansible.builtin.user:
-        name: ian
-        comment: Administrator
-        shell: /bin/bash
-        groups: sudo
-        append: true
-        create_home: true
-        password: "{{ ian_password_hash }}"
-        state: present
-
-    - name: Install ian SSH public key
-      ansible.posix.authorized_key:
-        user: ian
-        key: "{{ ian_ssh_public_key }}"
-        state: present
-        manage_dir: true
-
-    - name: Configure sudo for ian
-      ansible.builtin.copy:
-        dest: /etc/sudoers.d/ian
-        content: "ian ALL=(ALL:ALL) ALL\n"
-        owner: root
-        group: root
-        mode: "0440"
-        validate: "/usr/sbin/visudo -cf %s"
+    - name: Set vi as the default editor
+      ansible.builtin.command: update-alternatives --set editor /usr/bin/vim.basic
+      when: "'Value: /usr/bin/vim.basic' not in rufus_editor_alternative.stdout_lines"
+      changed_when: true
 
     # --------------------------------------------------
     # SSH SECURITY
@@ -259,7 +232,80 @@
             - ollama_model not in ollama_models.stdout.split()
           changed_when: true
 
+    - name: Deploy Rufus application
+      tags: [rufus_application]
+      block:
+        - name: Install Rufus application modules
+          ansible.builtin.copy:
+            src: "{{ playbook_dir }}/../../Rufus/{{ item }}"
+            dest: "{{ rufus_home }}/app/{{ item }}"
+            owner: root
+            group: rufus
+            mode: "0640"
+          loop: [app.py, config.py, rundeck.py]
+          notify: Restart Rufus
+
+        - name: Install approved job policy
+          ansible.builtin.copy:
+            src: "{{ playbook_dir }}/../../Rufus/policy.json"
+            dest: "{{ rufus_home }}/config/policy.json"
+            owner: root
+            group: rufus
+            mode: "0640"
+          notify: Restart Rufus
+
+        - name: Install Rufus configuration
+          ansible.builtin.copy:
+            dest: "{{ rufus_home }}/config/config.json"
+            owner: root
+            group: rufus
+            mode: "0640"
+            content: |
+              {
+                "rundeck_url": "http://192.168.0.51:4440",
+                "request_timeout": 10,
+                "port": 8787,
+                "policy_file": "/opt/rufus/config/policy.json",
+                "secrets_file": "/opt/rufus/config/secrets.txt",
+                "database": "/opt/rufus/data/executions.sqlite3"
+              }
+          notify: Restart Rufus
+
+        - name: Install only Rufus API credentials
+          ansible.builtin.copy:
+            dest: "{{ rufus_home }}/config/secrets.txt"
+            owner: root
+            group: rufus
+            mode: "0640"
+            content: |
+              RUFUS_RUNDECK_TOKEN={{ rufus_rundeck_token | to_json }}
+              RUFUS_API_TOKEN={{ rufus_api_token | to_json }}
+          no_log: true
+          notify: Restart Rufus
+
+        - name: Install Rufus systemd service
+          ansible.builtin.copy:
+            src: "{{ playbook_dir }}/../../Rufus/rufus.service"
+            dest: /etc/systemd/system/rufus.service
+            owner: root
+            group: root
+            mode: "0644"
+          register: rufus_service_unit
+          notify: Restart Rufus
+
+        - name: Enable Rufus service
+          ansible.builtin.systemd_service:
+            name: rufus
+            enabled: true
+            state: started
+            daemon_reload: "{{ rufus_service_unit.changed }}"
+
   handlers:
+    - name: Restart Rufus
+      ansible.builtin.systemd_service:
+        name: rufus
+        state: restarted
+
     - name: Reload systemd
       ansible.builtin.systemd_service:
         daemon_reload: true

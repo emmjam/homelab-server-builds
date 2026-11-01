@@ -11,7 +11,7 @@ SECRETS_FILE = Path('/tmp/secrets.txt')
 
 
 def read_secret(name, path=SECRETS_FILE, optional=False):
-    if name not in {'RUNDECK_TOKEN', 'GITHUB_TOKEN', 'RUNDECK_URL', 'IAN_PASSWORD_HASH'}:
+    if name not in {'RUNDECK_TOKEN', 'GITHUB_TOKEN', 'RUNDECK_URL', 'IAN_PASSWORD_HASH', 'RUFUS_RUNDECK_TOKEN', 'RUFUS_API_TOKEN'}:
         raise ValueError('Unsupported credential name')
     try:
         fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)

@@ -552,6 +552,7 @@ The following items represent known work or future improvements. They are not ne
 4. Improve DHCP management usability.
 5. Implement the PXE infrastructure.
 6. Improve TNAS temperature logging.
+7. Review existing testing to see whether checks can be amalgamated into single scripts that return clear exit/status codes and concise output, reducing agent token use while retaining useful failure diagnostics.
 
 ## Longer term
 
@@ -584,6 +585,7 @@ The user has several explicit preferences that should guide all development.
 - Use British English.
 - Be direct and technically precise.
 - Do not repeat diagnostic requests when the relevant configuration has not changed.
+- Use hostnames for SSH and SCP wherever possible so DHCP and hostname-registration failures are quickly recognised; investigate hostname failures rather than silently substituting an IP address.
 - Do not assume the user is in India.
 - Do not introduce unrelated architectural alternatives without a good reason.
 - Respect previous decisions unless there is a technical reason to revisit them.

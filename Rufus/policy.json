@@ -1,0 +1,7 @@
+{
+  "health-check": {
+    "id": "6e0b2f6c-aaa0-4031-ba96-73c86164cb43",
+    "name": "Rundeck-Health-Check",
+    "options": {}
+  }
+}

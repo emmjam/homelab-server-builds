@@ -1,0 +1,28 @@
+[Unit]
+Description=Rufus approved Rundeck API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=rufus
+Group=rufus
+WorkingDirectory=/opt/rufus/app
+ExecStart=/opt/rufus/venv/bin/python /opt/rufus/app/app.py --config /opt/rufus/config/config.json
+Restart=on-failure
+RestartSec=5
+UMask=0077
+# NoNewPrivileges is deliberately omitted to permit future approved local sudo.
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadWritePaths=/opt/rufus/data
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

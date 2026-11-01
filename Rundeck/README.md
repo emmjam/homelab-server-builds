@@ -1,6 +1,6 @@
 # Rundeck Automation
 
-This directory holds the Rundeck job definitions and scripts managed through Git. Rundeck remains the controlled execution service. Rufus can discover and invoke any job, pipeline, or other operation made available through the Rundeck API; presence in Rundeck is the approval boundary.
+This directory holds the Rundeck job definitions and scripts managed through Git. Rundeck remains the controlled execution service. The first Rufus application can discover and invoke only jobs explicitly listed in `Rufus/policy.json` and granted by its dedicated Rundeck policy.
 
 ## Directory and job groups
 
@@ -32,7 +32,11 @@ The importer uses Rundeck's [job import API](https://docs.rundeck.com/docs/api/#
 
 ## Rufus integration
 
-Rufus should use a narrowly scoped Rundeck API token to invoke any available jobs, pipelines, or other controlled Rundeck operations. It can discover operation descriptions and required options through Rundeck's project/job APIs, submit valid options, poll execution status, and retrieve execution logs. The presence of an operation in Rundeck is the approval boundary. Keep API credentials in Rundeck Key Storage or another secret store; never put credentials in job YAML or scripts. Keep Rufus actions mediated by Rundeck rather than exposing a separate arbitrary shell or unrestricted run-script endpoint.
+Rufus uses a dedicated `rufus` API identity with the `rufus-api` role.
+`policies/rufus.aclpolicy` grants access only to the existing health-check job;
+`../Rufus/policy.json` independently enforces the application allow-list. The
+presence of a job in Rundeck alone does not approve it for Rufus. See
+[the Rufus application documentation](../Rufus/README.md).
 
 ## TNAS execution and privilege boundary
 

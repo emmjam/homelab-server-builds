@@ -1,0 +1,29 @@
+---
+- name: Configure Rundeck Rufus integration
+  hosts: rundeck_controller
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Manage maximum API token lifetime
+      ansible.builtin.lineinfile:
+        path: /etc/rundeck/rundeck-config.properties
+        regexp: '^\s*rundeck\.api\.tokens\.duration\.max\s*='
+        line: rundeck.api.tokens.duration.max=1y
+        owner: rundeck
+        group: rundeck
+        mode: '0640'
+      notify: Restart Rundeck
+
+    - name: Install restricted Rufus ACL
+      ansible.builtin.copy:
+        src: '{{ playbook_dir }}/../../Rundeck/policies/rufus.aclpolicy'
+        dest: /etc/rundeck/rufus.aclpolicy
+        owner: rundeck
+        group: rundeck
+        mode: '0640'
+
+  handlers:
+    - name: Restart Rundeck
+      ansible.builtin.systemd_service:
+        name: rundeckd
+        state: restarted

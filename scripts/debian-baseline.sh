@@ -59,7 +59,8 @@ apt-get install -y \
     unattended-upgrades \
     openssh-server \
     isc-dhcp-client \
-    vim-tiny
+    vim-tiny \
+    tree
 
 log "Selecting vi as the system default editor."
 update-alternatives --set editor /usr/bin/vim.tiny
