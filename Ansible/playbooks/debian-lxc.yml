@@ -1,0 +1,6 @@
+---
+- name: Configure Debian 13 LXC baseline
+  hosts: all
+  gather_facts: true
+  roles:
+    - debian_lxc

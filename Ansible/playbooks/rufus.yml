@@ -1,0 +1,246 @@
+
+---
+- name: Configure Rufus AI management system
+  hosts: rufus
+  become: true
+  gather_facts: true
+
+  vars:
+    rufus_home: /opt/rufus
+    rufus_venv: /opt/rufus/venv
+    rufus_directories:
+      - /opt/rufus/app
+      - /opt/rufus/config
+      - /opt/rufus/data
+      - /opt/rufus/logs
+
+    ollama_model: qwen3:4b
+    ollama_host: "127.0.0.1:11434"
+
+    rufus_python_packages:
+      - langgraph
+      - langchain-ollama
+      - langchain-openai
+      - python-dotenv
+      - requests
+
+  pre_tasks:
+    - name: Validate required deployment variables
+      ansible.builtin.assert:
+        that:
+          - ian_ssh_public_key is defined
+          - ian_ssh_public_key | length > 0
+          - ian_password_hash is defined
+          - ian_password_hash | length > 0
+        fail_msg: "SSH public key and encrypted password hash are required."
+
+    - name: Verify Debian 13
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution == "Debian"
+          - ansible_distribution_major_version == "13"
+        fail_msg: "Rufus requires Debian 13."
+
+  tasks:
+    # --------------------------------------------------
+    # APT CONFIGURATION
+    # --------------------------------------------------
+
+    - name: Configure APT proxy
+      ansible.builtin.copy:
+        dest: /etc/apt/apt.conf.d/01proxy
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          Acquire::http::Proxy "http://192.168.0.101:3142";
+          Acquire::https::Proxy "DIRECT";
+
+    - name: Update APT cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    # --------------------------------------------------
+    # SYSTEM DEPENDENCIES
+    # --------------------------------------------------
+
+    - name: Install system dependencies
+      ansible.builtin.apt:
+        name:
+          - sudo
+          - openssh-server
+          - git
+          - curl
+          - wget
+          - jq
+          - rsync
+          - vim
+          - less
+          - ca-certificates
+          - python3
+          - python3-venv
+          - python3-pip
+          - build-essential
+        state: present
+
+    # --------------------------------------------------
+    # IAN ADMINISTRATIVE ACCOUNT
+    # --------------------------------------------------
+
+    - name: Create ian account
+      ansible.builtin.user:
+        name: ian
+        comment: Administrator
+        shell: /bin/bash
+        groups: sudo
+        append: true
+        create_home: true
+        password: "{{ ian_password_hash }}"
+        state: present
+
+    - name: Install ian SSH public key
+      ansible.posix.authorized_key:
+        user: ian
+        key: "{{ ian_ssh_public_key }}"
+        state: present
+        manage_dir: true
+
+    - name: Configure sudo for ian
+      ansible.builtin.copy:
+        dest: /etc/sudoers.d/ian
+        content: "ian ALL=(ALL:ALL) ALL\n"
+        owner: root
+        group: root
+        mode: "0440"
+        validate: "/usr/sbin/visudo -cf %s"
+
+    # --------------------------------------------------
+    # SSH SECURITY
+    # --------------------------------------------------
+
+    - name: Configure SSH authentication
+      ansible.builtin.copy:
+        dest: /etc/ssh/sshd_config.d/20-rufus.conf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          PubkeyAuthentication yes
+          PasswordAuthentication no
+          KbdInteractiveAuthentication no
+          PermitRootLogin no
+      notify: Restart SSH
+
+    # --------------------------------------------------
+    # RUFUS SERVICE ACCOUNT
+    # --------------------------------------------------
+
+    - name: Create Rufus service account
+      ansible.builtin.user:
+        name: rufus
+        home: "{{ rufus_home }}"
+        shell: /usr/sbin/nologin
+        system: true
+        create_home: true
+        state: present
+
+    - name: Create Rufus directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: rufus
+        group: rufus
+        mode: "0750"
+      loop: "{{ rufus_directories }}"
+
+    # --------------------------------------------------
+    # PYTHON ENVIRONMENT
+    # --------------------------------------------------
+
+    - name: Create Python virtual environment
+      ansible.builtin.command:
+        cmd: "python3 -m venv {{ rufus_venv }}"
+        creates: "{{ rufus_venv }}/bin/python"
+
+    - name: Install Rufus Python dependencies
+      ansible.builtin.pip:
+        name: "{{ rufus_python_packages }}"
+        virtualenv: "{{ rufus_venv }}"
+        state: present
+
+    - name: Set Python environment ownership
+      ansible.builtin.file:
+        path: "{{ rufus_venv }}"
+        state: directory
+        owner: rufus
+        group: rufus
+        recurse: true
+
+    # --------------------------------------------------
+    # OLLAMA
+    # --------------------------------------------------
+
+    - name: Download Ollama installer
+      ansible.builtin.get_url:
+        url: https://ollama.com/install.sh
+        dest: /tmp/rufus-install-ollama.sh
+        mode: "0700"
+      when: install_ollama | default(true) | bool
+
+    - name: Install Ollama
+      ansible.builtin.command:
+        cmd: /tmp/rufus-install-ollama.sh
+        creates: /usr/local/bin/ollama
+      when: install_ollama | default(true) | bool
+
+    - name: Configure Ollama network binding
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/ollama.service.d/override.conf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [Service]
+          Environment="OLLAMA_HOST={{ ollama_host }}"
+      notify:
+        - Reload systemd
+        - Restart Ollama
+
+    - name: Enable and start Ollama
+      ansible.builtin.systemd_service:
+        name: ollama
+        enabled: true
+        state: started
+
+    - name: Apply pending Ollama configuration
+      ansible.builtin.meta: flush_handlers
+
+    - name: Check installed Ollama models
+      ansible.builtin.command:
+        cmd: ollama list
+      register: ollama_models
+      changed_when: false
+      when: install_ollama_model | default(true) | bool
+
+    - name: Install Qwen model
+      ansible.builtin.command:
+        cmd: "ollama pull {{ ollama_model }}"
+      when:
+        - install_ollama_model | default(true) | bool
+        - ollama_model not in ollama_models.stdout
+
+  handlers:
+    - name: Reload systemd
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+
+    - name: Restart Ollama
+      ansible.builtin.systemd_service:
+        name: ollama
+        state: restarted
+
+    - name: Restart SSH
+      ansible.builtin.systemd_service:
+        name: ssh
+        state: restarted

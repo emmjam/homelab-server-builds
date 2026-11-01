@@ -1,0 +1,22 @@
+---
+debian_lxc_timezone: Europe/London
+debian_lxc_locale: en_GB.UTF-8
+debian_lxc_http_proxy: http://192.168.0.101:3142
+debian_lxc_packages:
+  - openssh-server
+  - sudo
+  - locales
+  - tzdata
+  - ca-certificates
+  - curl
+  - wget
+  - vim-tiny
+  - less
+  - bash-completion
+  - iproute2
+  - iputils-ping
+  - bind9-dnsutils
+  - procps
+  - lsof
+  - rsync
+  - unattended-upgrades

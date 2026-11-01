@@ -1,0 +1,115 @@
+---
+- name: Require Debian 13
+  ansible.builtin.assert:
+    that:
+      - ansible_facts.distribution == 'Debian'
+      - ansible_facts.distribution_major_version == '13'
+
+- name: Configure APT proxy and direct HTTPS
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/02homelab-proxy
+    content: |
+      Acquire::http::Proxy "{{ debian_lxc_http_proxy }}";
+      Acquire::https::Proxy "DIRECT";
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Update Debian packages
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+    upgrade: dist
+
+- name: Install baseline administration packages
+  ansible.builtin.apt:
+    name: '{{ debian_lxc_packages }}'
+    state: present
+
+- name: Enable UTF-8 locale
+  ansible.builtin.lineinfile:
+    path: /etc/locale.gen
+    regexp: '^#?\s*{{ debian_lxc_locale | regex_escape }} UTF-8$'
+    line: '{{ debian_lxc_locale }} UTF-8'
+  register: debian_lxc_locale_definition
+
+- name: Generate locale
+  ansible.builtin.command: locale-gen
+  when: debian_lxc_locale_definition.changed
+  changed_when: true
+
+- name: Set default locale
+  ansible.builtin.copy:
+    dest: /etc/default/locale
+    content: "LANG={{ debian_lxc_locale }}\n"
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Set timezone
+  ansible.builtin.file:
+    src: '/usr/share/zoneinfo/{{ debian_lxc_timezone }}'
+    dest: /etc/localtime
+    state: link
+    force: true
+
+- name: Record timezone
+  ansible.builtin.copy:
+    dest: /etc/timezone
+    content: "{{ debian_lxc_timezone }}\n"
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Configure SSH with key authentication only
+  ansible.builtin.copy:
+    dest: /etc/ssh/sshd_config.d/00-homelab-hardening.conf
+    content: |
+      PermitRootLogin prohibit-password
+      PubkeyAuthentication yes
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      X11Forwarding no
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Reload SSH
+
+- name: Install clone identity initialization
+  ansible.builtin.copy:
+    src: homelab-lxc-identity.service
+    dest: /etc/systemd/system/homelab-lxc-identity.service
+    owner: root
+    group: root
+    mode: '0644'
+  register: debian_lxc_identity_unit
+
+- name: Enable clone identity initialization
+  ansible.builtin.systemd_service:
+    name: homelab-lxc-identity.service
+    enabled: true
+    daemon_reload: '{{ debian_lxc_identity_unit.changed }}'
+
+- name: Enable daily security updates
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Enable baseline services
+  ansible.builtin.systemd_service:
+    name: '{{ item }}'
+    enabled: true
+    state: started
+  loop:
+    - ssh.service
+    - apt-daily.timer
+    - apt-daily-upgrade.timer
+
+- name: Validate SSH configuration
+  ansible.builtin.command: /usr/sbin/sshd -t
+  changed_when: false
