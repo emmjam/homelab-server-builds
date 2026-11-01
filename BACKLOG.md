@@ -145,6 +145,12 @@ feature requests. No relative implementation order within this queue has been ag
 | VPN-01 | TODO | Implement the separately planned NordVPN/Squid proxy VM for selected traffic. | Project context sections 12 and 13. VPN failure must not cause a general network outage. |
 | MEDIA-01 | TODO | Finalise and deploy the separate Bobarr/Plex media-library project and authenticated HTTPS media access through `emmjam.linkpc.net`, using the proposed Debian VM/Nginx/Certbot arrangement. | Project context sections 2 and 4. Exact deployment details are undecided. This is separate from Rufus; no public exposure without authentication and HTTPS. |
 
+## APT cache
+
+| ID | Status | Work and completion criteria | Evidence / dependency |
+|---|---|---|---|
+| CACHE-01 | TODO | Migrate Apt-Cache from a VM to an LXC container with its cache storage backed by TNAS. Assess Samba/SMB and select the storage protocol and mount arrangement before implementation; verify caching, expiration and disk monitoring after migration. | Explicit user request on 1 November 2026. Samba is a proposal, not an agreed choice. Preserve the working cache until the replacement is verified. |
+
 ## Testing efficiency
 
 | ID | Status | Work and completion criteria | Evidence / dependency |
