@@ -26,6 +26,38 @@
     name: '{{ debian_lxc_packages }}'
     state: present
 
+- name: Create Rundeck deployment account
+  ansible.builtin.user:
+    name: rundeck
+    shell: /bin/bash
+    create_home: true
+    state: present
+
+- name: Create Rundeck SSH directory
+  ansible.builtin.file:
+    path: /home/rundeck/.ssh
+    state: directory
+    owner: rundeck
+    group: rundeck
+    mode: '0700'
+
+- name: Authorise the existing Rundeck deployment key
+  ansible.builtin.copy:
+    dest: /home/rundeck/.ssh/authorized_keys
+    content: "{{ debian_lxc_rundeck_public_key }}\n"
+    owner: rundeck
+    group: rundeck
+    mode: '0600'
+
+- name: Allow Ansible deployment through Rundeck inside this guest
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/rundeck
+    content: "rundeck ALL=(ALL:ALL) NOPASSWD: ALL\n"
+    owner: root
+    group: root
+    mode: '0440'
+    validate: /usr/sbin/visudo -cf %s
+
 - name: Enable UTF-8 locale
   ansible.builtin.lineinfile:
     path: /etc/locale.gen
