@@ -51,7 +51,7 @@ case $MODE in
         [[ $EUID == 0 ]] || fail 'Run as root'
         qm config "$2" | grep -E '^(name|agent|net[0-9]+|ipconfig[0-9]+):'
         qm agent "$2" ping
-        qm guest exec "$2" --timeout 15 -- systemctl is-active apt-cacher-ng rundeckd
+        qm guest exec "$2" --timeout 15 -- systemctl --no-pager --plain list-units --type=service --all
         exit 0;;
     --migrate-template-ids)
         (($# == 1)) || fail 'Use --migrate-template-ids alone'
