@@ -79,6 +79,16 @@ class NodesTests(unittest.TestCase):
             self.assertIsNone(stale['observation']['metrics']);self.assertIsNone(stale['observation']['awake'])
             self.assertEqual(stale['last_verified_capabilities'],record['last_verified_capabilities'])
             with self.assertRaises(NodeStatusError):view.get('not-in-inventory')
+    def test_clock_skew_does_not_expire_a_fresh_publication(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path=Path(tmp)/'nodes.json';record=self.check()
+            path.write_text(json.dumps({'schema_version':1,'collected_at':1005,
+                'received_at':905,'stale_seconds':660,'nodes':[record]}))
+            view=Nodes(path,clock=lambda:906)
+            self.assertFalse(view.get('ai-agent')['stale'])
+            self.assertEqual(view.get('ai-agent')['age_seconds'],6)
+            self.assertTrue(Nodes(path,clock=lambda:1566).get('ai-agent')['stale'])
+
     def test_inventory_injection_is_rejected_before_execution(self):
         for field in ('host','user','host_key_alias'):
             config=copy.deepcopy(self.config);config['nodes'][0]['ssh'][field]='host; touch /tmp/forbidden'

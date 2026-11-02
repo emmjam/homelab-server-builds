@@ -43,7 +43,7 @@ for node in snapshot['nodes']:
         'ollama':capabilities['runtimes']['ollama'] if capabilities else None}),flush=True)
 # A trusted snapshot reader with a controlled clock proves expiry without changing
 # production clocks/files or waiting for the real freshness interval.
-future=max(n['observation']['checked_at'] for n in snapshot['nodes'])+snapshot['stale_seconds']+1
+future=snapshot['received_at']+snapshot['stale_seconds']+1
 expired=Nodes(clock=lambda:future).get()
 assert all(n['stale'] and n['observation']['state']=='stale' and n['observation']['metrics'] is None for n in expired['nodes'])
 assert [n['last_success_at'] for n in expired['nodes']]==[n['last_success_at'] for n in snapshot['nodes']]

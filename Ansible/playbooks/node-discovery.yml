@@ -84,7 +84,9 @@
         content: |
           {{ lookup('ansible.builtin.file','/var/lib/rundeck/.ssh/known_hosts') }}
           {{ lookup('ansible.builtin.file','/var/lib/rundeck/.ssh/managed_debian_known_hosts') }}
-          {{ node_discovery_import_host_keys | join('\n') }}
+          {% for host_key in node_discovery_import_host_keys %}
+          {{ host_key }}
+          {% endfor %}
 
     - name: Install dedicated fixed discovery service
       ansible.builtin.copy:

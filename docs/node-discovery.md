@@ -61,6 +61,10 @@ Each record separates:
   metrics without discarding previously verified capabilities.
 
 Times in the API are UTC Unix seconds, except human-sourced known-fact dates.
+Probe/last-success timestamps retain the controller clock. `received_at` uses
+Rufus’s clock; `source_clock_offset_seconds` records the observed difference.
+Freshness uses local time since receipt plus source probe age, so cross-host
+clock skew does not falsely expire a new snapshot. No system clocks are changed.
 `last_success_at` never advances on a failed probe. Disk entries are separate
 mounts, not summed: ZFS datasets can share space. CPU is a 0.2-second sample;
 RAM is OS-visible MemTotal, not a DIMM-slot audit; root capacity determines generic readiness. Thresholds are centrally
