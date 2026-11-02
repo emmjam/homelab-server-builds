@@ -122,3 +122,46 @@ Settings: `Ansible/vars/node-discovery.yml`. Timer/service: `rufus-discovery` on
 Rundeck; code: `NodeDiscovery/`; API view: `Rufus/nodes.py`. An administrator may
 request an early **read-only** refresh with `systemctl start rufus-discovery` on
 Rundeck. Ordinary API queries do not refresh or execute jobs.
+
+## Completion — 2 November 2026
+
+Implemented/deployed source: `4f35528`, corrected through `3df2069`.
+Controller timer and snapshot publication are operational. Final acceptance log:
+`/tmp/node-discovery-final-w0kruryk.log` on Rundeck. Initial and corrected runs
+passed all 76 existing Rufus regressions and 14 new discovery tests; only affected
+tests/deployment stages were repeated after fixes, rather than rerunning all
+existing tests each time. AI2 approval/rejection and AI3 persistence/failure
+regressions remain intact; no live repair or inference generation was performed.
+
+Live five-node API acceptance passed authenticated reads, individual records,
+source facts, stale expiry with a controlled reader clock, read-only snapshot
+permissions, and rejection of POST/refresh/command requests. Rufus's execution
+count was unchanged. Simulated fresh/expired independent sleep evidence and
+refresh-after-reachability recovery passed; no real sleep/wake transition was
+performed or claimed. Clock-skew handling and both existing Ollama listener
+patterns are independently covered by tests.
+
+Observed snapshot (capacity values are a dated sample; query the API for current
+values). CPU is physical cores / logical CPUs; RAM is OS-visible, not DIMM capacity.
+
+| Node | CPU | Cores / logical | RAM GiB | Root free GiB | OS / observed status |
+|---|---|---|---|---|---|
+| tnas | i3-N305 | 8 / 8 | 31.1 | 866.3 | Debian 13 / Proxmox; awake, systemd degraded, conservatively unavailable |
+| ai-agent | i5-6500T | 4 / 4 | 7.64 | 90.9 | Debian 13; online and available |
+| ai-worker | i3-4160T | 2 / 4 | 7.68 | 43.3 | Debian 13; online and available |
+| server1 | Unknown | Unknown | Unknown | Unknown | Unreachable; Ubuntu 20.04 is user-confirmed, not live-verified |
+| server2 | Unknown | Unknown | Unknown | Unknown | Unreachable; Ubuntu 20.04 is user-confirmed, not live-verified |
+
+Both HP/Dell have an active local Ollama service with `qwen3:4b`, digest
+`359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7`.
+Dell's loopback-only listener was discovered without changing it. TNAS's existing
+systemd degraded state was reported without diagnosing/repairing unrelated
+services. Mac hardware and controller SSH authorisation remain unverified until
+a trusted live probe can succeed; no specifications or sleep state were guessed.
+
+No compute-node files, packages, accounts, SSH keys, OS, power settings or runtime
+configuration were changed. Only the existing controller and Rufus guest received
+the discovery implementation. No workload allocation, power-operation redesign,
+Web enhancement or new model tool was added. Task 2 is closed with these explicit
+availability/access limitations; fresh observations replace cached facts when
+nodes subsequently become reachable and authenticated access succeeds.
