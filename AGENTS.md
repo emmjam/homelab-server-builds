@@ -50,3 +50,11 @@ job (`7d9a3328-c8df-4e31-bbf6-49a6d9ce5a11`), with the allowlisted host and
 `action=wake`. Read its verification result before continuing. A sent magic
 packet alone does not prove the host is awake; failed hostname-based verification
 alone does not prove hardware wake failed. Preserve these distinctions.
+
+## Rufus Task 1 scope
+
+Prioritise a working chat interface. Follow the agreed requirements; do not add
+unsolicited features or redesign authentication, security, networking or
+architecture. Use the simplest consistent implementation for unspecified details.
+Ask only for genuine blockers or decisions materially affecting security or
+architecture, not routine details or optional improvements.
