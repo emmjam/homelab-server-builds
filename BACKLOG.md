@@ -70,6 +70,13 @@ linked documents):
 | AI2 — supervised repair | DONE | [API/approval contract and acceptance](docs/ai2-api.md) |
 | AI3 — general conversation | DONE | [Dialogue processing and acceptance](docs/ai3.md) |
 
+Rufus Web Task 1 is **DONE for implementation, deployment and automated acceptance**:
+trusted-LAN HTTP username/password access on the existing Rufus guest, scrypt,
+revocable eight-hour sessions, CSRF and rate limits. Execution 203 passed the full
+suite, AI2/AI3 regressions and live HTTP multi-turn/history acceptance with zero
+Rundeck operations. Actual laptop/phone browser checks are **NOT PERFORMED**.
+[Architecture, access, evidence and manual checklist](docs/rufus-web.md).
+
 ## P2 — Rufus VS Code integration: IMMEDIATE PRIORITY AFTER BASIC RUFUS WORKS
 
 **Dependency:** basic Rufus and its API, RUFUS-01 through RUFUS-04. This is the next

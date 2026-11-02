@@ -721,3 +721,12 @@ The HP/Dell long-sleep issue is resolved; see [the WOL record](docs/wol-investig
 Remaining work is maintained in [BACKLOG.md](BACKLOG.md). Continue development
 from repository code, Ansible, tests and these documents, without external prompt
 storage or historical conversations.
+
+## Rufus Web Task 1
+
+The existing Rufus guest now hosts the separate unprivileged Web service on its
+LAN IPv4, TCP 8788. API 8787 stays loopback-only. Username/password login, salted
+scrypt, eight-hour revocable sessions, CSRF and rate limiting are deployed under
+Ansible; `ian` is the initial account. See `docs/rufus-web.md` for the authoritative
+access/admin instructions, execution 203 evidence and manual device checklist.
+Automated acceptance passed; actual laptop/phone browser checks are not performed.

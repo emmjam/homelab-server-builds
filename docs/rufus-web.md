@@ -3,10 +3,10 @@
 ## Status and scope
 
 **Current design: trusted-LAN HTTP with browser username/password login.** This
-specification supersedes the SSH-tunnel/single-use-code access design. The revised
-network and password-authentication design is documented, **not implemented or
-accepted**. The deployed implementation still uses loopback Web and SSH-issued
-codes; its successful deployment checks do not establish completion of this design.
+specification supersedes the SSH-tunnel/single-use-code access design.
+**Implemented, deployed and automated acceptance passed**, 2 November 2026,
+execution [203](http://192.168.0.51:4440/project/HomeLab/execution/show/203).
+Actual laptop/phone browser acceptance is separate and remains not performed.
 
 Rufus Web remains a separate client on the **existing Rufus LXC on TNAS**, running
 as `rufus-web` under `rufus-web.service`. No new VM, LXC or Docker container.
@@ -149,8 +149,46 @@ Ansible remains the configuration authority:
   versions/disabled accounts. Unchanged accounts/sessions are not reset by an
   idempotent deployment. Missing/malformed accounts configuration fails closed.
 
-No accounts or passwords have been created for the revised design. Initial account
-identity and password provisioning remain an administrator setup step.
+The initial account `ian` is enabled with the administrator-supplied password.
+Passwords/hashes are not documented in Git or reports. Account hashes are transferred
+separately into `/var/lib/rundeck/rufus-web-accounts.json` (0600, owned by Rundeck).
+The broad existing secrets transfer was not used: `/tmp/secrets.txt` and its
+ownership/permissions/process remain unchanged.
+
+### Access from laptop and phone
+
+Connect to the trusted home LAN/Wi-Fi and open **http://rufus.lan:8788**.
+If that client cannot resolve the LAN hostname, use **http://192.168.0.52:8788**
+(the verified deployment address; future address changes require reconciliation).
+Sign in as **ian**, using the password entered through the hidden-password utility.
+No SSH, tunnel, certificate or client installation is required for normal access.
+Use separate browser sessions on each device; they share the Rufus archive.
+
+### Administrator operations
+
+From a checkout on an authorised administrator machine:
+
+```bash
+python3 scripts/rufus-web-admin.py set-password ian --secrets-file /path/to/ignored/secrets.txt --transfer
+```
+
+The hidden prompt accepts at least **3 characters**. `--transfer` sends only the
+salted account records over existing verified SSH, never other source credentials,
+and preserves the established secrets file. Use `--ssh-config /dev/null` if needed
+by that machine's existing SSH setup. The same utility supports `disable`, `enable`
+and `remove`. Then apply `Ansible/playbooks/rufus-web.yml` through the existing
+controller deployment route; it installs the managed accounts atomically.
+
+To revoke sessions or unlock an account, run on the trusted controller:
+
+```bash
+cd /opt/homelab-server-builds
+sudo -u rundeck ansible-playbook -i Ansible/inventory/ai2.ini Ansible/playbooks/rufus-web-admin.yml -e web_admin_action=revoke -e web_admin_username=ian
+```
+
+Use `web_admin_action=unlock` for an account lockout. These are administrative
+operations, not browser endpoints. Password changes/disable/removal revoke sessions
+through the managed credential version or account state on every request.
 
 ## Existing chat and security boundaries
 
@@ -214,8 +252,8 @@ approved test sources, never by trusting forged X-Forwarded-For headers.
 
 Emit compact per-area PASS/FAIL with detailed logs retained locally. Include the
 commit, environment and actual checks executed. Existing code-login tests do not
-count as evidence for the revised password design. Current revised-suite status:
-**pending implementation and execution**.
+count as evidence for the revised password design. Revised suite status:
+**PASS**, as detailed below.
 
 ## Manual laptop-and-phone checklist — after deployment
 
@@ -250,3 +288,47 @@ suites, loopback isolation and AI3 restart acceptance; correction 201 passed
 web-focused deployment/security checks. Those executions concern the superseded
 code-login/loopback design. Ordinary HTTP chat later exposed output exhaustion;
 that inference investigation is separate and is not resolved by this document.
+
+
+## Automated completion record — 2 November 2026
+
+- Implementation deployed through execution **203**, source `32bfd95`.
+- All six shared validation groups passed: **119 tests** (DNS 5, LXC 26, Rufus 71,
+  Rundeck 13, VM 4), plus shell syntax. Existing AI2 regressions passed with mocks;
+  no disposable fixture or live repair was recreated.
+- Two additional administrator-source/transfer tests passed after the helper was
+  finalised in `ada742c`: **121 automated tests in total**. Updated chat JavaScript
+  also passed syntax compilation; this is not a browser interaction test.
+- Real AI3 multi-turn local inference and history/context across a Rufus restart
+  passed. Real LAN HTTP login used independent cookie jars, completed the garden
+  robot/Willow exchange and reopened identical saved history in another session.
+- Login CSRF/Origin rejection and logout isolation passed; isolated HTTP tests cover
+  session expiry/replay, hashing, throttling, restart persistence, administrator
+  revocation/reset/disable/removal and exact approval/rejection forwarding.
+- Ordinary conversations generated **zero Rundeck executions**. The temporary live
+  acceptance account was removed; only `ian` remains enabled. A repeated Web
+  deployment reported **changed=0**.
+- Live listeners: guest LAN IPv4 TCP **8788**, API **127.0.0.1:8787**. The persistent
+  dedicated nftables policy allows the trusted IPv4 subnet/loopback and drops other
+  IPv4/IPv6 sources to Web. Account separation and protected file modes passed.
+- Laptop-side HTTP requests reached the LAN username/password page, while direct
+  TCP access to API 8787 was refused. No SSH tunnel was used. A physical off-LAN
+  probe/router-port-forward audit was not performed; denial is verified from the
+  installed firewall policy, and no router/external exposure was configured.
+- Controller logs: `/tmp/rufus-web-final-94q9b4er.log` and
+  `/tmp/homelab-validation-iz5f2k4g`. Browser automation was not required or run.
+
+The output-exhaustion cause was reproduced: the retained Qwen template opens a
+thinking block despite `think=false`; the exact failed request consumed all
+**512 tokens** (`done_reason=length`) without closing that block. A chat-only empty
+thinking prefill completed within the same budget (**293 tokens**, stop). It is
+now explicitly managed in inference.json by the Rufus-only client tasks in
+`Ansible/playbooks/ai-inference.yml`. The installed Qwen3 4B model/runtime, 4096
+context, 512 chat limit, timeouts and structured AI2 256-token path are unchanged.
+Truncated output still fails safely rather than being recorded as a successful
+assistant reply. No conversation-store or approval-state-machine changes were made.
+
+Limitations: HTTP uses the approved trusted-LAN boundary rather than transport
+encryption; sessions share one operator archive; responses/context remain bounded.
+The manual checklist above is still pending on both actual devices. No node
+management, worker allocation, reverse proxy, TLS requirement or new guest was added.

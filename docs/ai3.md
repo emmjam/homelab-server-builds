@@ -67,3 +67,13 @@ Remaining limitations: loopback-only API, polling rather than streaming, approxi
 character-based context budgeting, bounded replies, and no automatic retry of
 interrupted generation. Durable history is retained rather than pruned. No remote
 client, worker allocation, new operation permissions or hosted dependency was added.
+
+## Task 1 inference compatibility correction
+
+The general chat wire request can use an Ansible-managed empty-thinking prefill
+for the retained Qwen template (`chat_empty_thinking_prefill`). This prevents the
+observed missing-final-answer failure without increasing the 512-token chat budget
+or changing structured AI2 requests, stored dialogue or approval handling. Real
+chat and restart acceptance passed again in execution 203. See
+[Rufus Web's completion record](rufus-web.md#automated-completion-record--2-november-2026)
+for the reproduction and full Task 1 evidence.
