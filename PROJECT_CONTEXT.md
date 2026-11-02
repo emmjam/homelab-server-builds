@@ -693,3 +693,22 @@ one-off diagnostics. Repeated manual verification should become an automated
 check. Do not add tests merely for coverage; keep validation useful and efficient.
 See `AGENTS.md` and `docs/validation.md`; the repository entry point is
 `python3 scripts/validate.py` and CI runs that same command.
+
+## Permanent host availability / WOL directive
+
+Some compute nodes intentionally sleep or power down when idle. Before
+investigating SSH, networking, DNS, services, authentication or similar connection
+failures, establish whether the managed target is awake and reachable. Treat an
+asleep/offline WOL-capable node as a normal availability state. Use the approved
+WOL mechanism where appropriate and wait for network/SSH availability before
+configuration-level troubleshooting. If waking cannot be verified, report
+unresolved availability rather than assuming a configuration fault. Do not
+modify working SSH/network configuration merely because a sleeping or powered-down
+node is unreachable.
+
+Rufus's eventual worker-management and diagnostic logic must follow the same
+availability-first sequence and distinguish sleeping/unavailable workers from
+configuration faults. HP/Dell wake uses the existing **HomeLab - AI Host Power**
+Rundeck job (`7d9a3328-c8df-4e31-bbf6-49a6d9ce5a11`) with `action=wake` and the
+allowlisted hostname. A sent packet is not verified wake; failed hostname-based
+verification is not by itself proof of failed hardware wake. See `AGENTS.md`.
