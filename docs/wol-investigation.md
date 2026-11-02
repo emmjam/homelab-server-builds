@@ -1,5 +1,9 @@
 # HP Wake-on-LAN investigation — 2 November 2026
 
+Status: **resolved**. The user confirmed HP/Dell long-sleep recovery fixed on
+2 November 2026. The observations below are historical; the fix mechanism was
+not supplied in this update and has not been independently re-tested here.
+
 ## Verified results
 
 The HP is `ai-agent.lan`, Debian 13.7, with Intel I219-LM (`e1000e`) on
@@ -39,12 +43,9 @@ The user explicitly approved a brief suspend-and-wake test:
 This proves short-suspend WOL and hostname-based SSH recovery. It does not
 reproduce a sleep longer than the DHCP lease.
 
-## Remaining diagnosis
+## Resolution
 
-The evidence points towards expired DHCP/DNS state after long sleep rather
-than missing magic-packet enablement. No DHCP-resume fix has yet been applied.
-Before choosing a fix, capture a controlled long-sleep or disposable-client
-reproduction of lease expiry and inspect the existing ifupdown/dhclient owner.
-Any renewal must reuse that owner rather than start a competing DHCP client.
-Retain hostnames for normal SSH and report DNS recovery separately from wake.
-Do not change BIOS, WOL settings or network configuration on speculation.
+HP/Dell long-sleep recovery is fixed (user-confirmed 2 November 2026).
+The earlier diagnosis is retained above as historical evidence. No further
+long-sleep investigation is outstanding. Post-reboot persistence verification
+remains a separate backlog item (RD-05).

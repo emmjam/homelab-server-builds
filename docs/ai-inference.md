@@ -14,7 +14,8 @@ been started.
 - Earlier Pi-hole NXDOMAIN cleared after the user power cycle. The HP now
   resolves to `192.168.0.118`; existing deployment SSH access has passwordless
   administrative sudo. [WOL investigation](wol-investigation.md) records the
-  successful controlled suspend/wake test and unresolved long-sleep DHCP issue.
+  successful controlled suspend/wake test and historical long-sleep DHCP issue.
+  The user confirmed HP/Dell long-sleep recovery fixed on 2 November 2026.
 - HP hardware: i5-6500T, four cores/threads; 7824 MiB RAM; Intel HD Graphics 530;
   root filesystem 103 GiB with 91 GiB free. Debian 13.7.
 - Existing Ollama 0.40.13 is active and enabled as `ollama`, bound to
@@ -166,7 +167,7 @@ and enabled state alone do not prove post-reboot acceptance.
   is `38da28a`. The existing checkout/job sync was execution 169.
 - Post-reboot persistence was not exercised: no AI1 reboot was approved. Services
   are enabled with firewall-before-listener ordering. Source-IP filtering is
-  neither application authentication nor TLS. Long-sleep DHCP/DNS recovery
-  remains the separate WOL investigation, not resolved by this inference work.
+  neither application authentication nor TLS. HP/Dell long-sleep recovery was subsequently confirmed fixed by the user on
+  2 November 2026; that fix is separate from this inference deployment.
 - No conversational repairs, Dell worker, VS Code extension, OpenBao or other
   backlog systems were deployed. Stop this milestone here.
