@@ -66,7 +66,7 @@ conversational/supervised-repair work is **IN PROGRESS**: current HP inference
 reverified, [API contract](docs/ai2-api.md) drafted, and target-independent
 conversation/approval persistence implemented in source. The APT-cache target, listed read-only diagnostics and isolated disposable
 fixture are now approved. Workflow, six fixed operations and restricted ACL
-additions are implemented in source; live deployment and acceptance are pending.
+additions are deployed through execution 183 (source `3277356`). All six automated validation groups and live permission boundaries passed. Fixture diagnostics and rejected-proposal acceptance passed; exact user approval, repair execution and independent recovery verification remain pending.
 
 ## P2 — Rufus VS Code integration: IMMEDIATE PRIORITY AFTER BASIC RUFUS WORKS
 

@@ -87,24 +87,27 @@ silently redirect a production proposal to a test system.
 
 ## Implementation status — 2 November 2026
 
-- HP availability was established through trusted SSH before diagnostics.
-- The existing AI1 acceptance stage was rerun only for the Rufus host: real HP
-  inference and safe unavailable-backend reporting passed (`ok=1 changed=0 failed=0`).
-  Controller log: `/tmp/ai2-prerequisite-pFqyPp.log`.
-- Production `apt-cache.lan` is reachable, `apt-cacher-ng` is active and its cache
-  filesystem has 59 GiB available. No fault was introduced or service restarted.
-- `Rufus/conversations.py` implements target-independent SQLite conversation,
-  message/event and immutable action storage with atomic one-use approval and
-  submission reservation. It performs no model, shell, HTTP or infrastructure
-  execution. It is not yet wired into the live application or deployed.
-- Eight focused persistence/approval tests cover rejection, expiry (including
-  before submission), exact hashes/conversations, modified proposals, concurrent
-  decisions, duplicate requests and restart uncertainty without resubmission.
-- Message/event callers must redact sensitive data before persistence. Redaction,
-  operation-catalogue validation, HTTP routes, inference orchestration, execution
-  monitoring and full acceptance remain implementation work after target agreement.
-- No new Rundeck jobs/ACLs, Rufus API routes or repair operations are live.
+The conversational API, inference orchestration, persistent approvals, fixed
+operation catalogue and independent restricted ACL are deployed. Latest deployment:
+[183](http://192.168.0.51:4440/project/HomeLab/execution/show/183), source `3277356`.
+HP was awakened through Rundeck execution 175. No production service was changed.
 
+Final scripted validation passed all six groups; controller logs:
+`/tmp/homelab-validation-51fbsm0p`. The controller required the missing `jq`
+dependency and validation runs as the checkout owner, `rundeck`.
+Live checks passed Rufus operation denial, direct mutation bypass denial and
+independent Rundeck denial. Fixture diagnostic execution 184 confirmed a stopped
+fixture and failed HTTP probe with sufficient disk space. Rejecting action
+`25a1066a-27ad-4bb1-ac88-d14fdaecec07` created no repair execution.
+
+Real inference exposed target and intent classification errors. Explicit fixture
+requests now constrain the validated target schema; explicit repair/restart
+requests permit proposal, clarification or unsupported responses. Model responses
+still cannot approve or execute an operation. A regression check rejects model
+selection of production for an explicit fixture request.
+
+Acceptance remains incomplete until the user approves a concrete fresh action,
+the restricted repair runs and independent verification establishes recovery.
 
 ## Deployment permissions
 
