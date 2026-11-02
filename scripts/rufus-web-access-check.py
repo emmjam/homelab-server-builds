@@ -33,6 +33,7 @@ try:
    with socket.create_connection(('127.0.0.1',18788),timeout=1):break
   except OSError:time.sleep(.1)
  else:raise RuntimeError('Controller forward unavailable')
+ socket.getaddrinfo('rufus.lan',None)
  for port in (8787,8788):
   try:connection=socket.create_connection(('rufus.lan',port),timeout=3)
   except OSError:pass
@@ -85,6 +86,7 @@ def message(conversation,text):
  return history
 try:
  ready=json.loads(transport.stdout.readline());assert ready['status']=='ready'
+ socket.getaddrinfo('rufus.lan',None)
  for port in (8787,8788):
   try:connection=socket.create_connection(('rufus.lan',port),timeout=3)
   except OSError:pass

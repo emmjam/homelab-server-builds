@@ -25,6 +25,7 @@
       loop:
         - {path: /opt/rufus-web, owner: root, mode: '0750'}
         - {path: /opt/rufus-web/app, owner: root, mode: '0750'}
+        - {path: /opt/rufus-web/app/static, owner: root, mode: '0750'}
         - {path: /opt/rufus-web/config, owner: root, mode: '0750'}
         - {path: /opt/rufus-web/data, owner: rufus-web, mode: '0700'}
 
@@ -34,10 +35,15 @@
         dest: '/opt/rufus-web/app/{{ item }}'
         owner: root
         group: rufus-web
-        mode: preserve
+        mode: '0640'
         directory_mode: '0750'
-      loop: [web.py, static]
+      loop: [web.py, static/index.html, static/login.html, static/app.js, static/style.css]
       notify: Restart Rufus Web
+
+    - name: Remove superseded nested static directory
+      ansible.builtin.file:
+        path: /opt/rufus-web/app/static/static
+        state: absent
 
     - name: Install centrally managed web settings
       ansible.builtin.copy:

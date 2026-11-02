@@ -8,6 +8,12 @@
   loglevel: INFO
   nodeFilterEditable: false
   scheduleEnabled: false
+  options:
+  - name: scope
+    value: full
+    enforced: true
+    values: [full, web]
+    description: Full API/AI regressions or web-only deployment/security checks.
   sequence:
     commands:
     - jobref:
