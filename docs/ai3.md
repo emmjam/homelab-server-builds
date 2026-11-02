@@ -18,7 +18,8 @@ Inference context contains at most six completed exchanges plus the current
 prompt, bounded to 6,000 characters excluding the fixed system prompt. Oldest
 exchanges are omitted whole; failed/interrupted requests are excluded. The durable
 archive is retained; this is an inference context limit, not history deletion.
-The existing 4,096-token inference context and 256-token structured output limit remain; managed chat allows 2,048 output
+Structured requests retain a 4,096-token context and 256-token output limit;
+chat uses an 8,192-token context and managed chat allows 2,048 output
 tokens (`chat_num_predict` in inference settings), with inline Qwen reasoning
 removed and incomplete/limit-exhausted chat rejected;
 character budgeting is approximate, not a tokenizer. Responses are redacted and saved whole up to 8,192 characters; larger replies fail
@@ -96,7 +97,7 @@ Thus both reasoning and answers need budget; a shorter question is not the fix.
 Ansible now supplies a bounded 2,048-token chat allowance and a separate
 360-second chat timeout. At the measured approximately 6.9 tokens/second, the
 ceiling requires about 300 seconds plus loading/prompt overhead. Structured AI2
-requests retain 256 tokens and 120 seconds; model, endpoint, template, context,
+requests retain 256 tokens and 120 seconds; model, endpoint, template,
 approvals and history selection are unchanged. `done_reason=length` remains a
 failure, and reasoning is excluded from replies. Longer complete answers are no
 longer silently shortened at the old 2,048-character persistence cut-off.
@@ -104,3 +105,31 @@ longer silently shortened at the old 2,048-character persistence cut-off.
 The [publisher model card](https://huggingface.co/Qwen/Qwen3-4B-Thinking-2507)
 confirms this variant is thinking-only; [Ollama's documentation](https://docs.ollama.com/capabilities/thinking)
 notes that `think:false` is conditional on model support.
+
+### HP sizing and configurable limits
+
+HP has 8,010,480 KiB RAM (about 7.64 GiB), four i5-6500T CPU cores, and
+CPU inference (`size_vram=0`). The loaded model reports 3,186,108,660 bytes;
+MemAvailable with its 4,096-token runner loaded was 4,458,484 KiB (4.25 GiB),
+with swap unused. Qwen reports a native 262,144-token window. At this model's
+36 layers, eight KV heads and 128-dimensional keys/values, an FP16 KV cache
+is approximately 144 KiB per token: about 1.125 GiB at 8,192 versus 36 GiB
+at the native maximum, before weights/workspace. This is an estimate, not an
+assertion of measured allocator usage.
+
+Chat therefore requests 8,192 context tokens, with 2,048 reserved as its maximum
+generation allowance. Existing history selection remains six complete exchanges
+and 6,000 characters (roughly 1,500–2,000 ordinary English tokens, not an exact
+token count), plus the system/current prompt. This leaves substantial context
+margin. Ollama's global default remains 4,096; Rufus overrides it per chat request.
+No CPU/RAM allocation, model, concurrency, keep-alive or Ollama service change.
+
+Edit [Ansible/vars/rufus-inference.yml](../Ansible/vars/rufus-inference.yml) for
+chat context, output allowance and timeouts, then apply the existing
+`ai-inference.yml --limit rufus_inference --tags rufus_inference_client` route.
+Ansible writes inference.json; do not hand-edit the deployed file. The client
+also defaults chat to 8,192/2,048 when those settings are omitted. Long/complex
+requests can still hit the finite generation/time bounds and will fail honestly,
+never be persisted as a successful partial answer. A thinking-only CPU model
+can take minutes even for short questions; these limits do not claim faster
+inference.

@@ -16,6 +16,7 @@ config=load('/opt/rufus/config/config.json')
 store=Store(config['database'])
 settings=config['inference']
 assert settings['chat_num_predict']==2048 and settings['chat_inference_timeout']==360
+assert settings['chat_num_ctx']==8192
 assert settings['inference_timeout']==120 and settings['model']=='qwen3:4b'
 original=http.client.HTTPConnection
 class Capture(original):

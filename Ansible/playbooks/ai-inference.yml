@@ -24,6 +24,8 @@
   become: true
   gather_facts: false
   tags: [rufus_inference_client]
+  vars_files:
+    - ../vars/rufus-inference.yml
   tasks:
     - name: Install inference client module
       ansible.builtin.copy:
@@ -42,8 +44,11 @@
         mode: '0640'
         content: >-
           {{ {'url': 'http://ai-agent.lan:11434', 'model': 'qwen3:4b',
-              'connect_timeout': 5, 'inference_timeout': 120,
-              'chat_num_predict': 2048, 'chat_inference_timeout': 360,
+              'connect_timeout': rufus_inference_connect_timeout_seconds,
+              'inference_timeout': rufus_structured_timeout_seconds,
+              'chat_num_ctx': rufus_chat_context_tokens,
+              'chat_num_predict': rufus_chat_generation_tokens,
+              'chat_inference_timeout': rufus_chat_timeout_seconds,
               'chat_empty_thinking_prefill': true,
               'auth_secret_name': none} | to_nice_json }}
 

@@ -69,22 +69,25 @@ class InferenceTests(unittest.TestCase):
         body=json.loads(self.connection.request.call_args.kwargs['body'])
         self.assertEqual(body['messages'][-1],{'role':'assistant','content':'<think>\n\n</think>\n\n'})
         self.assertEqual(len(messages),1)
-        self.assertEqual(body['options']['num_predict'],512)
+        self.assertEqual(body['options']['num_predict'],2048)
         self.client.chat(messages,{'type':'object'})
         body=json.loads(self.connection.request.call_args.kwargs['body'])
         self.assertEqual(body['messages'],messages)
         self.assertEqual(body['options']['num_predict'],256)
 
     def test_chat_budget_and_timeout_do_not_change_structured_calls(self):
+        self.client.config['chat_num_ctx']=8192
         self.client.config['chat_num_predict']=2048
         self.client.chat_inference_timeout=360
         self.client.chat([])
         body=json.loads(self.connection.request.call_args.kwargs['body'])
         self.assertEqual(body['options']['num_predict'],2048)
+        self.assertEqual(body['options']['num_ctx'],8192)
         self.connection.sock.settimeout.assert_called_with(360)
         self.client.chat([],{'type':'object'})
         body=json.loads(self.connection.request.call_args.kwargs['body'])
         self.assertEqual(body['options']['num_predict'],256)
+        self.assertEqual(body['options']['num_ctx'],4096)
         self.connection.sock.settimeout.assert_called_with(120)
         self.response.read.return_value=json.dumps({'done':True,'done_reason':'length',
             'message':{'content':'partial answer'}}).encode()

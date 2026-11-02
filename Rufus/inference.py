@@ -28,7 +28,8 @@ class Client:
     def chat(self, messages, schema=None):
         data = {'model': self.config['model'], 'messages': messages, 'stream': False,
                 'think': False, 'keep_alive': 0,
-                'options': {'num_ctx': 4096, 'num_predict': 256 if schema is not None else int(self.config.get('chat_num_predict',512)), 'temperature': 0}}
+                'options': {'num_ctx': 4096 if schema is not None else int(self.config.get('chat_num_ctx',8192)),
+                            'num_predict': 256 if schema is not None else int(self.config.get('chat_num_predict',2048)), 'temperature': 0}}
         if schema is None and self.config.get('chat_empty_thinking_prefill',False):
             # This retained template unconditionally opens <think>; complete the
             # empty block on the wire without changing stored conversation history.
