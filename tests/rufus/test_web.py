@@ -100,33 +100,32 @@ class WebTests(unittest.TestCase):
         for path in paths:
             self.assertEqual(self.a.call(path,{},csrf=False)[0],403)
             self.assertEqual(self.a.call(path,{},headers={'X-CSRF-Token':self.b.csrf})[0],403)
-            self.assertEqual(self.a.call(path,{},origin=False)[0],403)
+            self.assertEqual(self.a.call(path,{},origin=False,csrf=False)[0],403)
+            self.assertEqual(self.a.call(path,{},headers={'Origin':'null'},csrf=False)[0],403)
             self.assertEqual(self.a.call(path,{},headers={'Origin':'http://evil.example'})[0],403)
         self.upstream.request.assert_not_called()
-        self.assertEqual(self.a.call('/api/conversations',{})[0],200)
+        self.assertEqual(self.a.call('/api/conversations',{},origin=False)[0],200)
+        self.assertEqual(self.a.call('/api/conversations',{},headers={'Origin':'null'})[0],200)
+        self.assertEqual(self.a.call('/')[2]['Referrer-Policy'],'same-origin')
     def test_login_csrf_preauth_replay_expiry_and_host(self):
         self.a.call('/');csrf=self.a.csrf;pre=next(c.value for c in self.a.cookies if c.name=='rufus_pre')
         self.assertEqual(self.a.call('/login',{'username':'ian','password':PASSWORD,'csrf':'wrong'})[0],403)
-        self.assertEqual(self.a.call('/login',{'username':'ian','password':PASSWORD,'csrf':csrf},origin=False)[0],403)
+        self.assertEqual(self.a.call('/login',{'username':'ian','password':PASSWORD,'csrf':'wrong'},origin=False)[0],403)
         self.assertEqual(self.a.call('/login',{'username':'ian','password':PASSWORD,'csrf':csrf})[0],200)
         self.assertFalse(self.auth.pre_csrf(pre,csrf))
         self.b.call('/');self.now+=900
         self.assertEqual(self.b.call('/login',{'username':'ian','password':PASSWORD,'csrf':self.b.csrf})[0],403)
         self.assertEqual(self.a.call('/',headers={'Host':'evil.example:9999'})[0],403)
-    def test_account_and_ip_throttling_retry_after_restart_and_expiry(self):
+    def test_simple_in_memory_peer_limit_and_expiry(self):
         with patch('auth.password_valid',return_value=False):
-            for _ in range(5):self.assertEqual(self.a.login(password='wrong')[0],401)
-            status,_,headers=self.b.login(password='wrong');self.assertEqual(status,429);self.assertGreater(int(headers['Retry-After']),0)
+            for n in range(20):self.assertEqual(self.a.login(name='unknown'+str(n),password='wrong')[0],401)
+            self.assertEqual(self.b.login(password='wrong')[0],429)
             reopened=Auth(self.config,lambda:self.now)
-            with self.assertRaises(Throttled):
-                with reopened.db() as db:reopened.check_limits('ian','other-peer',db)
+            reopened.check_limits('127.0.0.1') # Deliberately not persistent.
+            with self.auth.db() as db:
+                self.assertIsNone(db.execute("SELECT name FROM sqlite_master WHERE name='failures'").fetchone())
             self.now+=901
             self.assertEqual(self.a.login(password='wrong')[0],401)
-            # A source spreading guesses across distinct names still hits its IP cap.
-            for n in range(19):self.assertEqual(self.a.login(name='unknown'+str(n),password='wrong')[0],401)
-            self.assertEqual(self.b.login(name='different',password='wrong')[0],429)
-            self.assertEqual(self.b.login(name='different',password='wrong')[0],429)
-            self.assertEqual(self.b.call('/login',{'username':'different','password':'wrong','csrf':self.b.csrf},headers={'X-Forwarded-For':'192.168.0.99'})[0],429)
     def test_bounded_concurrent_hashing_and_atomic_failures(self):
         entered,release=threading.Event(),threading.Event()
         def slow(*args):entered.set();release.wait(5);return False
@@ -135,7 +134,7 @@ class WebTests(unittest.TestCase):
             thread=threading.Thread(target=lambda:self.a.call('/login',{'username':'ian','password':'wrong','csrf':self.a.csrf}));thread.start()
             self.assertTrue(entered.wait(2));self.assertEqual(self.b.call('/login',{'username':'ian','password':'wrong','csrf':self.b.csrf})[0],429)
             release.set();thread.join()
-        with self.auth.db() as db:self.assertEqual(db.execute("SELECT count FROM failures WHERE kind='account' AND key='ian'").fetchone()[0],1)
+        self.assertEqual(self.auth.failures['127.0.0.1'][0],1)
     def test_admin_revoke_reset_disable_remove_and_other_account_unchanged(self):
         self.a.login();self.b.login('other');self.auth.admin('revoke','ian')
         self.assertEqual(self.a.call('/api/conversations')[0],401);self.assertEqual(self.b.call('/api/conversations')[0],200)

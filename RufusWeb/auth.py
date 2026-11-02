@@ -45,6 +45,7 @@ class Auth:
     def __init__(self,config,clock=time.time):
         self.config,self.clock=config,clock
         self.database=config['database'];self.lock=threading.BoundedSemaphore(1)
+        self.failures={}
         self.dummy=PREFIX+'$131072$8$1$'+base64.b64encode(b'\0'*16).decode()+'$'+base64.b64encode(b'\0'*32).decode()
         self.accounts() # Fail closed before starting a listener.
         with self.db() as db:
@@ -52,7 +53,7 @@ class Auth:
             db.executescript('DROP TABLE IF EXISTS codes; DROP TABLE IF EXISTS sessions;'
                 'CREATE TABLE IF NOT EXISTS web_sessions_v2(hash TEXT PRIMARY KEY,account TEXT,version TEXT,expires REAL,csrf_hash TEXT);'
                 'CREATE TABLE IF NOT EXISTS preauth(hash TEXT PRIMARY KEY,expires REAL,csrf_hash TEXT);'
-                'CREATE TABLE IF NOT EXISTS failures(kind TEXT,key TEXT,count INTEGER,start REAL,blocked REAL,PRIMARY KEY(kind,key));')
+                'DROP TABLE IF EXISTS failures;')
     @contextmanager
     def db(self):
         db=sqlite3.connect(self.database,timeout=10);db.row_factory=sqlite3.Row
@@ -74,9 +75,8 @@ class Auth:
             decode_hash(account['password_hash']);result[account['username']]=account;ids.add(account['id'])
         return result
     def cleanup(self,db):
-        now=self.clock();window=self.config.get('failure_window',900)
+        now=self.clock()
         db.execute('DELETE FROM preauth WHERE expires<=?',(now,));db.execute('DELETE FROM web_sessions_v2 WHERE expires<=?',(now,))
-        db.execute('DELETE FROM failures WHERE blocked<=? AND start<=?',(now,now-window))
     def prelogin(self):
         token,csrf=secrets.token_urlsafe(32),secrets.token_urlsafe(32)
         with self.db() as db:
@@ -87,37 +87,33 @@ class Auth:
     def pre_csrf(self,token,csrf):
         with self.db() as db:row=db.execute('SELECT * FROM preauth WHERE hash=?',(self.digest(token),)).fetchone()
         return bool(row and row['expires']>self.clock() and hmac.compare_digest(row['csrf_hash'],self.digest(csrf)))
-    def check_limits(self,name,peer,db):
+    def check_limits(self,peer):
         now=self.clock()
-        for kind,key in [('account',name),('ip',peer)]:
-            row=db.execute('SELECT * FROM failures WHERE kind=? AND key=?',(kind,key)).fetchone()
-            if row and row['blocked']>now:raise Throttled(row['blocked']-now)
-    def failure(self,name,peer,db):
-        now=self.clock();window=self.config.get('failure_window',900);block=self.config.get('lockout_seconds',900)
-        for kind,key,limit in [('account',name,self.config.get('account_attempts',5)),('ip',peer,self.config.get('ip_attempts',20))]:
-            row=db.execute('SELECT * FROM failures WHERE kind=? AND key=?',(kind,key)).fetchone()
-            count=(row['count'] if row and row['start']>now-window else 0)+1
-            start=row['start'] if row and row['start']>now-window else now
-            db.execute('INSERT OR REPLACE INTO failures VALUES (?,?,?,?,?)',(kind,key,count,start,now+block if count>=limit else 0))
+        self.failures={key:value for key,value in self.failures.items() if value[1]>now}
+        count,expires=self.failures.get(peer,(0,now+900))
+        if count>=20:raise Throttled(expires-now)
+        if len(self.failures)>=1000 and peer not in self.failures:raise Throttled(60)
+    def failure(self,peer):
+        count,expires=self.failures.get(peer,(0,self.clock()+900))
+        self.failures[peer]=(count+1,expires)
     def login(self,name,password,peer,pretoken,csrf):
         if not self.pre_csrf(pretoken,csrf):return None
         if not self.lock.acquire(blocking=False):raise Throttled(1)
         try:
             normal=username(name) or '<invalid>'
             with self.db() as db:
-                db.execute('BEGIN IMMEDIATE');self.cleanup(db);self.check_limits(normal,peer,db)
-                if db.execute('SELECT count(*) FROM failures').fetchone()[0]>=10000:raise Throttled(60)
+                self.cleanup(db)
+            self.check_limits(peer)
             account=self.accounts().get(normal)
             bounded=isinstance(password,str) and 0<len(password.encode())<=1024
             valid=bounded and password_valid(password,account['password_hash'] if account else self.dummy)
             with self.db() as db:
-                db.execute('BEGIN IMMEDIATE');self.check_limits(normal,peer,db)
+                db.execute('BEGIN IMMEDIATE')
                 if not valid or not account or not account['enabled']:
-                    self.failure(normal,peer,db);logging.info('Web authentication failed');return None
+                    self.failure(peer);logging.info('Web authentication failed');return None
                 if not self.pre_csrf(pretoken,csrf):return None
                 token,new_csrf=secrets.token_urlsafe(32),secrets.token_urlsafe(32)
                 db.execute('DELETE FROM preauth WHERE hash=?',(self.digest(pretoken),))
-                db.execute('DELETE FROM failures WHERE kind=? AND key=?',('account',normal))
                 db.execute('INSERT INTO web_sessions_v2 VALUES (?,?,?,?,?)',(self.digest(token),account['id'],account['version'],self.clock()+28800,self.digest(new_csrf)))
             logging.info('Web authentication succeeded');return token,new_csrf
         finally:self.lock.release()
@@ -142,5 +138,4 @@ class Auth:
         if not account:raise ValueError('Unknown account')
         with self.db() as db:
             if action=='revoke':db.execute('DELETE FROM web_sessions_v2 WHERE account=?',(account['id'],))
-            elif action=='unlock':db.execute('DELETE FROM failures WHERE kind=? AND key=?',('account',account['username']))
             else:raise ValueError('Unknown administrative action')

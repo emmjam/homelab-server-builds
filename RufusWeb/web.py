@@ -1,4 +1,4 @@
-"""Separate loopback browser client. The Rufus bearer credential stays server-side."""
+"""Separate trusted-LAN browser client. The Rufus bearer credential stays server-side."""
 import argparse
 from contextlib import contextmanager
 import html
@@ -61,7 +61,7 @@ def handler(config,auth,client):
             self.send_response(status)
             for key,value in {'Content-Type':kind,'Content-Length':str(len(payload)),
                 'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','X-Frame-Options':'DENY',
-                'Referrer-Policy':'no-referrer','Content-Security-Policy':"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",
+                'Referrer-Policy':'same-origin','Content-Security-Policy':"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",
                 **(headers or {})}.items():self.send_header(key,value)
             self.end_headers();self.wfile.write(payload)
         def cookie(self,name='rufus_web'):
@@ -76,7 +76,8 @@ def handler(config,auth,client):
                 origin=scheme+'://'+host
                 if origin not in config['allowed_origins']:
                     return self.respond(403,{'error':'Unapproved web host'})
-                if method=='POST' and self.headers.get('Origin')!=origin:
+                # CSRF tokens are authoritative; browsers may omit or obscure Origin.
+                if method=='POST' and self.headers.get('Origin') not in (None,'null',origin):
                     return self.respond(403,{'error':'Same-origin browser request required'})
                 if self.headers.get('Transfer-Encoding'):return self.respond(400,{'error':'Unsupported request encoding'})
                 raw=b''
@@ -130,7 +131,7 @@ def handler(config,auth,client):
 
 
 if __name__=='__main__':
-    parser=argparse.ArgumentParser();parser.add_argument('--config',default='/opt/rufus-web/config/config.json');parser.add_argument('--admin-action',choices=['revoke','unlock']);parser.add_argument('--username');args=parser.parse_args()
+    parser=argparse.ArgumentParser();parser.add_argument('--config',default='/opt/rufus-web/config/config.json');parser.add_argument('--admin-action',choices=['revoke']);parser.add_argument('--username');args=parser.parse_args()
     config=json.loads(Path(args.config).read_text());auth=Auth(config)
     if args.admin_action:
         import os

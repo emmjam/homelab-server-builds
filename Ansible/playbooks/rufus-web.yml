@@ -84,9 +84,7 @@
               'cookie_secure': false, 'api_url': 'http://127.0.0.1:8787',
               'api_token_file': '/opt/rufus-web/config/api-token',
               'accounts_file': '/opt/rufus-web/config/accounts.json',
-              'database': '/opt/rufus-web/data/sessions.sqlite3',
-              'account_attempts': 5, 'ip_attempts': 20, 'failure_window': 900,
-              'lockout_seconds': 900} | to_nice_json }}
+              'database': '/opt/rufus-web/data/sessions.sqlite3'} | to_nice_json }}
       notify: Restart Rufus Web
 
     - name: Ensure firewall tooling

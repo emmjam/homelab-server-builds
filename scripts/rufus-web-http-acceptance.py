@@ -21,7 +21,7 @@ class BrowserHTTP:
         if body is not None:
             headers['Content-Type']='application/x-www-form-urlencoded' if path=='/login' else 'application/json'
             if csrf:headers['X-CSRF-Token']=self.csrf
-            if origin:headers['Origin']=base
+            if origin:headers['Origin']=base if origin is True else origin
         data=(urllib.parse.urlencode(body).encode() if path=='/login' else json.dumps(body).encode()) if body is not None else None
         req=urllib.request.Request(base+path,data=data,headers=headers)
         try:
@@ -39,10 +39,11 @@ class BrowserHTTP:
 a,b=BrowserHTTP(),BrowserHTTP()
 a.call('/api/conversations',expected=401);a.login();b.login()
 a.call('/api/conversations',{},expected=403,csrf=False)
-a.call('/api/conversations',{},expected=403,origin=False)
-conversation=a.call('/api/conversations',{},201)['id']
+a.call('/api/conversations',{},expected=403,origin=False,csrf=False)
+a.call('/api/conversations',{},expected=403,origin='null',csrf=False)
+conversation=a.call('/api/conversations',{},201,origin=False)['id']
 def send(client,text):
-    message=client.call('/api/conversations/'+conversation+'/messages',{'request_id':str(uuid.uuid4()),'content':text},202)
+    message=client.call('/api/conversations/'+conversation+'/messages',{'request_id':str(uuid.uuid4()),'content':text},202,origin='null')
     deadline=time.monotonic()+250
     while time.monotonic()<deadline:
         history=client.call('/api/conversations/'+conversation)

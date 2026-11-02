@@ -1,5 +1,5 @@
 ---
-- name: Administrator-only session revocation and account unlocking
+- name: Administrator-only account session revocation
   hosts: rufus
   become: true
   gather_facts: false
@@ -7,7 +7,7 @@
     - name: Validate fixed administrative action
       ansible.builtin.assert:
         that:
-          - web_admin_action in ['revoke', 'unlock']
+          - web_admin_action in ['revoke']
           - web_admin_username is match('^[a-z0-9_.-]{1,64}$')
 
     - name: Apply the exact local administrative action
