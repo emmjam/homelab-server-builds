@@ -58,3 +58,12 @@ unsolicited features or redesign authentication, security, networking or
 architecture. Use the simplest consistent implementation for unspecified details.
 Ask only for genuine blockers or decisions materially affecting security or
 architecture, not routine details or optional improvements.
+
+## Rufus Task 2 discovery scope
+
+Discover only TNAS and already-awake compute nodes. Never invoke WOL or suspend
+for Task 2. Leave sleeping nodes asleep. Do not modify either Mac Pro; both are
+reported by the user as still running Ubuntu 20.04, pending live verification.
+Separate timestamped known/last-verified hardware facts from current availability.
+Unreachable does not mean sleeping. Refresh live status when a node later wakes.
+Do not implement workload allocation, power operations or unrelated changes.
