@@ -712,3 +712,30 @@ configuration faults. HP/Dell wake uses the existing **HomeLab - AI Host Power**
 Rundeck job (`7d9a3328-c8df-4e31-bbf6-49a6d9ce5a11`) with `action=wake` and the
 allowlisted hostname. A sent packet is not verified wake; failed hostname-based
 verification is not by itself proof of failed hardware wake. See `AGENTS.md`.
+
+## HP inference / AI1 acceptance — 2 November 2026
+
+The existing HP installation is now managed by
+`Ansible/playbooks/ai-inference.yml`, role `ollama_inference`, through Rundeck job
+**HomeLab - Deploy HP Inference** (`0b42e662-1cce-49ec-a43e-7345db516937`).
+Retained runtime: Ollama 0.40.13; model: `qwen3:4b` Q4_K_M. No runtime reinstall,
+model download or GPU-driver change was needed. Hardware verified: i5-6500T,
+four cores/threads, 7824 MiB RAM, Intel HD 530, 91 GiB root space free.
+
+HP endpoint is `http://ai-agent.lan:11434` (currently `192.168.0.118`). A dedicated
+nftables table allows only the verified inventory Rufus IPv4 remotely (currently
+`192.168.0.52/32`) and local HP checks; other traffic to this port is dropped.
+The enabled firewall service is required before Ollama starts. Rufus remains
+unprivileged, its own API remains loopback-only and it receives no infrastructure
+SSH keys. Client/settings: `/opt/rufus/app/inference.py` and
+`/opt/rufus/config/inference.json`.
+
+Acceptance execution [171](http://192.168.0.51:4440/project/HomeLab/execution/show/171)
+passed real structured inference as Rufus, local inference, enabled/active
+services, controller denial and safe unavailable-backend errors. Second deployment
+reported zero changes on all hosts. Shared repository validation: 67 tests and
+shell syntax passed. No AI1 reboot was performed. LAN inference is source-IP
+restricted HTTP, without TLS/application authentication, as approved. See
+`docs/ai-inference.md` for exact model digest, procedures and acceptance evidence.
+AI1 is complete; AI2 has not been started. Long-sleep DHCP/DNS recovery remains a
+separate investigation; the approved short suspend/WOL cycle passed 167/168.

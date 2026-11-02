@@ -1,10 +1,10 @@
 # AI1: HP inference backend
 
-Status, 2 November 2026: HP reachable after the user power cycle. Existing
-Ollama/model inspected and local structured inference passed. User approved
-retaining the existing installation/model and Rufus-only firewall access.
-Ansible adoption is prepared, not yet deployed. AI2 must wait for real inference
-from Rufus.
+Status, 2 November 2026: **AI1 complete**. Existing Ollama 0.40.13 and
+qwen3:4b retained under Ansible management; Rufus-only LAN firewall deployed.
+Real structured inference as the unprivileged Rufus account passed, controller
+access was denied and the second deployment reported zero changes. AI2 has not
+been started.
 
 ## Verified inspection results
 
@@ -49,7 +49,7 @@ sudo permissions together. Retain the full Ansible output locally and inspect
 failures plus the final summary. Common runtime paths are evidence, not an
 exhaustive search for all possible manually installed runtimes or model files.
 
-## Approved adoption; deployment pending
+## Approved and deployed adoption
 
 Retain Ollama 0.40.13 and the installed `qwen3:4b` digest. No model download or
 GPU-driver installation is needed. Use CPU inference, one loaded model and one
@@ -65,7 +65,7 @@ or transport encryption. DHCP address changes must cause validation failure
 and a controlled inventory/rule update; never broaden access automatically.
 No proxy, secrets service or SSH credentials in Rufus are required.
 
-The source inference client is `Rufus/inference.py` (not deployed yet). It takes
+The deployed inference client is `Rufus/inference.py`. It takes
 URL, exact model, connect/inference timeouts and optional bearer-secret source
 from configuration. It bounds context, generation and response size, disables
 streaming, does not retry requests, and returns safe error messages. Its socket
@@ -139,3 +139,34 @@ structured generation, real generation as unprivileged Rufus, safe unavailable
 errors on a deliberately unused loopback port, and forbidden controller access.
 A controlled reboot has not been approved or performed for AI1. Unit ordering
 and enabled state alone do not prove post-reboot acceptance.
+
+## Real acceptance — 2 November 2026
+
+- Existing runtime/model preserved; no runtime reinstall, model download, GPU
+  driver change or reboot. HP endpoint `http://ai-agent.lan:11434` currently binds
+  `192.168.0.118:11434`. Allowed remote source is Rufus `192.168.0.52/32`, gathered
+  through the trusted inventory host. Loopback-origin HP self-checks are allowed;
+  other remote IPv4 and IPv6 traffic to TCP 11434 is dropped in the dedicated table.
+- [Deployment 170](http://192.168.0.51:4440/project/HomeLab/execution/show/170)
+  applied HP/Rufus configuration and passed local inference. Its acceptance stage
+  failed on Ansible's unprivileged temporary-file ACL handling. Commit `38da28a`
+  corrected validation to use the existing root deployment context with
+  `runuser -u rufus`; Rufus received no additional permissions.
+- [Deployment/acceptance 171](http://192.168.0.51:4440/project/HomeLab/execution/show/171)
+  succeeded. Enabled/active service checks, local structured inference, real
+  structured inference as `rufus`, bounded unavailable-backend reporting and
+  forbidden controller access all passed.
+- Second-run recap: HP `ok=27 changed=0 failed=0`; Rufus `ok=5 changed=0 failed=0`;
+  controller `ok=1 changed=0 failed=0`; all unreachable counts zero.
+- Detailed successful acceptance output remains on Rundeck in
+  `/var/lib/rundeck/hp-inference-cOaKFU.log`. Routine checks are in the shared
+  acceptance playbook; no individual manual success checks are required.
+- Repository validation passed all six stages: 67 tests plus shell syntax.
+  The main adoption implementation is commit `5859259`; validation correction
+  is `38da28a`. The existing checkout/job sync was execution 169.
+- Post-reboot persistence was not exercised: no AI1 reboot was approved. Services
+  are enabled with firewall-before-listener ordering. Source-IP filtering is
+  neither application authentication nor TLS. Long-sleep DHCP/DNS recovery
+  remains the separate WOL investigation, not resolved by this inference work.
+- No conversational repairs, Dell worker, VS Code extension, OpenBao or other
+  backlog systems were deployed. Stop this milestone here.
