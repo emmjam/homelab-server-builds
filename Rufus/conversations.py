@@ -36,6 +36,10 @@ class Store:
                 CREATE TABLE IF NOT EXISTS events (
                     id INTEGER PRIMARY KEY, conversation TEXT NOT NULL,
                     created REAL NOT NULL, kind TEXT NOT NULL, data TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS assistant_replies (
+                    id TEXT PRIMARY KEY, conversation TEXT NOT NULL,
+                    message TEXT NOT NULL UNIQUE, content TEXT NOT NULL,
+                    created REAL NOT NULL);
                 CREATE TABLE IF NOT EXISTS actions (
                     id TEXT PRIMARY KEY, conversation TEXT NOT NULL,
                     proposal TEXT NOT NULL, proposal_hash TEXT NOT NULL,
@@ -104,6 +108,38 @@ class Store:
             raise ValueError('Invalid message status')
         with self.db() as db:
             db.execute("UPDATE messages SET status=? WHERE id=? AND status='processing'", (status, message))
+
+    def complete_reply(self, message, content):
+        """Commit assistant output and successful completion in one transaction."""
+        if not isinstance(content, str) or not content.strip() or len(content)>2048:
+            raise ConversationError('Invalid assistant response', 400)
+        with self.db() as db:
+            db.execute('BEGIN IMMEDIATE')
+            row=db.execute('SELECT conversation,status FROM messages WHERE id=?', (message,)).fetchone()
+            if not row or row['status']!='processing':
+                raise ConversationError('Message is no longer processing')
+            db.execute('INSERT INTO assistant_replies VALUES (?,?,?,?,?)',
+                       (str(uuid.uuid4()),row['conversation'],message,content,self.clock()))
+            db.execute("UPDATE messages SET status='completed' WHERE id=?", (message,))
+
+    def context(self, conversation, current, max_chars=6000, max_messages=12):
+        # Only complete exchanges are reusable. Failed/interrupted prompts remain
+        # in history but cannot silently become successful conversational context.
+        with self.db() as db:
+            rows=db.execute("""SELECT m.content AS user,a.content AS assistant
+                FROM messages m JOIN assistant_replies a ON a.message=m.id
+                WHERE m.conversation=? AND m.status='completed'
+                ORDER BY m.created DESC,m.id DESC LIMIT ?""",
+                (conversation,max_messages//2)).fetchall()
+        remaining=max_chars-len(current)
+        exchanges=[]
+        for row in rows:
+            size=len(row['user'])+len(row['assistant'])
+            if size>remaining: break
+            exchanges.append([{'role':'user','content':row['user']},
+                              {'role':'assistant','content':row['assistant']}])
+            remaining-=size
+        return [item for pair in reversed(exchanges) for item in pair]+[{'role':'user','content':current}]
 
     def propose(self, conversation, proposal, ttl=600):
         if not 0 < ttl <= 3600:
@@ -183,8 +219,12 @@ class Store:
         with self.db() as db:
             self.require_conversation(db, conversation)
             messages = [dict(r) for r in db.execute('SELECT * FROM messages WHERE conversation=? ORDER BY created,id', (conversation,))]
+            replies = [dict(r) for r in db.execute('SELECT id,conversation,message AS reply_to,content,created FROM assistant_replies WHERE conversation=? ORDER BY created,id', (conversation,))]
             events = [dict(r) for r in db.execute('SELECT * FROM events WHERE conversation=? ORDER BY id', (conversation,))]
             actions = [r[0] for r in db.execute('SELECT id FROM actions WHERE conversation=? ORDER BY updated,id', (conversation,))]
+        for message in messages: message['role']='user'
+        for reply in replies: reply.update(role='assistant',status='completed')
+        messages=sorted(messages+replies,key=lambda m:(m['created'],m['role']=='assistant',m['id']))
         for event in events:
             event['data'] = json.loads(event['data'])
         return dict(id=conversation, messages=messages, events=events,

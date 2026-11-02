@@ -1,0 +1,21 @@
+- defaultTab: output
+  description: Deploy general conversation only and verify local chat plus restart persistence. No repair operations.
+  executionEnabled: true
+  group: jobs
+  id: fd300fd3-a651-4d29-989d-35fb7073e5ab
+  uuid: fd300fd3-a651-4d29-989d-35fb7073e5ab
+  name: HomeLab - Deploy and Validate Rufus AI3
+  loglevel: INFO
+  nodeFilterEditable: false
+  scheduleEnabled: false
+  sequence:
+    commands:
+    - jobref:
+        group: jobs
+        name: HomeLab - Update GitHub Checkout
+        uuid: 310dfa4f-e27f-4945-be6a-7380ef75e586
+        nodeStep: 'false'
+    - scriptfile: /opt/homelab-server-builds/scripts/ai3-final.py
+      scriptInterpreter: /usr/bin/python3
+    keepgoing: false
+    strategy: node-first

@@ -1,0 +1,36 @@
+---
+- name: Verify ordinary local conversations and restart persistence
+  hosts: rufus
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Demonstrate multi-turn local conversation without operations
+      become_user: rufus
+      ansible.builtin.command: /opt/rufus/venv/bin/python /opt/rufus/app/ai3-acceptance.py before
+      register: ai3_before
+      changed_when: false
+
+    - name: Report conversation evidence
+      ansible.builtin.debug:
+        var: ai3_before.stdout_lines
+
+    - name: Restart Rufus for explicitly requested persistence acceptance
+      ansible.builtin.systemd_service:
+        name: rufus
+        state: restarted
+
+    - name: Wait for loopback API listener
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: 8787
+        timeout: 30
+
+    - name: Verify saved dialogue and follow-up after restart
+      become_user: rufus
+      ansible.builtin.command: /opt/rufus/venv/bin/python /opt/rufus/app/ai3-acceptance.py after
+      register: ai3_after
+      changed_when: false
+
+    - name: Report restart evidence
+      ansible.builtin.debug:
+        var: ai3_after.stdout_lines

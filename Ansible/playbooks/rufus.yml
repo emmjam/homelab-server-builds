@@ -262,6 +262,14 @@
             group: rufus
             mode: '0640'
 
+        - name: Install general conversation acceptance client
+          ansible.builtin.copy:
+            src: '{{ playbook_dir }}/../../scripts/ai3-acceptance.py'
+            dest: '{{ rufus_home }}/app/ai3-acceptance.py'
+            owner: root
+            group: rufus
+            mode: '0640'
+
         - name: Install conversational operation catalogue
           ansible.builtin.copy:
             src: '{{ playbook_dir }}/../../Rufus/catalogue.json'

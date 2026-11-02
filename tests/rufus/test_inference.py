@@ -45,6 +45,12 @@ class InferenceTests(unittest.TestCase):
             self.client.chat([])
         self.response.read.assert_not_called()
 
+    def test_missing_model_is_understandable_and_does_not_disclose_body(self):
+        self.response.status = 404
+        with self.assertRaisesRegex(InferenceError, 'model or endpoint is unavailable'):
+            self.client.chat([])
+        self.response.read.assert_not_called()
+
     def test_invalid_or_incomplete_responses(self):
         for body in (b'not JSON', b'{}', b'{"done":false,"message":{"content":"partial"}}',
                      b'{"done":true,"message":{"content":42}}'):

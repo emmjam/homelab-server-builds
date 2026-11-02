@@ -42,6 +42,8 @@ class Client:
             connection.request('POST', self.url.path.rstrip('/') + '/api/chat',
                                body=json.dumps(data).encode(), headers=headers)
             response = connection.getresponse()
+            if response.status == 404:
+                raise InferenceError('Configured inference model or endpoint is unavailable')
             if response.status != 200:
                 raise InferenceError('Inference backend returned an error')
             raw = response.read(1024 * 1024 + 1)
