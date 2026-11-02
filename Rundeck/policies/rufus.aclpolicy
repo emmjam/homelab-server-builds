@@ -1,4 +1,4 @@
-description: Rufus can view HomeLab and run only the health check.
+description: Rufus can view HomeLab and run only the approved health-check and fixed AI2 operations.
 context:
   application: rundeck
 for:
@@ -9,13 +9,31 @@ for:
 by:
   group: rufus-api
 ---
-description: Rufus health-check execution and output only.
+description: Rufus approved health-check and fixed APT-cache operation execution/output only.
 context:
   project: HomeLab
 for:
   job:
     - equals:
         uuid: 6e0b2f6c-aaa0-4031-ba96-73c86164cb43
+      allow: [read, run]
+    - equals:
+        uuid: b6797491-80d9-448f-ab3f-2f1699578b48
+      allow: [read, run]
+    - equals:
+        uuid: 6258b94e-f99c-4473-bd6a-609b6c19095d
+      allow: [read, run]
+    - equals:
+        uuid: f28e2ac7-2e79-4c89-a825-4ac734decb21
+      allow: [read, run]
+    - equals:
+        uuid: c133f247-6db6-4f57-8edc-a934c5461ff4
+      allow: [read, run]
+    - equals:
+        uuid: 9c24690e-b736-430a-95b6-d507e77204e4
+      allow: [read, run]
+    - equals:
+        uuid: b821d25a-12af-4589-a5db-c159f4961430
       allow: [read, run]
   node:
     - allow: [read, run]

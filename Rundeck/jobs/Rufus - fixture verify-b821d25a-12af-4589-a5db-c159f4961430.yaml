@@ -1,0 +1,17 @@
+- defaultTab: output
+  description: Fixed AI2 fixture verify operation; no arbitrary options or commands.
+  executionEnabled: true
+  group: jobs
+  id: b821d25a-12af-4589-a5db-c159f4961430
+  uuid: b821d25a-12af-4589-a5db-c159f4961430
+  name: Rufus - fixture verify
+  loglevel: INFO
+  nodeFilterEditable: false
+  scheduleEnabled: false
+  sequence:
+    commands:
+    - scriptfile: /opt/homelab-server-builds/Rundeck/scripts/apt-cache-operation.py
+      scriptInterpreter: /usr/bin/python3
+      args: fixture verify
+    keepgoing: false
+    strategy: node-first

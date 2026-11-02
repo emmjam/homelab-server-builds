@@ -1,0 +1,17 @@
+- defaultTab: output
+  description: Fixed AI2 fixture diagnose operation; no arbitrary options or commands.
+  executionEnabled: true
+  group: jobs
+  id: c133f247-6db6-4f57-8edc-a934c5461ff4
+  uuid: c133f247-6db6-4f57-8edc-a934c5461ff4
+  name: Rufus - fixture diagnose
+  loglevel: INFO
+  nodeFilterEditable: false
+  scheduleEnabled: false
+  sequence:
+    commands:
+    - scriptfile: /opt/homelab-server-builds/Rundeck/scripts/apt-cache-operation.py
+      scriptInterpreter: /usr/bin/python3
+      args: fixture diagnose
+    keepgoing: false
+    strategy: node-first

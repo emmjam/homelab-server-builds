@@ -242,7 +242,7 @@
             owner: root
             group: rufus
             mode: "0640"
-          loop: [app.py, config.py, rundeck.py]
+          loop: [app.py, config.py, rundeck.py, inference.py, conversations.py, workflow.py]
           notify: Restart Rufus
 
         - name: Install approved job policy
@@ -252,6 +252,23 @@
             owner: root
             group: rufus
             mode: "0640"
+          notify: Restart Rufus
+
+        - name: Install reusable conversational acceptance client
+          ansible.builtin.copy:
+            src: '{{ playbook_dir }}/../../scripts/ai2-acceptance.py'
+            dest: '{{ rufus_home }}/app/ai2-acceptance.py'
+            owner: root
+            group: rufus
+            mode: '0640'
+
+        - name: Install conversational operation catalogue
+          ansible.builtin.copy:
+            src: '{{ playbook_dir }}/../../Rufus/catalogue.json'
+            dest: '{{ rufus_home }}/config/catalogue.json'
+            owner: root
+            group: rufus
+            mode: '0640'
           notify: Restart Rufus
 
         - name: Install Rufus configuration
@@ -267,7 +284,9 @@
                 "port": 8787,
                 "policy_file": "/opt/rufus/config/policy.json",
                 "secrets_file": "/opt/rufus/config/secrets.txt",
-                "database": "/opt/rufus/data/executions.sqlite3"
+                "database": "/opt/rufus/data/executions.sqlite3",
+                "conversation_catalogue_file": "/opt/rufus/config/catalogue.json",
+                "inference_file": "/opt/rufus/config/inference.json"
               }
           notify: Restart Rufus
 

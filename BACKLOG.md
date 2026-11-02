@@ -61,6 +61,13 @@ Rundeck refreshes Git and transfers the required scripts to TNAS when needed.
 | RUFUS-03 | DONE | Rufus provisioning and application deployment validated with management separate from HP/Dell inference. | Current CT 111 (`rufus`, `192.168.0.52`), creation [150](http://192.168.0.51:4440/project/HomeLab/execution/show/150); Ansible provisioning `ok=23 failed=0`, application credential deployment `ok=8 failed=0`. Local Ollama disabled. One-year token policy managed by Ansible; token expiry 1 November 2027, superseded token revoked. |
 | RUFUS-04 | DONE | Client-independent authenticated Rufus API established for health, job discovery, execution submission and monitoring. | [API contract](Rufus/README.md#api) and real acceptance test 157. Loopback only; controlled client transport and VS Code integration remain VSCODE work. |
 
+AI2 was explicitly requested on 2 November 2026 after AI1 acceptance. Its
+conversational/supervised-repair work is **IN PROGRESS**: current HP inference
+reverified, [API contract](docs/ai2-api.md) drafted, and target-independent
+conversation/approval persistence implemented in source. The APT-cache target, listed read-only diagnostics and isolated disposable
+fixture are now approved. Workflow, six fixed operations and restricted ACL
+additions are implemented in source; live deployment and acceptance are pending.
+
 ## P2 — Rufus VS Code integration: IMMEDIATE PRIORITY AFTER BASIC RUFUS WORKS
 
 **Dependency:** basic Rufus and its API, RUFUS-01 through RUFUS-04. This is the next

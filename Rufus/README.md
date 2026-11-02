@@ -1,11 +1,12 @@
 # Minimal Rufus application
 
-Deterministic request → approved-job policy → Rundeck → execution status/output.
-No LLM, shell endpoint, worker control or infrastructure credentials. Python standard
-library only, using the existing `/opt/rufus/venv` and directories. `app.py` owns
-HTTP routing, validation and persistent SQLite execution ownership; `rundeck.py`
-handles the bounded HTTP integration; `config.py` loads configuration and literal
-credentials. `policy.json` contains the approved operations.
+Rufus combines its existing deterministic approved-job API with a conversational,
+supervised APT-cache workflow. The HP model interprets requests and explains
+structured evidence; application validation, exact one-use approval and independent
+Rundeck ACLs control execution. Rufus receives no shell endpoint, SSH keys, sudo
+permissions or Proxmox credentials. [AI2 API contract](../docs/ai2-api.md) describes
+the conversation/action routes and durable state machine. `catalogue.json` and
+`policy.json` contain only the approved production and isolated-fixture operations.
 
 ## Deployment and service
 
@@ -75,7 +76,10 @@ All responses are JSON. Supply `Authorization: Bearer <RUFUS_API_TOKEN>`.
 | GET | `/executions/ID` | Retrieve state and last 100 output lines for a Rufus-recorded execution |
 | GET | `/executions/ID?wait=30` | Poll up to 30 seconds, then return terminal or current state |
 
-Only `health-check` is initially approved; it accepts **no options**. Policy entries
+The original `health-check` accepts **no options**. AI2 adds the six fixed
+production/fixture diagnostic, restart and independent verification operations
+listed in `policy.json`; all accept no options. Restart operations are blocked
+on direct `/executions` calls and require the conversational approval endpoint. Policy entries
 can define named string options with `required` and full-match `pattern` fields;
 unknown options, invalid types and strings over 256 characters are rejected.
 Adding an operation requires deliberate Git policy and Rundeck ACL changes.
@@ -131,10 +135,8 @@ ambiguous network or persistence failure, inspect Rundeck before submitting agai
 
 ## Tests
 
-```bash
-python3 -m unittest discover -s tests/rufus -v
-python3 -m unittest discover -s tests/rundeck -v
-```
+Run `python3 scripts/validate.py` from the repository root. It retains detailed
+logs locally and returns compact PASS/FAIL stage summaries.
 
 Tests use isolated local HTTP mock servers, temporary SQLite databases and dummy
 credentials. They cover connection/authentication, HTTP bearer checks, approved

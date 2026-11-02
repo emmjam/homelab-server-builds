@@ -1,0 +1,17 @@
+- defaultTab: output
+  description: Fixed AI2 apt-cache verify operation; no arbitrary options or commands.
+  executionEnabled: true
+  group: jobs
+  id: f28e2ac7-2e79-4c89-a825-4ac734decb21
+  uuid: f28e2ac7-2e79-4c89-a825-4ac734decb21
+  name: Rufus - apt-cache verify
+  loglevel: INFO
+  nodeFilterEditable: false
+  scheduleEnabled: false
+  sequence:
+    commands:
+    - scriptfile: /opt/homelab-server-builds/Rundeck/scripts/apt-cache-operation.py
+      scriptInterpreter: /usr/bin/python3
+      args: apt-cache verify
+    keepgoing: false
+    strategy: node-first

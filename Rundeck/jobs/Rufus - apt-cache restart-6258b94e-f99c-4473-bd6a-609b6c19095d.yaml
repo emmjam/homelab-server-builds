@@ -1,0 +1,17 @@
+- defaultTab: output
+  description: Fixed AI2 apt-cache restart operation; no arbitrary options or commands.
+  executionEnabled: true
+  group: jobs
+  id: 6258b94e-f99c-4473-bd6a-609b6c19095d
+  uuid: 6258b94e-f99c-4473-bd6a-609b6c19095d
+  name: Rufus - apt-cache restart
+  loglevel: INFO
+  nodeFilterEditable: false
+  scheduleEnabled: false
+  sequence:
+    commands:
+    - scriptfile: /opt/homelab-server-builds/Rundeck/scripts/apt-cache-operation.py
+      scriptInterpreter: /usr/bin/python3
+      args: apt-cache restart
+    keepgoing: false
+    strategy: node-first

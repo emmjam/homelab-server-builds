@@ -1,0 +1,17 @@
+- defaultTab: output
+  description: Fixed AI2 fixture restart operation; no arbitrary options or commands.
+  executionEnabled: true
+  group: jobs
+  id: 9c24690e-b736-430a-95b6-d507e77204e4
+  uuid: 9c24690e-b736-430a-95b6-d507e77204e4
+  name: Rufus - fixture restart
+  loglevel: INFO
+  nodeFilterEditable: false
+  scheduleEnabled: false
+  sequence:
+    commands:
+    - scriptfile: /opt/homelab-server-builds/Rundeck/scripts/apt-cache-operation.py
+      scriptInterpreter: /usr/bin/python3
+      args: fixture restart
+    keepgoing: false
+    strategy: node-first

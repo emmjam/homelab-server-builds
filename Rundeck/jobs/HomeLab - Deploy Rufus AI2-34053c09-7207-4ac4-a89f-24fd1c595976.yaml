@@ -1,0 +1,40 @@
+- defaultTab: output
+  description: Deploy the approved supervised APT-cache workflow and isolated fixture through Ansible. Never approves a repair.
+  executionEnabled: true
+  group: jobs
+  id: 34053c09-7207-4ac4-a89f-24fd1c595976
+  uuid: 34053c09-7207-4ac4-a89f-24fd1c595976
+  name: HomeLab - Deploy Rufus AI2
+  loglevel: INFO
+  nodeFilterEditable: false
+  scheduleEnabled: false
+  sequence:
+    commands:
+    - jobref:
+        group: jobs
+        name: HomeLab - Update GitHub Checkout
+        uuid: 310dfa4f-e27f-4945-be6a-7380ef75e586
+        nodeStep: 'false'
+    - description: Syntax-check and deploy; report compact summary and retain logs
+      script: |
+        #!/usr/bin/env bash
+        set -euo pipefail
+        cd /opt/homelab-server-builds
+        export ANSIBLE_ROLES_PATH="$PWD/Ansible/roles"
+        log=$(mktemp /var/lib/rundeck/ai2-deploy-XXXXXX.log)
+        status=0
+        ansible-playbook -i Ansible/inventory/ai2.ini --syntax-check Ansible/playbooks/ai2.yml >"$log" 2>&1 || status=$?
+        if (( status == 0 )); then
+          ansible-playbook -i Ansible/inventory/ai2.ini --limit rufus:apt_cache --tags rufus_application,ai2_configuration Ansible/playbooks/ai2.yml >>"$log" 2>&1 || status=$?
+        fi
+        python3 - "$log" "$status" <<'PY'
+        import json,pathlib,sys
+        text=pathlib.Path(sys.argv[1]).read_text()
+        recap=text.split('PLAY RECAP')[-1].strip() if 'PLAY RECAP' in text else 'No recap'
+        print(json.dumps({'status':'PASS' if sys.argv[2]=='0' else 'FAIL','recap':recap,'log':sys.argv[1]}))
+        if sys.argv[2]!='0': print('\n'.join(text.splitlines()[-60:]))
+        PY
+        exit "$status"
+      scriptInterpreter: /bin/bash
+    keepgoing: false
+    strategy: node-first

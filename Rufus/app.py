@@ -1,4 +1,5 @@
-"""Deterministic local HTTP control boundary. No shell or model execution."""
+"""Loopback API with deterministic validation and supervised model proposals."""
+from contextlib import contextmanager
 import argparse
 import hmac
 import json
@@ -10,6 +11,8 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from config import load
 from rundeck import Client, IntegrationError
+from conversations import ConversationError
+from workflow import Workflow
 
 
 class RequestError(Exception):
@@ -26,9 +29,17 @@ class Application:
         self.lock = threading.Lock()
         with self.db() as db:
             db.execute('CREATE TABLE IF NOT EXISTS executions (id INTEGER PRIMARY KEY, operation TEXT, options TEXT)')
+        self.workflow = None
+        self.workflow = Workflow(self, config['conversation_catalogue']) if config.get('conversation_catalogue') else None
 
+    @contextmanager
     def db(self):
-        return sqlite3.connect(self.config['database'])
+        db = sqlite3.connect(self.config['database'], timeout=10)
+        try:
+            with db:
+                yield db
+        finally:
+            db.close()
 
     def validate(self, operation, options):
         if operation not in self.jobs:
@@ -47,6 +58,12 @@ class Application:
         return self.jobs[operation]
 
     def start(self, body):
+        if isinstance(body, dict) and isinstance(body.get('operation'), str):
+            if self.jobs.get(body['operation'], {}).get('requires_approval'):
+                raise RequestError('This operation requires an exact conversational approval', 403)
+        return self._submit(body)
+
+    def _submit(self, body):
         if not isinstance(body, dict) or set(body) - {'operation', 'options'} or not isinstance(body.get('operation'), str):
             raise RequestError('Expected operation and options')
         operation, options = body['operation'], body.get('options', {})
@@ -81,6 +98,8 @@ class Application:
                 break
             time.sleep(min(1, max(0, deadline - time.monotonic())))
         logs = self.client.output(execution)
+        if self.workflow:
+            logs = json.loads(self.workflow.clean_json(logs))
         return {'status': status, 'rundeck_status': raw, 'execution_id': execution,
                 'operation': row[0], 'job': {'id': job['id'], 'name': job['name']},
                 'parameters': json.loads(row[1]), 'output': logs,
@@ -119,14 +138,33 @@ def handler(app):
                         jobs.append({'operation': operation, 'id': policy['id'],
                                      'name': remote['name'], 'options': policy['options']})
                     return self.respond(200, {'jobs': jobs})
-                if method == 'POST' and self.path == '/executions':
+                body = None
+                if method == 'POST':
                     if self.headers.get('Transfer-Encoding'):
                         raise RequestError('Transfer encoding unsupported')
                     length = int(self.headers.get('Content-Length', '0'))
                     if not 0 < length <= 8192:
                         raise RequestError('Invalid request size')
                     body = json.loads(self.rfile.read(length))
+                if method == 'POST' and self.path == '/executions':
                     return self.respond(202, app.start(body))
+                if app.workflow:
+                    workflow = app.workflow
+                    if method == 'POST' and self.path == '/conversations':
+                        if body != {}: raise RequestError('Expected empty object')
+                        return self.respond(201, workflow.store.create())
+                    conversation = re.fullmatch(r'/conversations/([0-9a-f-]{36})(/messages)?', self.path)
+                    if conversation:
+                        if method == 'GET' and not conversation[2]:
+                            return self.respond(200, workflow.store.history(conversation[1]))
+                        if method == 'POST' and conversation[2]:
+                            return self.respond(202, workflow.message(conversation[1], body))
+                    action = re.fullmatch(r'/actions/([0-9a-f-]{36})(/decision)?', self.path)
+                    if action:
+                        if method == 'GET' and not action[2]:
+                            return self.respond(200, workflow.action(action[1]))
+                        if method == 'POST' and action[2]:
+                            return self.respond(202, workflow.decision(action[1], body))
                 match = re.fullmatch(r'/executions/([1-9][0-9]*)(?:\?wait=([0-9]+))?', self.path)
                 if method == 'GET' and match:
                     wait = int(match[2] or 0)
@@ -134,7 +172,7 @@ def handler(app):
                         raise RequestError('Maximum wait is 30 seconds')
                     return self.respond(200, app.result(int(match[1]), wait))
                 raise RequestError('Endpoint not found', 404)
-            except (RequestError, IntegrationError) as error:
+            except (RequestError, IntegrationError, ConversationError) as error:
                 self.respond(error.status, {'error': str(error)})
             except (ValueError, UnicodeError):
                 self.respond(400, {'error': 'Malformed request'})

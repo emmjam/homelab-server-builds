@@ -1,0 +1,17 @@
+- defaultTab: output
+  description: Fixed AI2 apt-cache diagnose operation; no arbitrary options or commands.
+  executionEnabled: true
+  group: jobs
+  id: b6797491-80d9-448f-ab3f-2f1699578b48
+  uuid: b6797491-80d9-448f-ab3f-2f1699578b48
+  name: Rufus - apt-cache diagnose
+  loglevel: INFO
+  nodeFilterEditable: false
+  scheduleEnabled: false
+  sequence:
+    commands:
+    - scriptfile: /opt/homelab-server-builds/Rundeck/scripts/apt-cache-operation.py
+      scriptInterpreter: /usr/bin/python3
+      args: apt-cache diagnose
+    keepgoing: false
+    strategy: node-first
