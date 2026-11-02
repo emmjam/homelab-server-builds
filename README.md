@@ -32,3 +32,9 @@ The HP ai-agent and Dell ai-worker support suspend-to-RAM and magic-packet WOL. 
 - Keep passwords, private SSH keys, tokens, and other credentials out of Git. Rundeck secrets belong in Key Storage.
 - Review job YAML and scripts before importing or synchronising them into Rundeck.
 - Test provisioning changes on a disposable VM before promoting a template.
+
+## Development validation
+
+Read [AGENTS.md](AGENTS.md) for permanent development directives. Run
+`python3 scripts/validate.py` for a compact repository validation summary.
+See [docs/validation.md](docs/validation.md) for diagnostics and pipeline scope.
