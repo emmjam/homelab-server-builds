@@ -112,3 +112,7 @@ class InferenceTests(unittest.TestCase):
                 Client({'url': url, 'model': 'qwen3:4b'})
         with self.assertRaises(ValueError):
             Client({'url': 'http://host', 'model': 'qwen3:4b', 'inference_timeout': 0})
+        self.assertEqual(Client({'url':'http://host','model':'qwen3:4b','chat_inference_timeout':600}).chat_inference_timeout,600)
+        for timeout in (0,float('inf'),float('nan')):
+            with self.assertRaises(ValueError):
+                Client({'url':'http://host','model':'qwen3:4b','chat_inference_timeout':timeout})

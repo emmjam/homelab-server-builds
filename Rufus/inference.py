@@ -1,6 +1,7 @@
 """Bounded, client-independent access to the configured HP inference backend."""
 import http.client
 import json
+import math
 import socket
 from urllib.parse import urlsplit
 
@@ -22,7 +23,7 @@ class Client:
         self.inference_timeout = float(config.get('inference_timeout', 120))
         self.chat_inference_timeout = float(config.get('chat_inference_timeout', self.inference_timeout))
         if not (0 < self.connect_timeout <= 30 and 0 < self.inference_timeout <= 300
-                and 0 < self.chat_inference_timeout <= 360):
+                and math.isfinite(self.chat_inference_timeout) and 0 < self.chat_inference_timeout):
             raise ValueError('Invalid inference timeouts')
 
     def chat(self, messages, schema=None):

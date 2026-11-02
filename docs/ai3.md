@@ -133,3 +133,34 @@ requests can still hit the finite generation/time bounds and will fail honestly,
 never be persisted as a successful partial answer. A thinking-only CPU model
 can take minutes even for short questions; these limits do not claim faster
 inference.
+
+Live capacity verification after deployment: `/api/ps` reported
+`context_length=8192`, `size=3888675552`, `size_vram=0`; HP had
+3,844,552 KiB MemAvailable (about 3.67 GiB), with all 6,050,812 KiB swap
+free. The installed model digest remained
+`359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7`.
+The original saved-context replay stopped at 1,107 tokens in 168.95 seconds
+under the final 8,192/2,048 settings.
+
+### Completion evidence
+
+Changes `7ddd795` and `6f5a73f` were deployed through the existing Ansible
+application/client routes. All 76 Rufus regression tests passed, including AI2
+approval/rejection, AI3 history/isolation/failure handling and new complete-long-
+reply tests. Eleven inference tests were rechecked after allowing any explicitly
+configured positive finite chat timeout, rather than hardcoding a six-minute
+ceiling; the deployed timeout remains 360 seconds.
+
+Live acceptance completed the original failed context, a fresh “What is my
+name?”, introduction of Ian, and correct name recall through the message API.
+A rain explanation completed with its requested ending but was only 1,154
+characters, so the first acceptance script's strict long-length assertion failed;
+this was a test-case length shortfall, not another generation-limit error.
+One additional 20-tip garden explanation produced 3,165 characters including
+`END OF ANSWER`, was saved/reopened byte-for-byte and produced zero Rufus
+executions. Acceptance conversation: `d81d12e0-eec7-4b7c-8c5a-85dea04d0002`.
+The reusable acceptance case now requests that longer response directly.
+
+No model, Ollama runtime/service configuration, hardware allocation, API binding,
+Web authentication, firewall or approval-policy change was made. Finite output/
+time/response-size safeguards remain; generation exhaustion remains an error.

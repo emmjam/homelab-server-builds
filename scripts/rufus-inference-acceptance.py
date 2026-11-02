@@ -81,7 +81,7 @@ send('What is my name?')
 send('My name is Ian. Please acknowledge that in one short sentence.')
 answer,_=send('What is my name? Reply with just my name.')
 assert 'ian' in answer.lower()
-answer,history=send('Explain how rain forms in about 400 words, using plain English. Finish with the exact line END OF ANSWER.')
+answer,history=send('Give 20 numbered tips for looking after a vegetable garden. For each tip write two full sentences explaining what to do and why. Include all 20 tips. Finish with the exact line END OF ANSWER.')
 assert len(answer)>2048,'Long-answer test did not cross the old persistence limit'
 assert answer.rstrip().endswith('END OF ANSWER'),'Long answer missing its requested ending'
 assert Store(config['database']).history(conversation)==history
