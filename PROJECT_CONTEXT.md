@@ -681,18 +681,12 @@ Rundeck SSH key files and authentication paths remain unchanged.
 
 ## Permanent testing and validation directive
 
-Known, repeatable checks belong in the automated test suite/pipeline;
-unexpected troubleshooting belongs in AI-directed one-off checks. Minimise
-Codex token/usage consumption by automating repeated deterministic build,
-provisioning, deployment, configuration and post-build validation. Prefer one
-local validation stage, compact structured PASS/WARN/FAIL output and locally
-retained diagnostics inspected only for failures. Codex should reason over the
-summary and failures, rather than every successful check. Individual commands
-remain appropriate for unexpected faults, investigation, test development and
-one-off diagnostics. Repeated manual verification should become an automated
-check. Do not add tests merely for coverage; keep validation useful and efficient.
-See `AGENTS.md` and `docs/validation.md`; the repository entry point is
-`python3 scripts/validate.py` and CI runs that same command.
+During builds, run a check only when its output is required by a subsequent
+step or to establish that a change affected another component. Use command exit
+codes as success indicators; do not issue a second command merely to confirm the
+first ran successfully. Put final end-to-end validation in one script and execute
+it with one SSH call. Use Rundeck WOL to wake any machines needed. This directive
+supersedes earlier instructions to run routine suites during intermediate builds.
 
 ## Permanent host availability / WOL directive
 
