@@ -43,7 +43,8 @@
         content: >-
           {{ {'url': 'http://ai-agent.lan:11434', 'model': 'qwen3:4b',
               'connect_timeout': 5, 'inference_timeout': 120,
-              'chat_num_predict': 512, 'chat_empty_thinking_prefill': true,
+              'chat_num_predict': 2048, 'chat_inference_timeout': 360,
+              'chat_empty_thinking_prefill': true,
               'auth_secret_name': none} | to_nice_json }}
 
       notify: Restart Rufus inference client

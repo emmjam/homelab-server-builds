@@ -119,7 +119,7 @@ class Store:
 
     def complete_reply(self, message, content):
         """Commit assistant output and successful completion in one transaction."""
-        if not isinstance(content, str) or not content.strip() or len(content)>2048:
+        if not isinstance(content, str) or not content.strip() or len(content)>8192:
             raise ConversationError('Invalid assistant response', 400)
         with self.db() as db:
             db.execute('BEGIN IMMEDIATE')

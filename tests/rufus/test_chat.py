@@ -39,6 +39,22 @@ class ChatTests(unittest.TestCase):
         self.assertTrue(all(m['status']=='completed' for m in history['messages']))
         self.assertEqual(history['actions'],[]);self.assertEqual(self.client.mock_calls,[])
 
+    def test_long_completed_reply_is_saved_whole_and_redacted(self):
+        reply=('A useful explanation. '*160)+'secret-api END'
+        self.send('Give a longer explanation',reply)
+        saved=self.flow.store.history(self.conversation)['messages'][-1]['content']
+        self.assertEqual(saved,reply.replace('secret-api','[REDACTED]'))
+        self.assertGreater(len(saved),2048)
+        self.assertTrue(saved.endswith('END'))
+        self.assertEqual(self.client.mock_calls,[])
+
+    def test_oversize_reply_is_failed_instead_of_truncated(self):
+        self.send('Give a longer explanation','x'*8193)
+        history=self.flow.store.history(self.conversation)
+        self.assertEqual(len(history['messages']),1)
+        self.assertEqual(history['messages'][0]['status'],'failed')
+        self.assertEqual(self.client.mock_calls,[])
+
     def test_followup_includes_user_and_assistant_history(self):
         self.send('Suggest a name','Try Willow.')
         self.send('Why that name?','It suggests a graceful tree.')

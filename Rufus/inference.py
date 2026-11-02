@@ -20,7 +20,9 @@ class Client:
             raise ValueError('Invalid inference URL')
         self.connect_timeout = float(config.get('connect_timeout', 5))
         self.inference_timeout = float(config.get('inference_timeout', 120))
-        if not (0 < self.connect_timeout <= 30 and 0 < self.inference_timeout <= 300):
+        self.chat_inference_timeout = float(config.get('chat_inference_timeout', self.inference_timeout))
+        if not (0 < self.connect_timeout <= 30 and 0 < self.inference_timeout <= 300
+                and 0 < self.chat_inference_timeout <= 360):
             raise ValueError('Invalid inference timeouts')
 
     def chat(self, messages, schema=None):
@@ -42,7 +44,7 @@ class Client:
         connection = connection_type(self.url.hostname, self.url.port, timeout=self.connect_timeout)
         try:
             connection.connect()
-            connection.sock.settimeout(self.inference_timeout)
+            connection.sock.settimeout(self.inference_timeout if schema is not None else self.chat_inference_timeout)
             connection.request('POST', self.url.path.rstrip('/') + '/api/chat',
                                body=json.dumps(data).encode(), headers=headers)
             response = connection.getresponse()

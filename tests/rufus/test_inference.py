@@ -75,6 +75,21 @@ class InferenceTests(unittest.TestCase):
         self.assertEqual(body['messages'],messages)
         self.assertEqual(body['options']['num_predict'],256)
 
+    def test_chat_budget_and_timeout_do_not_change_structured_calls(self):
+        self.client.config['chat_num_predict']=2048
+        self.client.chat_inference_timeout=360
+        self.client.chat([])
+        body=json.loads(self.connection.request.call_args.kwargs['body'])
+        self.assertEqual(body['options']['num_predict'],2048)
+        self.connection.sock.settimeout.assert_called_with(360)
+        self.client.chat([],{'type':'object'})
+        body=json.loads(self.connection.request.call_args.kwargs['body'])
+        self.assertEqual(body['options']['num_predict'],256)
+        self.connection.sock.settimeout.assert_called_with(120)
+        self.response.read.return_value=json.dumps({'done':True,'done_reason':'length',
+            'message':{'content':'partial answer'}}).encode()
+        with self.assertRaisesRegex(InferenceError,'limit before completing'):self.client.chat([])
+
     def test_invalid_or_incomplete_responses(self):
         for body in (b'not JSON', b'{}', b'{"done":false,"message":{"content":"partial"}}',
                      b'{"done":true,"message":{"content":42}}'):
