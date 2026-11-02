@@ -19,6 +19,17 @@ def command(args):
 def cpu_ticks():
     ticks=list(map(int,read('/proc/stat').splitlines()[0].split()[1:9]))
     return sum(ticks),sum(ticks[3:5])
+def models_at(urls):
+    opener=urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    for url in urls:
+        try:
+            with opener.open(url+'/api/tags',timeout=3) as response:raw=response.read(65537)
+            if len(raw)>65536:raise ValueError('oversize')
+            models=json.loads(raw)['models']
+            return {'reachable':True,'endpoint':url,'models':[{'name':m['name'],'size':m.get('size'),'digest':m.get('digest')} for m in models[:64]]}
+        except (OSError,ValueError,KeyError,TypeError):continue
+    return {'reachable':False,'endpoint':None,'models':None}
+
 def probe():
     cpu={};cores=set()
     for block in read('/proc/cpuinfo').split('\n\n'):
@@ -56,15 +67,10 @@ def probe():
     service=command(['systemctl','is-active','ollama'])
     ollama={'installed':'ollama' in runtimes,'service_state':service or 'unknown','reachable':False,'models':None}
     if ollama['installed'] or service=='active':
-        try:
-            opener=urllib.request.build_opener(urllib.request.ProxyHandler({}))
-            # OLLAMA_URL is supplied as a Python string literal from trusted inventory.
-            with opener.open(OLLAMA_URL+'/api/tags',timeout=3) as response:
-                raw=response.read(65537)
-            if len(raw)>65536:raise ValueError('oversize')
-            models=json.loads(raw)['models']
-            ollama.update(reachable=True,models=[{'name':m['name'],'size':m.get('size'),'digest':m.get('digest')} for m in models[:64]])
-        except (OSError,ValueError,KeyError,TypeError):pass
+        ollama['installed']=True
+        # Nodes may bind either loopback (Dell) or their LAN address (HP).
+        # Both requests originate on that node; no listener/firewall is changed.
+        ollama.update(models_at(['http://127.0.0.1:11434',OLLAMA_URL]))
     return {'hostname':socket.gethostname().split('.')[0].lower(),
             'hardware':{'cpu':cpu,'ram_bytes':mem.get('MemTotal'),'ram_source':'OS-visible MemTotal, excluding reserved memory','storage':disks},
             'os':{'name':release.get('PRETTY_NAME'),'id':release.get('ID'),'version':release.get('VERSION_ID'),'kernel':os.uname().release},

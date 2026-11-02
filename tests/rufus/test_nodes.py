@@ -100,6 +100,21 @@ class NodesTests(unittest.TestCase):
             self.assertEqual(json.loads(path.read_text())['nodes'],[])
             self.assertEqual(path.stat().st_mode & 0o777,0o640)
             with self.assertRaises(ValueError):module.publish('x'*1048577,path)
+    def test_runtime_discovery_handles_existing_loopback_and_lan_listeners(self):
+        spec=importlib.util.spec_from_file_location('node_probe',ROOT/'NodeDiscovery/probe.py');module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+        response=MagicMock();response.__enter__.return_value.read.return_value=b'{"models":[{"name":"qwen3:4b"}]}'
+        opener=Mock()
+        with patch.object(module.urllib.request,'build_opener',return_value=opener):
+            opener.open.return_value=response
+            result=module.models_at(['http://127.0.0.1:11434','http://ai-agent:11434'])
+            self.assertEqual(result['endpoint'],'http://127.0.0.1:11434')
+            opener.open.side_effect=[OSError(),response]
+            result=module.models_at(['http://127.0.0.1:11434','http://ai-agent:11434'])
+            self.assertEqual(result['endpoint'],'http://ai-agent:11434')
+            self.assertEqual(result['models'][0]['name'],'qwen3:4b')
+            opener.open.side_effect=OSError()
+            self.assertIsNone(module.models_at(['http://127.0.0.1:11434'])['models'])
+
     def test_status_api_has_no_action_or_refresh_path(self):
         import io
         from http.server import ThreadingHTTPServer

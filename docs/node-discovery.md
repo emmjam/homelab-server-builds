@@ -70,8 +70,10 @@ mounts, not summed: ZFS datasets can share space. CPU is a 0.2-second sample;
 RAM is OS-visible MemTotal, not a DIMM-slot audit; root capacity determines generic readiness. Thresholds are centrally
 configurable. `degraded`/unknown OS health is conservatively unavailable. Runtime
 executable detection searches PATH, not every virtual environment or filesystem.
-Ollama's configured listener is queried from the node itself, preserving its LAN
-firewall. A stopped/unreachable runtime has unknown models, not an empty list
+Ollama is queried from the node itself, trying its existing loopback listener
+first and then its inventory address, preserving the firewall. HP binds its LAN
+address; Dell's existing service binds only 127.0.0.1. Returned endpoints are
+relative to the probed node, not URLs Rufus may directly connect to. A stopped/unreachable runtime has unknown models, not an empty list
 masquerading as verified absence. WOL support can remain known from prior evidence;
 reading sysfs wake settings alone is not proof of WOL capability.
 
