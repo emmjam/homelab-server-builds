@@ -1,0 +1,161 @@
+---
+- name: Require verified HP and Rufus addresses
+  ansible.builtin.assert:
+    that:
+      - ansible_facts.hostname == 'ai-agent'
+      - ansible_facts.distribution == 'Debian'
+      - ansible_facts.default_ipv4.address is match('^192\.168\.0\.[0-9]+$')
+      - ollama_rufus_ipv4 is match('^192\.168\.0\.[0-9]+$')
+      - ollama_rufus_ipv4 != ansible_facts.default_ipv4.address
+
+- name: Verify retained runtime version before changing configuration
+  ansible.builtin.command: /usr/local/bin/ollama --version
+  register: ollama_existing_version
+  changed_when: false
+  failed_when: false
+
+- name: Require the approved existing installation
+  ansible.builtin.assert:
+    that: "ollama_version in (ollama_existing_version.stdout ~ ' ' ~ ollama_existing_version.stderr).split()"
+    fail_msg: Runtime differs from approval; preserve it and request review, do not reinstall.
+
+- name: Verify existing model manifest offline even if service is stopped
+  ansible.builtin.stat:
+    path: '{{ ollama_models }}/manifests/registry.ollama.ai/library/qwen3/4b'
+    checksum_algorithm: sha256
+  register: ollama_manifest
+
+- name: Require approved existing model without replacement or download
+  ansible.builtin.assert:
+    that: ollama_manifest.stat.checksum | default('') == ollama_manifest_sha256
+    fail_msg: Approved manifest unavailable or changed; preserve installation and request review.
+
+- name: Verify all referenced model blobs exist with expected sizes
+  ansible.builtin.command:
+    argv:
+      - python3
+      - -c
+      - |
+        import json,pathlib,re,sys
+        root=pathlib.Path(sys.argv[1])
+        model=json.loads((root/'manifests/registry.ollama.ai/library/qwen3/4b').read_text())
+        for layer in [model['config'],*model['layers']]:
+            assert re.fullmatch(r'sha256:[0-9a-f]{64}',layer['digest'])
+            blob=root/'blobs'/layer['digest'].replace(':','-')
+            assert blob.is_file() and blob.stat().st_size == layer['size'], 'Missing or truncated model blob'
+        print('PASS: retained model blobs present')
+      - '{{ ollama_models }}'
+  changed_when: false
+
+- name: Ensure existing service group
+  ansible.builtin.group:
+    name: ollama
+    system: true
+
+- name: Ensure service account and existing home
+  ansible.builtin.user:
+    name: ollama
+    group: ollama
+    home: /usr/share/ollama
+    system: true
+    create_home: false
+
+- name: Ensure existing model directory ownership
+  ansible.builtin.file:
+    path: '{{ ollama_models }}'
+    state: directory
+    owner: ollama
+    group: ollama
+    mode: '0755'
+
+- name: Correct ownership of retained model content without changing its bytes or modes
+  ansible.builtin.file:
+    path: '{{ ollama_models }}'
+    state: directory
+    owner: ollama
+    group: ollama
+    recurse: true
+
+- name: Ensure firewall tooling
+  ansible.builtin.apt:
+    name: nftables
+    state: present
+
+- name: Install dedicated firewall batch
+  ansible.builtin.template:
+    src: firewall.nft.j2
+    dest: /etc/homelab-inference.nft
+    owner: root
+    group: root
+    mode: '0600'
+    validate: /usr/sbin/nft --check -f %s
+
+- name: Install persistent firewall service
+  ansible.builtin.template:
+    src: firewall.service.j2
+    dest: /etc/systemd/system/homelab-inference-firewall.service
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Read current dedicated firewall state
+  ansible.builtin.command: /usr/sbin/nft -s list table inet homelab_inference
+  register: ollama_firewall_before
+  changed_when: false
+  failed_when: false
+
+- name: Correct runtime firewall state atomically before opening listener
+  ansible.builtin.command: /usr/sbin/nft -f /etc/homelab-inference.nft
+  changed_when: false
+
+- name: Report semantic firewall changes
+  ansible.builtin.command: /usr/sbin/nft -s list table inet homelab_inference
+  register: ollama_firewall_after
+  changed_when: ollama_firewall_before.stdout != ollama_firewall_after.stdout
+
+- name: Enable persistent firewall before configuring listener
+  ansible.builtin.systemd_service:
+    name: homelab-inference-firewall
+    daemon_reload: true
+    enabled: true
+    state: started
+
+- name: Remove superseded loopback override
+  ansible.builtin.file:
+    path: /etc/systemd/system/ollama.service.d/10-local-only.conf
+    state: absent
+  notify: Restart managed Ollama
+
+- name: Manage Ollama service configuration
+  ansible.builtin.template:
+    src: ollama.service.j2
+    dest: /etc/systemd/system/ollama.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart managed Ollama
+
+- name: Apply service configuration
+  ansible.builtin.meta: flush_handlers
+
+- name: Keep Ollama enabled and running
+  ansible.builtin.systemd_service:
+    name: ollama
+    daemon_reload: true
+    enabled: true
+    state: started
+
+- name: Verify model and local API on restricted listener
+  ansible.builtin.uri:
+    url: 'http://{{ ansible_facts.default_ipv4.address }}:{{ ollama_port }}/api/tags'
+    use_proxy: false
+    return_content: true
+    timeout: 10
+  register: ollama_tags
+  retries: 12
+  delay: 2
+  until: ollama_tags.status | default(0) == 200
+
+- name: Require the approved model at the running endpoint
+  ansible.builtin.assert:
+    that: ollama_model_digest in (ollama_tags.json.models | map(attribute='digest') | list)

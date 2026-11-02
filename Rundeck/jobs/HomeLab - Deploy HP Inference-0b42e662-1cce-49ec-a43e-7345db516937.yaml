@@ -1,0 +1,40 @@
+- defaultTab: output
+  description: Adopt the approved HP Ollama/model, restrict inference to inventory Rufus IPv4, deploy client and run acceptance. Logs remain locally on Rundeck.
+  executionEnabled: true
+  group: jobs
+  id: 0b42e662-1cce-49ec-a43e-7345db516937
+  uuid: 0b42e662-1cce-49ec-a43e-7345db516937
+  name: HomeLab - Deploy HP Inference
+  loglevel: INFO
+  nodeFilterEditable: false
+  scheduleEnabled: false
+  sequence:
+    commands:
+    - jobref:
+        group: jobs
+        name: HomeLab - Update GitHub Checkout
+        uuid: 310dfa4f-e27f-4945-be6a-7380ef75e586
+        nodeStep: 'false'
+    - description: Adopt existing installation and validate; retain detailed local logs
+      script: |
+        #!/usr/bin/env bash
+        set -euo pipefail
+        cd /opt/homelab-server-builds
+        export ANSIBLE_ROLES_PATH="$PWD/Ansible/roles"
+        log=$(mktemp /var/lib/rundeck/hp-inference-XXXXXX.log)
+        status=0
+        ansible-playbook -i Ansible/inventory/ai-inference.ini --syntax-check Ansible/playbooks/ai-inference.yml >"$log" 2>&1 || status=$?
+        if (( status != 0 )); then cat "$log"; exit "$status"; fi
+        ansible-playbook -i Ansible/inventory/ai-inference.ini Ansible/playbooks/ai-inference.yml >"$log" 2>&1 || status=$?
+        python3 - "$log" "$status" <<'PY'
+        import json,pathlib,sys
+        text=pathlib.Path(sys.argv[1]).read_text()
+        recap=text.split('PLAY RECAP')[-1].strip() if 'PLAY RECAP' in text else 'No recap; inspect log'
+        print(json.dumps({'status':'PASS' if sys.argv[2]=='0' else 'FAIL','recap':recap,'log':sys.argv[1]}))
+        if sys.argv[2]!='0':
+            print('\n'.join(text.splitlines()[-60:]))
+        PY
+        exit "$status"
+      scriptInterpreter: /bin/bash
+    keepgoing: false
+    strategy: node-first

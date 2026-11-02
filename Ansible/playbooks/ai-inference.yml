@@ -1,0 +1,47 @@
+---
+- name: Verify Rufus identity and source address from existing inventory hostname
+  hosts: rufus_inference
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Require intended Rufus host
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.hostname == 'rufus'
+          - ansible_facts.default_ipv4.address is match('^192\.168\.0\.[0-9]+$')
+
+- name: Adopt approved HP runtime and model without reinstalling
+  hosts: ai_inference
+  become: true
+  gather_facts: true
+  vars:
+    ollama_rufus_ipv4: "{{ hostvars[groups['rufus_inference'][0]].ansible_facts.default_ipv4.address }}"
+  roles:
+    - ollama_inference
+
+- name: Configure Rufus inference client without changing its API or permissions
+  hosts: rufus_inference
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Install inference client module
+      ansible.builtin.copy:
+        src: '{{ playbook_dir }}/../../Rufus/inference.py'
+        dest: /opt/rufus/app/inference.py
+        owner: root
+        group: rufus
+        mode: '0640'
+
+    - name: Install non-secret inference settings
+      ansible.builtin.copy:
+        dest: /opt/rufus/config/inference.json
+        owner: root
+        group: rufus
+        mode: '0640'
+        content: >-
+          {{ {'url': 'http://ai-agent.lan:11434', 'model': 'qwen3:4b',
+              'connect_timeout': 5, 'inference_timeout': 120,
+              'auth_secret_name': none} | to_nice_json }}
+
+- name: Run routine inference acceptance checks
+  ansible.builtin.import_playbook: ai-inference-validate.yml

@@ -1,0 +1,11 @@
+# Dedicated table only; the batch replaces this table atomically.
+add table inet homelab_inference
+delete table inet homelab_inference
+table inet homelab_inference {
+    chain input {
+        type filter hook input priority -10; policy accept;
+        tcp dport {{ ollama_port }} iifname "lo" accept
+        tcp dport {{ ollama_port }} ip saddr {{ ollama_rufus_ipv4 }}/32 accept
+        tcp dport {{ ollama_port }} drop
+    }
+}

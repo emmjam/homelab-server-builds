@@ -1,0 +1,88 @@
+---
+- name: Validate local inference and service prerequisites
+  hosts: ai_inference
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Check required services
+      ansible.builtin.command: 'systemctl is-{{ item.0 }} {{ item.1 }}'
+      loop: '{{ ["active", "enabled"] | product(["ollama", "homelab-inference-firewall"]) | list }}'
+      changed_when: false
+
+    - name: Exercise structured inference locally on HP
+      ansible.builtin.uri:
+        url: 'http://{{ ansible_facts.default_ipv4.address }}:11434/api/chat'
+        method: POST
+        body_format: json
+        use_proxy: false
+        timeout: 120
+        body:
+          model: qwen3:4b
+          messages: [{role: user, content: 'Return status ready as JSON.'}]
+          think: false
+          stream: false
+          keep_alive: 0
+          format:
+            type: object
+            properties: {status: {type: string, enum: [ready]}}
+            required: [status]
+            additionalProperties: false
+          options: {num_ctx: 4096, num_predict: 32, temperature: 0}
+      register: hp_inference
+
+    - name: Require complete valid local structured result
+      ansible.builtin.assert:
+        that:
+          - hp_inference.json.done
+          - (hp_inference.json.message.content | from_json) == {'status':'ready'}
+
+- name: Validate inference as unprivileged Rufus service account
+  hosts: rufus_inference
+  become: true
+  become_user: rufus
+  gather_facts: false
+  tasks:
+    - name: Run actual Rufus client with deployed configuration
+      ansible.builtin.command:
+        chdir: /opt/rufus/app
+        argv:
+          - /opt/rufus/venv/bin/python
+          - -c
+          - |
+            import json
+            from inference import Client, InferenceError
+            config=json.load(open('/opt/rufus/config/inference.json'))
+            schema={'type':'object','properties':{'status':{'type':'string','enum':['ready']}},'required':['status'],'additionalProperties':False}
+            result=json.loads(Client(config).chat([{'role':'user','content':'Return status ready as JSON.'}],schema))
+            assert result == {'status':'ready'}, 'Unexpected inference response'
+            # Invalid local port tests unavailable behaviour without stopping HP service.
+            config.update(url='http://127.0.0.1:1',connect_timeout=1,inference_timeout=1)
+            try:
+                Client(config).chat([])
+            except InferenceError as error:
+                assert str(error) == 'Inference backend unavailable'
+            else:
+                raise AssertionError('Unavailable endpoint unexpectedly succeeded')
+            print('PASS: Rufus structured inference and bounded unavailable error')
+      changed_when: false
+
+- name: Verify non-Rufus controller cannot access inference
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Attempt forbidden connection from controller
+      ansible.builtin.command:
+        argv:
+          - python3
+          - -c
+          - |
+            import socket
+            try:
+                connection=socket.create_connection(('ai-agent.lan',11434),timeout=3)
+            except (TimeoutError,ConnectionRefusedError):
+                print('PASS: controller denied inference access')
+            else:
+                connection.close()
+                raise SystemExit('FAIL: non-Rufus controller can access inference')
+      changed_when: false

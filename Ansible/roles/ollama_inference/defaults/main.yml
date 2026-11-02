@@ -1,0 +1,8 @@
+---
+ollama_version: '0.40.13'
+ollama_model: qwen3:4b
+ollama_model_digest: 359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7
+ollama_port: 11434
+ollama_models: /usr/share/ollama/.ollama/models
+# Exact on-disk manifest observed during adoption; API digest is recorded above.
+ollama_manifest_sha256: 31d9857b5705086d352d4d6db04e86c5d0f6a2b5d59a4dc7ce5cdb271ccf9141
