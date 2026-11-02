@@ -73,26 +73,12 @@ passwords**.
 
 ## Guessing protection
 
-Persist rate-limit state in Web's separate protected SQLite database so restarts
-cannot reset protection. Enforce counters atomically before costly verification:
-
-- Account/name: after 5 failed attempts within 15 minutes, block that account/name
-  for 15 minutes, regardless of source IP.
-- Source IP: after 20 failures within 15 minutes across account names, block that
-  source for 15 minutes. Unknown account names count too.
-- Enforce one in-flight password derivation. Return a bounded busy response rather
-  than start unbounded hashing threads or sleep while holding database locks.
-- Throttled requests return a generic HTTP 429 and `Retry-After`, without revealing
-  whether the account exists. No permanent automatic account lockout. A success
-  clears the relevant account failure counter, not the source's accumulated abuse.
-- Use the actual TCP peer address for initial direct LAN access; ignore spoofable
-  `X-Forwarded-For`. Expire old limiter entries and bound record/input growth.
-- Administrators can clear a temporary lockout. Log authentication outcomes and
-  throttling without passwords, hashes, session/CSRF tokens or request bodies.
-
-Thresholds/windows/concurrency are Ansible-managed settings. This implements
-[account and source login throttling](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html)
-while limiting accidental or hostile permanent lockouts.
+For the initial trusted-LAN deployment, use a bounded in-memory source-IP counter:
+after 20 failed logins within 15 minutes, reject further attempts until that
+window expires. Return HTTP 429 with Retry-After. Keep one in-flight scrypt
+verification, generic failures and dummy verification for unknown accounts.
+Counters reset on Web restart. Persistent/account lockouts and administrative
+unlocking are deferred; sessions and conversation history remain persistent.
 
 ## Sessions, CSRF and logout
 
@@ -112,12 +98,15 @@ all its sessions. An administrator can revoke sessions without resetting a passw
 Migration to this design invalidates existing code-issued sessions and removes
 code issuance/login support; do not retain a second authentication backdoor.
 
-Require **both** an explicitly allowed same-origin Origin and an unpredictable
-synchroniser CSRF token on every state-changing request, including login, logout,
+Require an unpredictable session-bound synchroniser CSRF token on every
+state-changing request, including login, logout,
 message submission and approval/rejection. The login form uses a short-lived
 pre-authentication session and hidden CSRF field; it grants no data access. Rotate
 session and CSRF values after login. The authenticated page supplies its CSRF token
 for requests; it is distinct from the HttpOnly session cookie and API credential.
+Do not require Origin to be present: browsers may omit it or send `null`. Reject
+explicit foreign origins, and retain the small configured Host allow-list.
+Use `Referrer-Policy: same-origin`. No CORS access is granted.
 
 `POST /logout` revokes the current session in SQLite and clears its cookie. GET
 requests must not perform login/logout or create approvals. Preserve no-store
@@ -130,7 +119,7 @@ Keep account definitions in a root-owned, `rufus-web`-readable configuration fil
 under `/opt/rufus-web/config` (0640, protected parent directories). Entries contain
 stable ID, normalised username, enabled state, credential version and encoded
 salted scrypt hash. The Web account cannot edit account definitions or application
-code. Sessions/rate limits belong in its writable data directory (0700).
+code. Sessions belong in its writable data directory (0700).
 
 Ansible remains the configuration authority:
 
@@ -179,15 +168,15 @@ by that machine's existing SSH setup. The same utility supports `disable`, `enab
 and `remove`. Then apply `Ansible/playbooks/rufus-web.yml` through the existing
 controller deployment route; it installs the managed accounts atomically.
 
-To revoke sessions or unlock an account, run on the trusted controller:
+To revoke all sessions for an account, run on the trusted controller:
 
 ```bash
 cd /opt/homelab-server-builds
 sudo -u rundeck ansible-playbook -i Ansible/inventory/ai2.ini Ansible/playbooks/rufus-web-admin.yml -e web_admin_action=revoke -e web_admin_username=ian
 ```
 
-Use `web_admin_action=unlock` for an account lockout. These are administrative
-operations, not browser endpoints. Password changes/disable/removal revoke sessions
+This is an administrative operation, not a browser endpoint. Individual-session
+administration is deferred. Password changes/disable/removal revoke sessions
 through the managed credential version or account state on every request.
 
 ## Existing chat and security boundaries
@@ -238,7 +227,7 @@ lockout and expiry scenarios; do not add production test-control endpoints.
 |---|---|
 | Authentication | Valid login, wrong password, unknown/disabled account and malformed input; generic failures; unique salts and correct hash verification; no plaintext/API credentials in assets, responses or logs. |
 | Independent sessions | Clients A/B log in independently; distinct session IDs, correct cookie flags, no session fixation, absolute eight-hour expiry, persistence across restart without extending expiry. |
-| CSRF and origins | Login, logout, message and approval/rejection mutations reject absent, wrong or another session's CSRF token; missing/foreign Origin and unapproved Host are rejected. Valid authenticated requests work. |
+| CSRF and origins | Login, logout, message and approval/rejection mutations reject absent, wrong or another session's CSRF token; foreign Origin and unapproved Host are rejected; absent/null Origin works only with valid CSRF. Valid authenticated requests work. |
 | Guessing protection | Account threshold across clients, source threshold across usernames, unknown-account attempts, boundary/window expiry, Retry-After, atomic concurrent attempts, bounded hashing and persistence across restart. Client-supplied forwarding headers cannot bypass limits. |
 | Logout/revocation | Logging out A invalidates replay of A's old cookie while B remains valid; administrator session revocation, password reset/change, account disable/removal invalidate all affected sessions; other accounts remain unaffected. |
 | Existing behaviour | Conversation creation, follow-up, listing/reopened history, error/progress responses, exact approval/rejection and changed/expired/replayed proposal rejection; AI2 mocks/AI3 regressions; zero Rundeck executions for ordinary chat. |
@@ -332,3 +321,17 @@ Limitations: HTTP uses the approved trusted-LAN boundary rather than transport
 encryption; sessions share one operator archive; responses/context remain bounded.
 The manual checklist above is still pending on both actual devices. No node
 management, worker allocation, reverse proxy, TLS requirement or new guest was added.
+
+## Trusted-LAN simplification (2 November 2026)
+
+The initial mandatory Origin check could reject otherwise valid browser POSTs
+before session/CSRF validation. The previous `no-referrer` response policy can
+produce opaque (`null`) origins on some browser request paths. Existing logs do
+not contain the affected browsers' headers, so that specific wire value has not
+been captured. Relative frontend URLs and `credentials: same-origin` are retained.
+The correction accepts absent/null Origin only subject to the existing login or
+session CSRF check; explicit foreign Origin still fails. Host restrictions, LAN
+firewall, loopback bearer API, scrypt, HttpOnly/SameSite cookies, eight-hour
+server-side sessions, logout and approval restrictions remain. Persistent login
+lockouts and individual-session administration are deferred. Account-wide
+revocation/reset remains available without adding a session-management UI.
