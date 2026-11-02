@@ -27,6 +27,16 @@ Polling provides persisted progress and final results without keeping an HTTP
 request open for model generation or Rundeck execution. No streaming framework is
 needed for this milestone.
 
+## AI3 conversation extension
+
+Ordinary messages now receive locally generated conversational replies without
+Rundeck operations. History messages include `role: user` or `role: assistant`;
+assistant messages include `reply_to` linking the originating user message.
+Assistant output and successful user-message completion persist atomically.
+The POST still returns 202; poll history for completion or a persisted error.
+Existing operational proposals and decision endpoints retain their AI2 rules.
+See [AI3](ai3.md) for bounded dialogue context, errors and live acceptance.
+
 ## Proposal and approval
 
 An action is persisted before it is returned for approval. It includes:

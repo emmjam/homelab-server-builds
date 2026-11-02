@@ -732,3 +732,12 @@ shell syntax passed. No AI1 reboot was performed. LAN inference is source-IP
 restricted HTTP, without TLS/application authentication, as approved. See
 `docs/ai-inference.md` for exact model digest, procedures and acceptance evidence.
 AI1 is complete; AI2 passed approved repair 188 and independent verification 189; disposable fixture removed by cleanup 191 (see `docs/ai2-api.md`). HP/Dell long-sleep recovery is fixed, as confirmed by the user on 2 November 2026. The earlier approved short suspend/WOL cycle passed 167/168.
+
+## AI3 general conversation acceptance — 2 November 2026
+
+AI3 is complete: execution 196 deployed source `b217029` and proved local HP
+Qwen3 4B multi-turn conversation, saved assistant replies, context/history across
+a managed Rufus restart and zero Rundeck executions during ordinary chat. Existing
+AI2 approval and repair paths remain protected and passed regression tests;
+no live repair was repeated. The API remains authenticated and loopback-only.
+See `docs/ai3.md` for files, context limits, errors and exact acceptance evidence.

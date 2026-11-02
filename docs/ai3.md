@@ -37,4 +37,33 @@ verifies history and another follow-up, and compares controller execution IDs
 before/after chat. The API-side execution count and action/events are also checked.
 No AI2 repair or disposable fixture is needed. No new Rufus ACL permissions.
 
-Status: implementation awaiting final scripted acceptance.
+## Acceptance — 2 November 2026
+
+**AI3 complete.** Deployment and acceptance
+[196](http://192.168.0.51:4440/project/HomeLab/execution/show/196) succeeded
+with source `b217029`. HP was awakened through Rundeck execution 192.
+All six automated validation groups passed, including 14 new chat/inference
+regression tests and the existing AI2 approval/rejection/recovery tests.
+Validation logs: `/tmp/homelab-validation-c7zb4u0r`; complete deployment/acceptance
+log: `/tmp/ai3-final-bt2et6lj.log` on Rundeck.
+
+Real configured HP Qwen3 4B conversation:
+
+1. User: “Reply with exactly these two words: Amber Willow” → “Amber Willow”.
+2. User: “What was the second word in your previous reply? Reply with that word
+   only.” → “Willow”.
+3. After a managed Rufus restart, saved history matched its pre-restart digest.
+   User: “Which word did you give in your last answer? Reply with that word
+   only.” → “Willow”.
+
+Controller execution IDs were unchanged across chat/restart acceptance; Rufus's
+own execution count was unchanged and no actions or operational execution events
+were generated. Existing infrastructure approval functionality was exercised by
+mocks, without another live repair. The earlier acceptance failure exposed inline
+Qwen reasoning; the inference client now excludes it from final replies. The
+acceptance runner uses the existing runuser pattern rather than adding ACL tools.
+
+Remaining limitations: loopback-only API, polling rather than streaming, approximate
+character-based context budgeting, bounded replies, and no automatic retry of
+interrupted generation. Durable history is retained rather than pruned. No remote
+client, worker allocation, new operation permissions or hosted dependency was added.

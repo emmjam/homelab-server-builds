@@ -68,6 +68,14 @@ conversation/approval persistence implemented in source. The APT-cache target, l
 fixture are now approved. Workflow, six fixed operations and restricted ACL
 additions are deployed through execution 183 (source `3277356`). All six automated validation groups and live permission boundaries passed. Fixture diagnostics and rejected-proposal acceptance passed; exact user approval, repair 188 and independent recovery verification 189 passed. AI2 is complete. User-requested cleanup 191 removed the fixture and live test operations; all six validation groups and production health passed.
 
+AI3 general conversational processing is **DONE**, 2 November 2026:
+[deployment/acceptance 196](http://192.168.0.51:4440/project/HomeLab/execution/show/196)
+passed real HP Qwen3 4B multi-turn conversation, durable user/assistant history,
+post-restart context and zero Rundeck executions during ordinary chat. All six
+validation groups passed, including existing AI2 regressions. See
+[implementation and evidence](docs/ai3.md). Remote clients and worker allocation
+were not implemented.
+
 ## P2 — Rufus VS Code integration: IMMEDIATE PRIORITY AFTER BASIC RUFUS WORKS
 
 **Dependency:** basic Rufus and its API, RUFUS-01 through RUFUS-04. This is the next
