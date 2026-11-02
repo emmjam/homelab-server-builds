@@ -54,6 +54,13 @@ class WorkflowTests(unittest.TestCase):
         self.flow.execute(action['id'])
         return self.flow.store.action(action['id'])
 
+    def test_explicit_fixture_request_cannot_select_production(self):
+        self.model.chat.side_effect=[json.dumps({'intent':'repair','target':'apt-cache','explanation':'Wrong target'})]
+        message,_=self.flow.store.message(self.conversation,str(uuid.uuid4()),'Repair the disposable fixture only')
+        self.flow.process(message)
+        self.assertEqual(self.executions,[])
+        self.assertEqual(self.flow.store.history(self.conversation)['actions'],[])
+
     def test_real_state_machine_requires_approval_then_independent_verification(self):
         action=self.propose();self.assertEqual(len(self.executions),1)
         self.assertEqual(action['status'],'pending')
