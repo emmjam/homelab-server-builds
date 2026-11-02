@@ -6,7 +6,7 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
-from unittest.mock import Mock,patch
+from unittest.mock import Mock,MagicMock,patch
 ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT/'NodeDiscovery'));sys.path.insert(0,str(ROOT/'Rufus'))
 import collector
@@ -24,7 +24,7 @@ class NodesTests(unittest.TestCase):
             'power':{'suspend_to_ram':True},'runtimes':{'ollama':{'reachable':True,'models':[{'name':'qwen3:4b'}]}},
             'metrics':{'cpu_busy_percent':1,'memory_available_bytes':900},'health':'running'}
         self.runner=Mock(return_value=Mock(returncode=0,stdout=json.dumps(self.facts)))
-        self.connect=Mock();self.now=1000
+        self.connect=MagicMock();self.now=1000
     def check(self,old=None):return collector.check(self.node,old or {},self.config,'# fixed probe',clock=lambda:self.now,run=self.runner,connect=self.connect)
     def test_online_hardware_models_and_fixed_ssh(self):
         record=self.check();self.assertEqual(record['observation']['state'],'online_available')
