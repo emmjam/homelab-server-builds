@@ -4,6 +4,14 @@ const $ = id => document.getElementById(id);
 let selected = null, polling = null, revision = 0, busy = false, submitting = false;
 function showError(error) { $('error').hidden = false; $('error').textContent = error.message || String(error); }
 function clearError() { $('error').hidden = true; }
+function requestId() {
+  // getRandomValues is available on the approved LAN HTTP origin.
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  bytes[6] = (bytes[6] & 15) | 64;
+  bytes[8] = (bytes[8] & 63) | 128;
+  const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
+}
 async function api(path, body) {
   const response = await fetch('/api' + path, {method: body === undefined ? 'GET' : 'POST', headers: {'Content-Type':'application/json','X-CSRF-Token':csrf}, body: body === undefined ? undefined : JSON.stringify(body), credentials:'same-origin'});
   const data = await response.json();
@@ -72,7 +80,7 @@ $('composer').onsubmit=async event=>{
   submitting=true;$('send').disabled=true;clearError();
   try {
     if(!selected){const conversation=await api('/conversations',{});await select(conversation.id);}
-    await api('/conversations/'+selected+'/messages',{request_id:crypto.randomUUID(),content});$('message').value='';await list();await refresh();
+    await api('/conversations/'+selected+'/messages',{request_id:requestId(),content});$('message').value='';await list();await refresh();
   }catch(error){showError(error);}finally{submitting=false;$('send').disabled=busy;}
 };
 $('message').onkeydown=event=>{if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();$('composer').requestSubmit();}};

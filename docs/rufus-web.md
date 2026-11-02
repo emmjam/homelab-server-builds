@@ -131,7 +131,7 @@ Ansible remains the configuration authority:
 - Ansible installs account definitions with `no_log`, preserving unchanged hashes
   across runs. It must not generate new random passwords/salts on every deployment
   or copy unrelated source secrets into Web. No default or embedded credentials.
-- Account creation, password changes/resets, disable/removal, unlocking and session
+- Account creation, password changes/resets, disable/removal and account-wide session
   revocation are administrator-only operations, performed through the existing
   administrative deployment route. No Web sudo, SSH keys or Rundeck credentials.
 - Reloading changed account definitions invalidates sessions for changed credential
@@ -206,7 +206,7 @@ Run one scripted final acceptance with compact results; browser automation is
 optional and is not an acceptance prerequisite.
 
 Verify salted hashes and wrong-password rejection; no plaintext storage; unknown
-account behaviour; account/IP throttling and restart persistence; eight-hour
+account behaviour; in-memory source throttling and reset on restart; eight-hour
 expiry; session fixation/replay prevention; CSRF/Origin/Host checks; logout and
 administrator revocation/reset/disable; idempotent Ansible deployment; LAN access
 and non-LAN denial; absence of API credentials in browser assets/responses; chat
@@ -228,7 +228,7 @@ lockout and expiry scenarios; do not add production test-control endpoints.
 | Authentication | Valid login, wrong password, unknown/disabled account and malformed input; generic failures; unique salts and correct hash verification; no plaintext/API credentials in assets, responses or logs. |
 | Independent sessions | Clients A/B log in independently; distinct session IDs, correct cookie flags, no session fixation, absolute eight-hour expiry, persistence across restart without extending expiry. |
 | CSRF and origins | Login, logout, message and approval/rejection mutations reject absent, wrong or another session's CSRF token; foreign Origin and unapproved Host are rejected; absent/null Origin works only with valid CSRF. Valid authenticated requests work. |
-| Guessing protection | Account threshold across clients, source threshold across usernames, unknown-account attempts, boundary/window expiry, Retry-After, atomic concurrent attempts, bounded hashing and persistence across restart. Client-supplied forwarding headers cannot bypass limits. |
+| Guessing protection | Source threshold across usernames, unknown-account attempts, window expiry, Retry-After, bounded hashing and deliberate reset on restart. Client-supplied forwarding headers cannot bypass limits. |
 | Logout/revocation | Logging out A invalidates replay of A's old cookie while B remains valid; administrator session revocation, password reset/change, account disable/removal invalidate all affected sessions; other accounts remain unaffected. |
 | Existing behaviour | Conversation creation, follow-up, listing/reopened history, error/progress responses, exact approval/rejection and changed/expired/replayed proposal rejection; AI2 mocks/AI3 regressions; zero Rundeck executions for ordinary chat. |
 | Network | API remains loopback-only; Web is reachable from the trusted LAN and denied outside it; no bearer credential reaches either HTTP client. |
@@ -335,3 +335,7 @@ firewall, loopback bearer API, scrypt, HttpOnly/SameSite cookies, eight-hour
 server-side sessions, logout and approval restrictions remain. Persistent login
 lockouts and individual-session administration are deferred. Account-wide
 revocation/reset remains available without adding a session-management UI.
+
+Message request IDs use UUIDv4 generated with `crypto.getRandomValues`, which
+works on trusted-LAN HTTP. The secure-context-only `crypto.randomUUID` is not
+required. This preserves the existing API request format and idempotency.
