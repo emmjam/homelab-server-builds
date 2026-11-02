@@ -27,4 +27,5 @@ before=ids()
 run(['ansible-playbook','-i','Ansible/inventory/ai2.ini','Ansible/playbooks/ai3-acceptance.yml'])
 assert ids()==before,'Rundeck execution list changed during ordinary chat acceptance'
 print(json.dumps({'status':'PASS','log':str(log),'checks':['automated suite including AI2 regression','local multi-turn chat','durable assistant replies','history and context after restart','zero Rundeck executions during chat']}))
-print(log.read_text()[-9000:])
+for line in log.read_text().splitlines():
+    if any(word in line for word in ('PASS','assistant','user','Ran ','tests-rufus')): print(line)
