@@ -2,11 +2,27 @@
 - name: Deploy separate web client on the existing Rufus host
   hosts: rufus
   become: true
-  gather_facts: false
+  gather_facts: true
   vars:
     rufus_web_port: 8788
-    rufus_web_allowed_hosts: ['127.0.0.1', 'localhost']
+    rufus_web_trusted_cidr: 192.168.0.0/24
   tasks:
+    - name: Require the existing Rufus guest and intended LAN address
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.hostname == 'rufus'
+          - ansible_facts.default_ipv4.address is match('^192\.168\.0\.[0-9]+$')
+
+    - name: Require managed account source before deploying authentication
+      ansible.builtin.set_fact:
+        rufus_web_accounts: "{{ lookup('ansible.builtin.file', '/var/lib/rundeck/rufus-web-accounts.json') | from_json }}"
+      no_log: true
+
+    - name: Require at least one enabled administrative account
+      ansible.builtin.assert:
+        that: rufus_web_accounts | selectattr('enabled') | list | length > 0
+      no_log: true
+
     - name: Create unprivileged web account without shell or extra groups
       ansible.builtin.user:
         name: rufus-web
@@ -37,7 +53,7 @@
         group: rufus-web
         mode: '0640'
         directory_mode: '0750'
-      loop: [web.py, static/index.html, static/login.html, static/app.js, static/style.css]
+      loop: [web.py, auth.py, static/index.html, static/login.html, static/app.js, static/style.css]
       notify: Restart Rufus Web
 
     - name: Remove superseded nested static directory
@@ -45,18 +61,77 @@
         path: /opt/rufus-web/app/static/static
         state: absent
 
-    - name: Install centrally managed web settings
+    - name: Install managed salted account hashes only
+      ansible.builtin.copy:
+        dest: /opt/rufus-web/config/accounts.json
+        owner: root
+        group: rufus-web
+        mode: '0640'
+        content: '{{ rufus_web_accounts | to_nice_json }}'
+      no_log: true
+      notify: Restart Rufus Web
+
+    - name: Install centrally managed LAN web settings
       ansible.builtin.copy:
         dest: /opt/rufus-web/config/config.json
         owner: root
         group: rufus-web
         mode: '0640'
         content: >-
-          {{ {'port': rufus_web_port, 'allowed_hosts': rufus_web_allowed_hosts,
-              'api_url': 'http://127.0.0.1:8787',
+          {{ {'bind_address': ansible_facts.default_ipv4.address, 'port': rufus_web_port,
+              'allowed_origins': ['http://rufus.lan:' ~ rufus_web_port|string,
+                                  'http://' ~ ansible_facts.default_ipv4.address ~ ':' ~ rufus_web_port|string],
+              'cookie_secure': false, 'api_url': 'http://127.0.0.1:8787',
               'api_token_file': '/opt/rufus-web/config/api-token',
-              'database': '/opt/rufus-web/data/sessions.sqlite3'} | to_nice_json }}
+              'accounts_file': '/opt/rufus-web/config/accounts.json',
+              'database': '/opt/rufus-web/data/sessions.sqlite3',
+              'account_attempts': 5, 'ip_attempts': 20, 'failure_window': 900,
+              'lockout_seconds': 900} | to_nice_json }}
       notify: Restart Rufus Web
+
+    - name: Ensure firewall tooling
+      ansible.builtin.apt:
+        name: nftables
+        state: present
+
+    - name: Install dedicated LAN firewall rules
+      ansible.builtin.template:
+        src: '{{ playbook_dir }}/../templates/rufus-web-firewall.nft.j2'
+        dest: /etc/rufus-web.nft
+        owner: root
+        group: root
+        mode: '0600'
+        validate: /usr/sbin/nft --check -f %s
+
+    - name: Install persistent dedicated firewall unit
+      ansible.builtin.copy:
+        src: '{{ playbook_dir }}/../../RufusWeb/rufus-web-firewall.service'
+        dest: /etc/systemd/system/rufus-web-firewall.service
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Read dedicated firewall before reconciliation
+      ansible.builtin.command: /usr/sbin/nft -s list table inet rufus_web
+      register: web_firewall_before
+      failed_when: false
+      changed_when: false
+
+    - name: Reconcile only the dedicated table before opening LAN listener
+      ansible.builtin.command: /usr/sbin/nft -f /etc/rufus-web.nft
+      changed_when: false
+
+    - name: Report semantic firewall changes
+      ansible.builtin.command: /usr/sbin/nft -s list table inet rufus_web
+      register: web_firewall_after
+      changed_when: web_firewall_before.stdout != web_firewall_after.stdout
+
+    - name: Enable persistent firewall before Web
+      ansible.builtin.systemd_service:
+        name: rufus-web-firewall
+        daemon_reload: true
+        enabled: true
+        state: started
 
     - name: Install only the Rufus API credential in the web account's protected file
       ansible.builtin.copy:
@@ -78,7 +153,7 @@
       register: rufus_web_unit
       notify: Restart Rufus Web
 
-    - name: Enable the loopback web service
+    - name: Enable the trusted-LAN web service
       ansible.builtin.systemd_service:
         name: rufus-web
         daemon_reload: '{{ rufus_web_unit.changed }}'

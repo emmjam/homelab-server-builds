@@ -62,6 +62,19 @@ class InferenceTests(unittest.TestCase):
             self.response.read.return_value=json.dumps({'done':True,'done_reason':reason,'message':{'content':content}}).encode()
             with self.assertRaises(InferenceError):self.client.chat([])
 
+    def test_managed_prefill_only_applies_to_chat_and_does_not_mutate_history(self):
+        self.client.config['chat_empty_thinking_prefill']=True
+        messages=[{'role':'user','content':'Hello'}]
+        self.client.chat(messages)
+        body=json.loads(self.connection.request.call_args.kwargs['body'])
+        self.assertEqual(body['messages'][-1],{'role':'assistant','content':'<think>\n\n</think>\n\n'})
+        self.assertEqual(len(messages),1)
+        self.assertEqual(body['options']['num_predict'],512)
+        self.client.chat(messages,{'type':'object'})
+        body=json.loads(self.connection.request.call_args.kwargs['body'])
+        self.assertEqual(body['messages'],messages)
+        self.assertEqual(body['options']['num_predict'],256)
+
     def test_invalid_or_incomplete_responses(self):
         for body in (b'not JSON', b'{}', b'{"done":false,"message":{"content":"partial"}}',
                      b'{"done":true,"message":{"content":42}}'):

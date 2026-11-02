@@ -1,10 +1,11 @@
 'use strict';
+const csrf = document.querySelector('meta[name=csrf-token]').content;
 const $ = id => document.getElementById(id);
 let selected = null, polling = null, revision = 0, busy = false, submitting = false;
 function showError(error) { $('error').hidden = false; $('error').textContent = error.message || String(error); }
 function clearError() { $('error').hidden = true; }
 async function api(path, body) {
-  const response = await fetch('/api' + path, {method: body === undefined ? 'GET' : 'POST', headers: {'Content-Type':'application/json'}, body: body === undefined ? undefined : JSON.stringify(body), credentials:'same-origin'});
+  const response = await fetch('/api' + path, {method: body === undefined ? 'GET' : 'POST', headers: {'Content-Type':'application/json','X-CSRF-Token':csrf}, body: body === undefined ? undefined : JSON.stringify(body), credentials:'same-origin'});
   const data = await response.json();
   if (!response.ok) { if (response.status === 401) { location.href = '/'; } throw new Error(data.error || 'Request failed'); }
   return data;
@@ -75,5 +76,5 @@ $('composer').onsubmit=async event=>{
   }catch(error){showError(error);}finally{submitting=false;$('send').disabled=busy;}
 };
 $('message').onkeydown=event=>{if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();$('composer').requestSubmit();}};
-$('logout').onclick=async()=>{await fetch('/logout',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});location.href='/';};
+$('logout').onclick=async()=>{await fetch('/logout',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:'{}'});location.href='/';};
 (async()=>{try{const conversations=await list();const requested=location.hash.slice(1);if(conversations.length)await select(conversations.some(c=>c.id===requested)?requested:conversations[0].id);}catch(error){showError(error);}})();

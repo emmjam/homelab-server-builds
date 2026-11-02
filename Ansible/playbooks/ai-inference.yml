@@ -23,6 +23,7 @@
   hosts: rufus_inference
   become: true
   gather_facts: false
+  tags: [rufus_inference_client]
   tasks:
     - name: Install inference client module
       ansible.builtin.copy:
@@ -31,6 +32,7 @@
         owner: root
         group: rufus
         mode: '0640'
+      notify: Restart Rufus inference client
 
     - name: Install non-secret inference settings
       ansible.builtin.copy:
@@ -41,7 +43,15 @@
         content: >-
           {{ {'url': 'http://ai-agent.lan:11434', 'model': 'qwen3:4b',
               'connect_timeout': 5, 'inference_timeout': 120,
+              'chat_num_predict': 512, 'chat_empty_thinking_prefill': true,
               'auth_secret_name': none} | to_nice_json }}
+
+      notify: Restart Rufus inference client
+  handlers:
+    - name: Restart Rufus inference client
+      ansible.builtin.systemd_service:
+        name: rufus
+        state: restarted
 
 - name: Run routine inference acceptance checks
   ansible.builtin.import_playbook: ai-inference-validate.yml

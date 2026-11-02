@@ -1,6 +1,8 @@
 [Unit]
 Description=Rufus Web authenticated browser client
-After=network-online.target rufus.service
+After=network-online.target rufus.service rufus-web-firewall.service
+Requires=rufus-web-firewall.service
+BindsTo=rufus-web-firewall.service
 Wants=network-online.target rufus.service
 
 [Service]

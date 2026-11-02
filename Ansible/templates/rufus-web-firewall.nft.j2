@@ -1,0 +1,10 @@
+add table inet rufus_web
+delete table inet rufus_web
+table inet rufus_web {
+    chain input {
+        type filter hook input priority -10; policy accept;
+        tcp dport {{ rufus_web_port }} iifname "lo" accept
+        tcp dport {{ rufus_web_port }} ip saddr {{ rufus_web_trusted_cidr }} accept
+        tcp dport {{ rufus_web_port }} drop
+    }
+}

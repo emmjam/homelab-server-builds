@@ -1,0 +1,15 @@
+[Unit]
+Description=Restrict Rufus Web to the trusted home LAN
+After=network-online.target nftables.service
+Before=rufus-web.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/nft -f /etc/rufus-web.nft
+ExecReload=/usr/sbin/nft -f /etc/rufus-web.nft
+# Stopping this unit deliberately retains the restrictive rules.
+
+[Install]
+WantedBy=multi-user.target

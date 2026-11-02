@@ -1,0 +1,22 @@
+---
+- name: Administrator-only session revocation and account unlocking
+  hosts: rufus
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Validate fixed administrative action
+      ansible.builtin.assert:
+        that:
+          - web_admin_action in ['revoke', 'unlock']
+          - web_admin_username is match('^[a-z0-9_.-]{1,64}$')
+
+    - name: Apply the exact local administrative action
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/python3
+          - /opt/rufus-web/app/web.py
+          - --admin-action
+          - '{{ web_admin_action }}'
+          - --username
+          - '{{ web_admin_username }}'
+      changed_when: true
