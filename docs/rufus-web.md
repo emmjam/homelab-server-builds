@@ -61,7 +61,7 @@ Use Python's existing `hashlib.scrypt` to avoid adding an authentication framewo
   logs, command arguments, browser storage or URLs. Passwords exist only in the
   submitted form and server memory while checking them.
 - Accept long passphrases without silent truncation. Administrator creation/reset
-  requires at least 15 characters; cap submitted passwords at 1,024 UTF-8 bytes
+  requires at least 3 characters; cap submitted passwords at 1,024 UTF-8 bytes
   and reject oversize input before expensive hashing.
 - Return the same generic failure for unknown, disabled and invalid accounts.
   After rate checks, perform a dummy scrypt verification for unknown accounts to
