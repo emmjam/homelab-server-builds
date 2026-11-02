@@ -6,9 +6,8 @@ Run from the repository root:
 python3 scripts/validate.py
 ```
 
-Requirements: Python 3, Bash, Git and PyYAML (`python3-yaml` on Debian;
-CI pins PyYAML 6.0.3). Tests use isolated fixtures and mock services, not live
-infrastructure. No credentials or deployment access are needed.
+Requirements: Python 3, Bash, Git and PyYAML (`python3-yaml` on Debian).
+Tests use isolated fixtures and mock services, not live infrastructure. No credentials or deployment access are needed.
 
 The runner syntax-checks tracked shell scripts and discovers each test directory
 separately (these directories are not Python packages). All suites run even if
@@ -16,8 +15,7 @@ one fails. Each stage has JSON PASS/FAIL output and a log path; the final JSON
 summary reports counts and returns a non-zero exit code for any failure.
 A command timeout is a failure. Read only failing logs during routine work.
 Logs and `summary.json` remain in a unique local `/tmp/homelab-validation-*`
-directory until removed or temporary storage is cleaned. GitHub Actions runs the
-same command and retains diagnostics as an artifact for seven days.
+directory until removed or temporary storage is cleaned.
 
 ## Review of existing checks
 
