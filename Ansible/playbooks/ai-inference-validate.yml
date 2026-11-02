@@ -39,13 +39,16 @@
 - name: Validate inference as unprivileged Rufus service account
   hosts: rufus_inference
   become: true
-  become_user: rufus
   gather_facts: false
   tasks:
     - name: Run actual Rufus client with deployed configuration
       ansible.builtin.command:
         chdir: /opt/rufus/app
         argv:
+          - /usr/sbin/runuser
+          - -u
+          - rufus
+          - --
           - /opt/rufus/venv/bin/python
           - -c
           - |
