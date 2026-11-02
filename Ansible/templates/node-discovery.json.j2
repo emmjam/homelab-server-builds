@@ -1,0 +1,27 @@
+{
+  "interval_seconds": {{ node_discovery_interval_seconds }},
+  "stale_seconds": {{ node_discovery_stale_seconds }},
+  "ssh_timeout_seconds": {{ node_discovery_ssh_timeout_seconds }},
+  "busy_cpu_percent": {{ node_discovery_busy_cpu_percent }},
+  "busy_memory_percent": {{ node_discovery_busy_memory_percent }},
+  "min_disk_bytes": {{ node_discovery_min_disk_bytes }},
+  "ssh_key": "/var/lib/rundeck/.ssh/target_ed25519",
+  "known_hosts": "/opt/rufus-discovery/known_hosts",
+  "state_file": "/var/lib/rufus-discovery/state.json",
+  "probe_file": "/opt/rufus-discovery/probe.py",
+  "publisher": {"host":"rufus.lan", "user":"rundeck", "host_key_alias":"rufus"},
+  "nodes": [
+{% for host in groups['compute_pool'] | sort %}
+{% set h = hostvars[host] %}
+    {{ {'id':host.split('.')[0], 'hostname':host,
+        'ssh':{'host':h.get('ansible_host',host), 'user':h.get('ansible_user','rundeck'), 'host_key_alias':h.get('compute_host_key_alias',host.split('.')[0])},
+        'machine_type':h.get('compute_machine_type','unknown'),
+        'intended_roles':h.get('compute_roles',[]),
+        'supported_workloads':h.get('compute_workloads',[]),
+        'workload_source':'configured eligibility; availability is checked separately',
+        'power_evidence':h.get('compute_power_evidence',none),
+        'known_capabilities':{'hardware':none,'runtimes':none,'os':h.get('compute_known_os',none),'power':h.get('compute_known_power',none)}
+       } | to_json }}{{ ',' if not loop.last else '' }}
+{% endfor %}
+  ]
+}

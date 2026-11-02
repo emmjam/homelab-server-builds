@@ -1,0 +1,12 @@
+---
+node_discovery_interval_seconds: 300
+node_discovery_stale_seconds: 660
+node_discovery_ssh_timeout_seconds: 20
+node_discovery_busy_cpu_percent: 85
+node_discovery_busy_memory_percent: 15
+node_discovery_min_disk_bytes: 5368709120
+# Existing trusted laptop host records supplement controller records; no TOFU.
+node_discovery_import_host_keys:
+  - 'ai-worker ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIP3uFfxH4LEJl4n579jUP0KpjzGXpuYP8lUy8HBpJQav'
+  - 'server1 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIP32hCgYZc86hIgOu1qHk6itbFJzczuvs+CQK/hzCix/'
+  - 'server2 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIP32hCgYZc86hIgOu1qHk6itbFJzczuvs+CQK/hzCix/'

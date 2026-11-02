@@ -1,0 +1,112 @@
+---
+# No compute_pool play: this task never installs or changes anything on nodes.
+- name: Install fixed publisher and read-only API on Rufus
+  hosts: rufus
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Create snapshot parent
+      ansible.builtin.file:
+        path: /var/lib/rufus-discovery
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Grant only publisher write and Rufus read access
+      ansible.builtin.file:
+        path: /var/lib/rufus-discovery/status
+        state: directory
+        owner: rundeck
+        group: rufus
+        mode: '2750'
+
+    - name: Install fixed publisher without sudo requirements
+      ansible.builtin.copy:
+        src: '{{ playbook_dir }}/../../NodeDiscovery/publish.py'
+        dest: /usr/local/lib/rufus-discovery-publish.py
+        owner: root
+        group: root
+        mode: '0644'
+
+- name: Install read-only collector on the existing automation controller
+  hosts: rundeck_controller
+  become: true
+  gather_facts: false
+  vars_files:
+    - ../vars/node-discovery.yml
+  tasks:
+    - name: Require configured compute inventory
+      ansible.builtin.assert:
+        that:
+          - groups.compute_pool | length == 5
+          - groups.compute_pool | map('regex_replace', '\.lan$', '') | sort == ['ai-agent','ai-worker','server1','server2','tnas']
+
+    - name: Create root-owned collector directory
+      ansible.builtin.file:
+        path: /opt/rufus-discovery
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Create protected controller state directory
+      ansible.builtin.file:
+        path: /var/lib/rufus-discovery
+        state: directory
+        owner: rundeck
+        group: rundeck
+        mode: '0700'
+
+    - name: Install immutable fixed collector and probe
+      ansible.builtin.copy:
+        src: '{{ playbook_dir }}/../../NodeDiscovery/{{ item }}'
+        dest: '/opt/rufus-discovery/{{ item }}'
+        owner: root
+        group: root
+        mode: '0644'
+      loop: [collector.py, probe.py]
+
+    - name: Install central inventory export
+      ansible.builtin.template:
+        src: '{{ playbook_dir }}/../templates/node-discovery.json.j2'
+        dest: /opt/rufus-discovery/config.json
+        owner: root
+        group: rundeck
+        mode: '0640'
+
+    - name: Reuse existing trusted host keys and verified operator host records
+      ansible.builtin.copy:
+        dest: /opt/rufus-discovery/known_hosts
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          {{ lookup('ansible.builtin.file','/var/lib/rundeck/.ssh/known_hosts') }}
+          {{ lookup('ansible.builtin.file','/var/lib/rundeck/.ssh/managed_debian_known_hosts') }}
+          {{ node_discovery_import_host_keys | join('\n') }}
+
+    - name: Install dedicated fixed discovery service
+      ansible.builtin.copy:
+        src: '{{ playbook_dir }}/../../NodeDiscovery/rufus-discovery.service'
+        dest: /etc/systemd/system/rufus-discovery.service
+        owner: root
+        group: root
+        mode: '0644'
+      register: discovery_unit
+
+    - name: Install managed polling timer
+      ansible.builtin.template:
+        src: '{{ playbook_dir }}/../templates/rufus-discovery.timer.j2'
+        dest: /etc/systemd/system/rufus-discovery.timer
+        owner: root
+        group: root
+        mode: '0644'
+      register: discovery_timer
+
+    - name: Enable modest automatic refresh
+      ansible.builtin.systemd_service:
+        name: rufus-discovery.timer
+        daemon_reload: '{{ discovery_unit.changed or discovery_timer.changed }}'
+        state: started
+        enabled: true

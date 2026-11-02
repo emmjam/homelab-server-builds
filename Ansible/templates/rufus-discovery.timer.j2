@@ -1,0 +1,12 @@
+[Unit]
+Description=Refresh Rufus compute status without waking nodes
+
+[Timer]
+OnBootSec=120
+OnUnitInactiveSec={{ node_discovery_interval_seconds }}
+RandomizedDelaySec=15
+AccuracySec=15
+Unit=rufus-discovery.service
+
+[Install]
+WantedBy=timers.target

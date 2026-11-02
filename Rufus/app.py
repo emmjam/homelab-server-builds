@@ -13,6 +13,7 @@ from config import load
 from rundeck import Client, IntegrationError
 from conversations import ConversationError
 from workflow import Workflow
+from nodes import Nodes, NodeStatusError
 
 
 class RequestError(Exception):
@@ -25,6 +26,7 @@ class Application:
     def __init__(self, config, client=None):
         self.config = config
         self.client = client or Client(config['rundeck_url'], config['token'], config.get('request_timeout', 10))
+        self.nodes = Nodes(config.get('node_status_file','/var/lib/rufus-discovery/status/nodes.json'))
         self.jobs = config['jobs']
         self.lock = threading.Lock()
         with self.db() as db:
@@ -131,6 +133,11 @@ def handler(app):
             try:
                 if method == 'GET' and self.path == '/health':
                     return self.respond(200, {'status': 'ok'})
+                if method == 'GET' and self.path == '/nodes':
+                    return self.respond(200, app.nodes.get())
+                node = re.fullmatch(r'/nodes/([a-z][a-z0-9-]{0,63})', self.path)
+                if method == 'GET' and node:
+                    return self.respond(200, app.nodes.get(node[1]))
                 if method == 'GET' and self.path == '/jobs':
                     jobs = []
                     for operation, policy in app.jobs.items():
@@ -174,7 +181,7 @@ def handler(app):
                         raise RequestError('Maximum wait is 30 seconds')
                     return self.respond(200, app.result(int(match[1]), wait))
                 raise RequestError('Endpoint not found', 404)
-            except (RequestError, IntegrationError, ConversationError) as error:
+            except (RequestError, IntegrationError, ConversationError, NodeStatusError) as error:
                 self.respond(error.status, {'error': str(error)})
             except (ValueError, UnicodeError):
                 self.respond(400, {'error': 'Malformed request'})

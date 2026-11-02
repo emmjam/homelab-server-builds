@@ -730,3 +730,13 @@ scrypt, eight-hour revocable sessions, CSRF and basic login limiting are deploye
 Ansible; `ian` is the initial account. See `docs/rufus-web.md` for the authoritative
 access/admin instructions, execution 203 evidence and manual device checklist.
 Automated acceptance passed; actual laptop/phone browser checks are not performed.
+
+## Rufus Task 2 compute pool
+
+The agreed pool is TNAS (`tnas`), HP (`ai-agent`), Dell (`ai-worker`) and two Mac
+Pros (`server1`, `server2`). HP/Dell remain general-purpose nodes with preferred
+interactive/background roles; Macs are shared long-haul workers and still run
+Ubuntu 20.04 per user confirmation on 2 November 2026. Do not rebuild or modify
+them for Task 2. Discovery does not wake/suspend nodes or allocate work. See
+[the discovery design and evidence](docs/node-discovery.md) and combined Ansible
+inventory for sourced hardware, current availability and freshness semantics.

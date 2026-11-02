@@ -1,0 +1,51 @@
+# Combine with ai-inference.ini: its existing HP definition is reused unchanged.
+compute_pool:
+  children:
+    ai_inference:
+      vars:
+        compute_machine_type: HP EliteDesk 800 G3 DM
+        compute_roles: [primary_interactive_inference, general_compute]
+        compute_workloads: [cpu, batch, inference]
+        compute_known_power:
+          wol: true
+          suspend_to_ram: true
+          source: docs/wol-investigation.md; user confirmation 2026-11-02
+          recorded_at: '2026-11-02'
+    compute_other:
+      hosts:
+        tnas:
+          # Existing management endpoint; tnas/tnas.lan currently do not resolve.
+          ansible_host: 192.168.0.101
+          ansible_user: rundeck
+          compute_host_key_alias: 192.168.0.101
+          compute_machine_type: TerraMaster F4-424 Pro
+          compute_roles: [coordinator_host, proxmox, infrastructure]
+          compute_workloads: [cpu, virtualisation]
+        ai-worker:
+          ansible_user: rundeck
+          compute_machine_type: Dell OptiPlex mini
+          compute_roles: [secondary_inference, background_compute, general_compute]
+          compute_workloads: [cpu, batch, inference]
+          compute_known_power:
+            wol: true
+            suspend_to_ram: true
+            source: docs/wol-investigation.md; user confirmation 2026-11-02
+            recorded_at: '2026-11-02'
+    compute_macs:
+      vars:
+        # Reuse existing automation identity; authorisation awaits an awake check.
+        ansible_user: rundeck
+        compute_machine_type: Mac Pro
+        compute_roles: [shared_long_haul_worker]
+        compute_workloads: [cpu, batch, long_haul]
+        compute_known_os:
+          name: Ubuntu
+          version: '20.04'
+          source: User confirmation; Debian rebuild has not occurred
+          recorded_at: '2026-11-02'
+          verified_at: null
+      hosts:
+        server1: {}
+        server2: {}
+  vars:
+    ansible_ssh_private_key_file: /var/lib/rundeck/.ssh/target_ed25519

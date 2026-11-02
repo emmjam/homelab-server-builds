@@ -242,7 +242,7 @@
             owner: root
             group: rufus
             mode: "0640"
-          loop: [app.py, config.py, rundeck.py, inference.py, conversations.py, workflow.py]
+          loop: [app.py, config.py, rundeck.py, inference.py, conversations.py, workflow.py, nodes.py]
           notify: Restart Rufus
 
         - name: Install approved job policy

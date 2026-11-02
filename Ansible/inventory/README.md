@@ -22,3 +22,10 @@ workers. Explicitly set `install_ollama: true` only for a local inference host;
 Validated target (1 November 2026): new CT 111, hostname `rufus`, DHCP address
 `192.168.0.189`. Ian's existing laptop SSH public key is installed; sudo requires
 his password. DHCP addresses should be checked before subsequent deployment.
+
+## Compute discovery
+
+`compute.yml` extends the HP definition in `ai-inference.ini`; pass both inventory
+files, plus `ai2.ini` for the controller and Rufus, to `node-discovery.yml`.
+It defines eligibility and sourced known facts, not guessed hardware or online
+state. See [the node discovery documentation](../../docs/node-discovery.md).
