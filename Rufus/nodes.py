@@ -19,6 +19,12 @@ class Nodes:
                 # Source probe age plus local receipt age tolerates cross-host clock skew.
                 age=(now-snapshot.get('received_at',snapshot['collected_at'])
                      +snapshot['collected_at']-observation['checked_at'])
+                if observation['state']=='sleeping':
+                    evidence=record.get('power_evidence') or {}
+                    source_now=snapshot['collected_at']+now-snapshot.get('received_at',snapshot['collected_at'])
+                    proof_age=source_now-evidence.get('observed_at',-1e30)
+                    if not evidence.get('source') or not 0<=proof_age<=snapshot['stale_seconds']:
+                        observation.update(state='unreachable',awake=None,reason='Sleep evidence expired; sleep is not assumed')
                 record['stale']=age<0 or age>snapshot['stale_seconds']
                 record['age_seconds']=max(0,round(age,1))
                 if record['stale']:

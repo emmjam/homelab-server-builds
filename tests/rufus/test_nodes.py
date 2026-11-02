@@ -89,6 +89,21 @@ class NodesTests(unittest.TestCase):
             self.assertEqual(view.get('ai-agent')['age_seconds'],6)
             self.assertTrue(Nodes(path,clock=lambda:1566).get('ai-agent')['stale'])
 
+    def test_sleep_evidence_expires_between_polls(self):
+        self.node['power_evidence']={'state':'sleeping','observed_at':800,'source':'independent power observation'}
+        self.connect.side_effect=OSError()
+        with patch('collector.shutil.which',return_value=None):record=self.check()
+        self.assertEqual(record['observation']['state'],'sleeping')
+        with tempfile.TemporaryDirectory() as tmp:
+            path=Path(tmp)/'nodes.json'
+            path.write_text(json.dumps({'schema_version':1,'collected_at':1000,'received_at':1000,
+                'stale_seconds':660,'nodes':[record]}))
+            self.assertEqual(Nodes(path,clock=lambda:1001).get('ai-agent')['observation']['state'],'sleeping')
+            expired=Nodes(path,clock=lambda:1461).get('ai-agent')
+            self.assertFalse(expired['stale'])
+            self.assertEqual(expired['observation']['state'],'unreachable')
+            self.assertIsNone(expired['observation']['awake'])
+
     def test_inventory_injection_is_rejected_before_execution(self):
         for field in ('host','user','host_key_alias'):
             config=copy.deepcopy(self.config);config['nodes'][0]['ssh'][field]='host; touch /tmp/forbidden'
