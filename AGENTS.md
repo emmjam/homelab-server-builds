@@ -4,6 +4,14 @@ Read `PROJECT_CONTEXT.md` for architecture, operational boundaries and standing
 user directives before infrastructure work. Preserve unrelated working changes.
 Use British English. Never commit secrets.
 
+## Repository knowledge
+
+The repository must support continued Rufus development without Codex prompt
+storage. Keep completion evidence and reusable requirements in the relevant
+technical documentation; code and Ansible define implementation/configuration.
+Do not retain redundant prompt transcripts or duplicate maintained information.
+Use links to authoritative documents instead of copying their contents.
+
 ## Testing and validation directive
 
 During builds, run a check only when its output is required by a subsequent
