@@ -26,7 +26,7 @@ class Client:
     def chat(self, messages, schema=None):
         data = {'model': self.config['model'], 'messages': messages, 'stream': False,
                 'think': False, 'keep_alive': 0,
-                'options': {'num_ctx': 4096, 'num_predict': 256, 'temperature': 0}}
+                'options': {'num_ctx': 4096, 'num_predict': 256 if schema is not None else int(self.config.get('chat_num_predict',512)), 'temperature': 0}}
         if schema is not None:
             data['format'] = schema
         headers = {'Content-Type': 'application/json'}
@@ -53,6 +53,15 @@ class Client:
             content = result['message']['content']
             if result.get('done') is not True or not isinstance(content, str) or not content.strip():
                 raise ValueError()
+            if schema is None:
+                # Retained Qwen/Ollama can inline reasoning despite think=false,
+                # sometimes omitting the opening tag. Never persist it as a reply.
+                if result.get('done_reason') == 'length':
+                    raise InferenceError('Inference response reached its limit before completing; try a shorter question')
+                if '</think>' in content:
+                    content = content.split('</think>', 1)[1].strip()
+                if '<think>' in content or not content.strip():
+                    raise InferenceError('Inference backend did not provide a final answer')
             if schema is not None:
                 # Parsing is not schema validation; callers must validate their schema.
                 json.loads(content)

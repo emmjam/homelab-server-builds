@@ -104,3 +104,10 @@ class ChatTests(unittest.TestCase):
         same,new=self.flow.store.message(self.conversation,original['request_id'],'Hello')
         self.assertFalse(new);self.assertEqual(same['id'],original['id'])
         self.assertEqual(len(self.flow.store.history(self.conversation)['messages']),2)
+
+    def test_error_recording_failure_cannot_mark_request_successful(self):
+        with patch.object(self.flow,'event',side_effect=OSError('event storage unavailable')):
+            with self.assertRaises(OSError):self.send('Hello')
+        history=self.flow.store.history(self.conversation)
+        self.assertEqual(history['messages'][0]['status'],'failed')
+        self.assertEqual(len(history['messages']),1)

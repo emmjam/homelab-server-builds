@@ -18,7 +18,9 @@ Inference context contains at most six completed exchanges plus the current
 prompt, bounded to 6,000 characters excluding the fixed system prompt. Oldest
 exchanges are omitted whole; failed/interrupted requests are excluded. The durable
 archive is retained; this is an inference context limit, not history deletion.
-The existing 4,096-token inference context and 256-token output limit remain;
+The existing 4,096-token inference context and 256-token structured output limit remain; chat defaults to 512 output
+tokens (`chat_num_predict` in inference settings), with inline Qwen reasoning
+removed and incomplete/limit-exhausted chat rejected;
 character budgeting is approximate, not a tokenizer. Responses are bounded and
 redacted to 2,048 characters before persistence. No tools or hosted dependency
 are added. Endpoint/model/timeouts remain in Ansible-managed inference.json.

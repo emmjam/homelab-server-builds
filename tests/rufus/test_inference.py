@@ -51,6 +51,17 @@ class InferenceTests(unittest.TestCase):
             self.client.chat([])
         self.response.read.assert_not_called()
 
+    def test_inline_reasoning_is_not_returned_as_chat(self):
+        for content in ('<think>private reasoning</think>Final answer',
+                        'private reasoning</think>Final answer'):
+            self.response.read.return_value=json.dumps({'done':True,'message':{'content':content}}).encode()
+            self.assertEqual(self.client.chat([]),'Final answer')
+
+    def test_incomplete_chat_has_no_successful_answer(self):
+        for content,reason in [('<think>unfinished','stop'),('reasoning</think>','stop'),('unfinished answer','length')]:
+            self.response.read.return_value=json.dumps({'done':True,'done_reason':reason,'message':{'content':content}}).encode()
+            with self.assertRaises(InferenceError):self.client.chat([])
+
     def test_invalid_or_incomplete_responses(self):
         for body in (b'not JSON', b'{}', b'{"done":false,"message":{"content":"partial"}}',
                      b'{"done":true,"message":{"content":42}}'):
