@@ -70,7 +70,7 @@ def probe():
             'os':{'name':release.get('PRETTY_NAME'),'id':release.get('ID'),'version':release.get('VERSION_ID'),'kernel':os.uname().release},
             'power':{'suspend_to_ram':'mem' in read('/sys/power/state').split(),
                      'sleep_modes':read('/sys/power/mem_sleep') or None,
-                     'wol':None,'wake_enabled_devices':[Path(p).parts[-3] for p in glob.glob('/sys/class/net/*/device/power/wakeup') if read(p)=='enabled']},
+                     'wol':None,'wake_enabled_devices':[Path(p).parts[-4] for p in glob.glob('/sys/class/net/*/device/power/wakeup') if read(p)=='enabled']},
             'runtimes':{'executables':runtimes,'ollama':ollama,'proxmox':Path('/usr/bin/pveversion').exists()},
             'health':command(['systemctl','is-system-running']) or 'unknown',
             'metrics':{'cpu_busy_percent':busy,'load_averages':list(os.getloadavg()),'memory_available_bytes':mem.get('MemAvailable'),

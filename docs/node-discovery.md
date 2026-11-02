@@ -104,11 +104,12 @@ Unknown nodes return 404; missing/invalid snapshots return 503. No POST, refresh
 command, allocation or power endpoint is provided. This task adds no Web page or
 conversational tool; it establishes the read-only status API for Rufus.
 
-On the trusted controller, use the existing deployment route:
+As the existing administrator on the trusted controller, use the deployment route
+with sudo (the runtime Rundeck account is not granted local sudo):
 
 ```bash
-ansible-playbook -i Ansible/inventory/ai2.ini --limit rufus --tags rufus_application Ansible/playbooks/rufus.yml
-ansible-playbook -i Ansible/inventory/ai-inference.ini -i Ansible/inventory/ai2.ini -i Ansible/inventory/compute.yml Ansible/playbooks/node-discovery.yml
+sudo ansible-playbook -i Ansible/inventory/ai2.ini --limit rufus --tags rufus_application Ansible/playbooks/rufus.yml
+sudo ansible-playbook -i Ansible/inventory/ai-inference.ini -i Ansible/inventory/ai2.ini -i Ansible/inventory/compute.yml Ansible/playbooks/node-discovery.yml
 ```
 
 Settings: `Ansible/vars/node-discovery.yml`. Timer/service: `rufus-discovery` on

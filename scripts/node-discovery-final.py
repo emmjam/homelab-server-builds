@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import subprocess
 import tempfile
+if os.geteuid()!=0:raise SystemExit('Run through the existing controller administrator sudo context')
 repo=Path('/opt/homelab-server-builds');os.chdir(repo)
 os.environ['ANSIBLE_ROLES_PATH']=str(repo/'Ansible/roles')
 fd,name=tempfile.mkstemp(prefix='node-discovery-final-',suffix='.log');os.close(fd)
