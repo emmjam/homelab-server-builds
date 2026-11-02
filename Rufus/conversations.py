@@ -68,6 +68,14 @@ class Store:
             db.execute('INSERT INTO conversations VALUES (?,?)', (result['id'], result['created']))
         return result
 
+    def list_conversations(self):
+        with self.db() as db:
+            rows=db.execute("""SELECT c.id,c.created,
+                COALESCE((SELECT content FROM messages WHERE conversation=c.id ORDER BY created,id LIMIT 1),'New conversation') AS title,
+                COALESCE((SELECT MAX(created) FROM messages WHERE conversation=c.id),c.created) AS updated
+                FROM conversations c ORDER BY updated DESC,c.id DESC LIMIT 100""").fetchall()
+        return {'conversations':[dict(row, title=row['title'][:100]) for row in rows]}
+
     def message(self, conversation, request_id, content):
         try:
             if str(uuid.UUID(request_id)) != request_id:

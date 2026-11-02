@@ -5,6 +5,9 @@ workflow. Model output cannot authorise infrastructure changes; deterministic
 validation, exact one-use approval and independent Rundeck ACLs control execution.
 Rufus receives no shell endpoint, SSH keys, sudo permissions or Proxmox credentials.
 
+Browser access: [Rufus Web architecture and access instructions](../docs/rufus-web.md).
+The separate web service runs on this same guest; the API remains loopback-only.
+
 ## Development reference
 
 These documents contain the reusable requirements, implementation details and

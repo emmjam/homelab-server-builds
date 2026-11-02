@@ -150,6 +150,8 @@ def handler(app):
                     return self.respond(202, app.start(body))
                 if app.workflow:
                     workflow = app.workflow
+                    if method == 'GET' and self.path == '/conversations':
+                        return self.respond(200, workflow.store.list_conversations())
                     if method == 'POST' and self.path == '/conversations':
                         if body != {}: raise RequestError('Expected empty object')
                         return self.respond(201, workflow.store.create())

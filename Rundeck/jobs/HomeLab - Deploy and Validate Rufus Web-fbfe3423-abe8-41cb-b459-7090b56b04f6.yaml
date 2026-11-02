@@ -1,0 +1,21 @@
+- defaultTab: output
+  description: Deploy separate loopback web client on the existing Rufus guest and validate security plus AI2/AI3 regressions.
+  executionEnabled: true
+  group: jobs
+  id: fbfe3423-abe8-41cb-b459-7090b56b04f6
+  uuid: fbfe3423-abe8-41cb-b459-7090b56b04f6
+  name: HomeLab - Deploy and Validate Rufus Web
+  loglevel: INFO
+  nodeFilterEditable: false
+  scheduleEnabled: false
+  sequence:
+    commands:
+    - jobref:
+        group: jobs
+        name: HomeLab - Update GitHub Checkout
+        uuid: 310dfa4f-e27f-4945-be6a-7380ef75e586
+        nodeStep: 'false'
+    - scriptfile: /opt/homelab-server-builds/scripts/rufus-web-final.py
+      scriptInterpreter: /usr/bin/python3
+    keepgoing: false
+    strategy: node-first

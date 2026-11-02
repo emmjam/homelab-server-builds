@@ -1,0 +1,31 @@
+---
+- name: Verify web isolation and existing AI3 acceptance on the existing Rufus guest
+  hosts: rufus
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Verify loopback listeners and credential separation
+      ansible.builtin.shell: |
+        set -eu
+        python3 - <<'PY'
+        import json,pathlib,socket,subprocess
+        for port in (8787,8788):
+            lines=subprocess.check_output(['ss','-H','-ltn','sport = :'+str(port)],text=True).splitlines()
+            assert len(lines)==1 and lines[0].split()[3]=='127.0.0.1:'+str(port),lines
+        assert subprocess.check_output(['id','-nG','rufus-web'],text=True).strip()=='rufus-web'
+        subprocess.run(['systemctl','is-active','--quiet','rufus','rufus-web'],check=True)
+        for path in ('/opt/rufus/config/secrets.txt','/var/lib/rundeck/.ssh/target_ed25519'):
+            assert subprocess.run(['runuser','-u','rufus-web','--','test','-r',path]).returncode!=0
+        print('PASS both listeners loopback; separate web identity; no Rufus/Rundeck secret access')
+        PY
+      args:
+        executable: /bin/bash
+      changed_when: false
+      register: web_isolation
+
+    - name: Report security evidence
+      ansible.builtin.debug:
+        var: web_isolation.stdout_lines
+
+- name: Existing AI3 real local conversation and restart acceptance
+  ansible.builtin.import_playbook: ai3-acceptance.yml

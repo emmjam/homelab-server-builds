@@ -1,0 +1,86 @@
+---
+- name: Deploy separate web client on the existing Rufus host
+  hosts: rufus
+  become: true
+  gather_facts: false
+  vars:
+    rufus_web_port: 8788
+    rufus_web_allowed_hosts: ['127.0.0.1', 'localhost']
+  tasks:
+    - name: Create unprivileged web account without shell or extra groups
+      ansible.builtin.user:
+        name: rufus-web
+        system: true
+        create_home: false
+        home: /opt/rufus-web
+        shell: /usr/sbin/nologin
+
+    - name: Create protected web directories
+      ansible.builtin.file:
+        path: '{{ item.path }}'
+        state: directory
+        owner: '{{ item.owner }}'
+        group: rufus-web
+        mode: '{{ item.mode }}'
+      loop:
+        - {path: /opt/rufus-web, owner: root, mode: '0750'}
+        - {path: /opt/rufus-web/app, owner: root, mode: '0750'}
+        - {path: /opt/rufus-web/config, owner: root, mode: '0750'}
+        - {path: /opt/rufus-web/data, owner: rufus-web, mode: '0700'}
+
+    - name: Install web application and static assets
+      ansible.builtin.copy:
+        src: '{{ playbook_dir }}/../../RufusWeb/{{ item }}'
+        dest: '/opt/rufus-web/app/{{ item }}'
+        owner: root
+        group: rufus-web
+        mode: preserve
+        directory_mode: '0750'
+      loop: [web.py, static]
+      notify: Restart Rufus Web
+
+    - name: Install centrally managed web settings
+      ansible.builtin.copy:
+        dest: /opt/rufus-web/config/config.json
+        owner: root
+        group: rufus-web
+        mode: '0640'
+        content: >-
+          {{ {'port': rufus_web_port, 'allowed_hosts': rufus_web_allowed_hosts,
+              'api_url': 'http://127.0.0.1:8787',
+              'api_token_file': '/opt/rufus-web/config/api-token',
+              'database': '/opt/rufus-web/data/sessions.sqlite3'} | to_nice_json }}
+      notify: Restart Rufus Web
+
+    - name: Install only the Rufus API credential in the web account's protected file
+      ansible.builtin.copy:
+        dest: /opt/rufus-web/config/api-token
+        owner: root
+        group: rufus-web
+        mode: '0640'
+        content: "{{ lookup('ansible.builtin.pipe', 'python3 ' ~ ((playbook_dir ~ '/../../Rundeck/scripts/read-secret.py') | quote) ~ ' RUFUS_API_TOKEN') }}\n"
+      no_log: true
+      notify: Restart Rufus Web
+
+    - name: Install separate web systemd service
+      ansible.builtin.copy:
+        src: '{{ playbook_dir }}/../../RufusWeb/rufus-web.service'
+        dest: /etc/systemd/system/rufus-web.service
+        owner: root
+        group: root
+        mode: '0644'
+      register: rufus_web_unit
+      notify: Restart Rufus Web
+
+    - name: Enable the loopback web service
+      ansible.builtin.systemd_service:
+        name: rufus-web
+        daemon_reload: '{{ rufus_web_unit.changed }}'
+        enabled: true
+        state: started
+
+  handlers:
+    - name: Restart Rufus Web
+      ansible.builtin.systemd_service:
+        name: rufus-web
+        state: restarted

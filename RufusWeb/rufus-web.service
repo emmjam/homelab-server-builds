@@ -1,0 +1,28 @@
+[Unit]
+Description=Rufus Web authenticated browser client
+After=network-online.target rufus.service
+Wants=network-online.target rufus.service
+
+[Service]
+User=rufus-web
+Group=rufus-web
+WorkingDirectory=/opt/rufus-web/app
+ExecStart=/usr/bin/python3 /opt/rufus-web/app/web.py --config /opt/rufus-web/config/config.json
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadWritePaths=/opt/rufus-web/data
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
