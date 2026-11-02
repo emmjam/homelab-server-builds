@@ -187,6 +187,64 @@ multi-turn completion/reopened history; existing AI2/AI3 regressions and zero
 Rundeck executions during ordinary conversation. Do not recreate the retired AI2
 fixture or start node/worker management.
 
+## Automated HTTP/session acceptance
+
+Report this separately as **automated HTTP/security tests**, not browser or
+multi-device testing. Browser automation is not required to run or complete this
+suite. Use independent HTTP clients with separate cookie jars (or isolated
+browser contexts if already available); never share a session between simulated
+clients. Run against an isolated test service/database for destructive account,
+lockout and expiry scenarios; do not add production test-control endpoints.
+
+| Area | Required automated assertions |
+|---|---|
+| Authentication | Valid login, wrong password, unknown/disabled account and malformed input; generic failures; unique salts and correct hash verification; no plaintext/API credentials in assets, responses or logs. |
+| Independent sessions | Clients A/B log in independently; distinct session IDs, correct cookie flags, no session fixation, absolute eight-hour expiry, persistence across restart without extending expiry. |
+| CSRF and origins | Login, logout, message and approval/rejection mutations reject absent, wrong or another session's CSRF token; missing/foreign Origin and unapproved Host are rejected. Valid authenticated requests work. |
+| Guessing protection | Account threshold across clients, source threshold across usernames, unknown-account attempts, boundary/window expiry, Retry-After, atomic concurrent attempts, bounded hashing and persistence across restart. Client-supplied forwarding headers cannot bypass limits. |
+| Logout/revocation | Logging out A invalidates replay of A's old cookie while B remains valid; administrator session revocation, password reset/change, account disable/removal invalidate all affected sessions; other accounts remain unaffected. |
+| Existing behaviour | Conversation creation, follow-up, listing/reopened history, error/progress responses, exact approval/rejection and changed/expired/replayed proposal rejection; AI2 mocks/AI3 regressions; zero Rundeck executions for ordinary chat. |
+| Network | API remains loopback-only; Web is reachable from the trusted LAN and denied outside it; no bearer credential reaches either HTTP client. |
+
+Use a controlled clock in the isolated test harness for expiry/window boundaries,
+not hours of waiting or production clock changes. Separate clients on one host
+prove session isolation, **not** separate-device or separate-source-IP behaviour.
+Exercise source-IP policy with controlled peer addresses in the harness or real
+approved test sources, never by trusting forged X-Forwarded-For headers.
+
+Emit compact per-area PASS/FAIL with detailed logs retained locally. Include the
+commit, environment and actual checks executed. Existing code-login tests do not
+count as evidence for the revised password design. Current revised-suite status:
+**pending implementation and execution**.
+
+## Manual laptop-and-phone checklist — after deployment
+
+Use the trusted home Wi-Fi/LAN on both devices, not mobile data or an untrusted
+guest network. Record date, laptop browser, phone browser and PASS/FAIL per item.
+All items are currently **not performed**.
+
+1. Open `http://rufus.lan:8788` on the laptop and phone, without SSH tunnels.
+   Confirm the login page fits each screen and accepts the administrator-issued
+   username/password. Use the LAN IP if local hostname resolution is unavailable;
+   record which address was used.
+2. On the laptop, start a conversation, send a normal question and a follow-up.
+   Confirm progress appears, the final replies are readable, and input/scrolling
+   work. On the phone, reopen that conversation and confirm the same saved history.
+3. Send a follow-up from the phone. Refresh/reopen on the laptop and confirm the
+   reply remains. Check phone portrait/landscape layout and the on-screen keyboard.
+4. Sign out on the laptop, then refresh: login must be required. The phone's
+   independent session must remain usable. Sign back in on the laptop and confirm
+   history is still present. Also confirm sign-out is reachable on the phone.
+5. If an independently approved, genuine infrastructure proposal is available,
+   check that its exact change, risks, parameters and expiry are readable on both
+   devices. Reject it and confirm the rejected state persists. Do not create a
+   production fault or approve a repair merely to test buttons; approval execution
+   is covered by isolated automated tests unless a real operation is approved.
+
+A report must distinguish automated results, laptop browser results and phone
+browser results. Do not label two-device browser acceptance PASS until both real
+devices have completed the checklist; leave unavailable checks PENDING.
+
 Historical deployment evidence: execution 199 passed the existing automated
 suites, loopback isolation and AI3 restart acceptance; correction 201 passed
 web-focused deployment/security checks. Those executions concern the superseded
