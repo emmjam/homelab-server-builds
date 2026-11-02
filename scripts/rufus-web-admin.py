@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import shlex
+import subprocess
 import sys
 import uuid
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'RufusWeb'))
@@ -13,6 +14,9 @@ from auth import password_hash,username
 parser=argparse.ArgumentParser()
 parser.add_argument('action',choices=['set-password','disable','enable','remove'])
 parser.add_argument('username');parser.add_argument('--secrets-file',required=True)
+parser.add_argument('--transfer',action='store_true',help='Transfer only account hashes to the protected controller source')
+parser.add_argument('--controller',default='rundeck')
+parser.add_argument('--ssh-config')
 args=parser.parse_args();name=username(args.username)
 if not name:parser.error('Invalid username')
 # Use the existing file and inode; never change its ownership or permissions.
@@ -37,4 +41,8 @@ with os.fdopen(fd,'r+') as f:
     if matches:lines[matches[0]]=line
     else:lines.append(line)
     f.seek(0);f.write('\n'.join(lines)+'\n');f.truncate();f.flush();os.fsync(f.fileno())
-print('Account source updated. Transfer using the established secrets process, then run the managed Rufus Web deployment. No password or hash was printed.')
+if args.transfer:
+    code="import os,sys,json,stat; data=sys.stdin.read(); json.loads(data); fd=os.open('/var/lib/rundeck/rufus-web-accounts.json',os.O_WRONLY|os.O_CREAT|os.O_NOFOLLOW,0o600); info=os.fstat(fd); assert stat.S_ISREG(info.st_mode) and not info.st_mode & 0o077; os.ftruncate(fd,0); os.write(fd,data.encode()); os.close(fd)"
+    command=['ssh']+(['-F',args.ssh_config] if args.ssh_config else [])+['-o','StrictHostKeyChecking=yes',args.controller,'sudo -n -u rundeck python3 -c '+shlex.quote(code)]
+    subprocess.run(command,input=json.dumps(accounts)+'\n',text=True,check=True)
+print('Account hash source updated'+(' and transferred to the protected controller source' if args.transfer else '')+'. Run the managed Rufus Web deployment. No password or hash was printed.')
