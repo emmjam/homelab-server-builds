@@ -106,8 +106,24 @@ requests permit proposal, clarification or unsupported responses. Model response
 still cannot approve or execute an operation. A regression check rejects model
 selection of production for an explicit fixture request.
 
-Acceptance remains incomplete until the user approves a concrete fresh action,
-the restricted repair runs and independent verification establishes recovery.
+Acceptance completed with explicitly approved action
+`3528d3c1-5867-4ac6-abd3-f987444eb0fb`: diagnostic
+[187](http://192.168.0.51:4440/project/HomeLab/execution/show/187), repair
+[188](http://192.168.0.51:4440/project/HomeLab/execution/show/188), independent
+verification [189](http://192.168.0.51:4440/project/HomeLab/execution/show/189).
+The persisted outcome is `recovered`; verification established active service and
+successful HTTP response. Earlier expired approval was rejected without execution.
+
+At the user's request, cleanup deployment
+[191](http://192.168.0.51:4440/project/HomeLab/execution/show/191) removed the
+fixture service, configuration, cache, logs and runtime directory. Fixture jobs,
+Rufus catalogue/policy entries and restricted ACL grants were retired. Default
+deployment now removes the fixture rather than recreating it. Mock fixture data
+remains only under `tests/rufus/fixtures` for offline regression tests.
+Final single-script verification passed all six validation groups, fixture
+absence, removal of live test operations/jobs, and production service/HTTP health.
+Logs: `/tmp/homelab-validation-hunht6eq`. Cleanup source: `3cf858b`.
+AI2's one supervised repair milestone is complete; no broader autonomy was added.
 
 ## Deployment permissions
 
@@ -128,8 +144,8 @@ refreshes Git and deploys only the Rufus application and APT-cache fixture throu
 Ansible. It cannot approve or execute a repair. No controller sudo grants are
 added. The catalogue and `policy.json` record every exact permitted operation,
 job UUID, target, empty option schema, classification, approval policy and timeout.
-The existing health check plus six fixed diagnostic/restart/verification job
-UUIDs are the only jobs permitted to the `rufus-api` role.
+After acceptance cleanup, only the existing health check and three production
+APT-cache diagnostic/restart/verification job UUIDs are permitted to `rufus-api`.
 
 
 ## Real acceptance client
@@ -139,7 +155,7 @@ unprivileged service user. Its `propose`, `reject`, `status` and `boundaries`
 stages never approve repairs. `approve` requires explicit action ID and hash
 arguments supplied only after the user approves that concrete proposal. State
 persists in `/opt/rufus/data/ai2-acceptance.json`; no credentials are printed.
-The fixture is a separate apt-cacher-ng instance on `apt-cache.lan`, loopback
-port 13142, with separate configuration, cache, logs and systemd unit; it is
-disabled at boot. Production port 3142 and its service remain untouched by
-fixture operations. Both targets have distinct stable operations and job UUIDs.
+The acceptance fixture used loopback port 13142 and separate configuration,
+cache, logs and systemd unit. It has now been removed along with its live
+operations. Production port 3142 and its service were unchanged. The historical
+acceptance client is not a fixture provisioner and cannot rerun retired operations.

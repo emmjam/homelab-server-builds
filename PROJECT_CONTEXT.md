@@ -731,5 +731,5 @@ reported zero changes on all hosts. Shared repository validation: 67 tests and
 shell syntax passed. No AI1 reboot was performed. LAN inference is source-IP
 restricted HTTP, without TLS/application authentication, as approved. See
 `docs/ai-inference.md` for exact model digest, procedures and acceptance evidence.
-AI1 is complete; AI2 is deployed and awaiting explicit repair approval and final recovery acceptance (see `docs/ai2-api.md`). Long-sleep DHCP/DNS recovery remains a
+AI1 is complete; AI2 passed approved repair 188 and independent verification 189; disposable fixture removed by cleanup 191 (see `docs/ai2-api.md`). Long-sleep DHCP/DNS recovery remains a
 separate investigation; the approved short suspend/WOL cycle passed 167/168.

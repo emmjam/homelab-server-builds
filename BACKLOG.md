@@ -62,11 +62,11 @@ Rundeck refreshes Git and transfers the required scripts to TNAS when needed.
 | RUFUS-04 | DONE | Client-independent authenticated Rufus API established for health, job discovery, execution submission and monitoring. | [API contract](Rufus/README.md#api) and real acceptance test 157. Loopback only; controlled client transport and VS Code integration remain VSCODE work. |
 
 AI2 was explicitly requested on 2 November 2026 after AI1 acceptance. Its
-conversational/supervised-repair work is **IN PROGRESS**: current HP inference
+conversational/supervised-repair work is **DONE**: current HP inference
 reverified, [API contract](docs/ai2-api.md) drafted, and target-independent
 conversation/approval persistence implemented in source. The APT-cache target, listed read-only diagnostics and isolated disposable
 fixture are now approved. Workflow, six fixed operations and restricted ACL
-additions are deployed through execution 183 (source `3277356`). All six automated validation groups and live permission boundaries passed. Fixture diagnostics and rejected-proposal acceptance passed; exact user approval, repair execution and independent recovery verification remain pending.
+additions are deployed through execution 183 (source `3277356`). All six automated validation groups and live permission boundaries passed. Fixture diagnostics and rejected-proposal acceptance passed; exact user approval, repair 188 and independent recovery verification 189 passed. AI2 is complete. User-requested cleanup 191 removed the fixture and live test operations; all six validation groups and production health passed.
 
 ## P2 — Rufus VS Code integration: IMMEDIATE PRIORITY AFTER BASIC RUFUS WORKS
 
