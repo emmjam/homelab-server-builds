@@ -26,24 +26,21 @@ network:
       dhcp4: true
       dhcp4-overrides:
         use-dns: false
-        use-domains: false
+        use-domains: true
         use-hostname: false
         send-hostname: true
       nameservers:
         addresses: [192.168.0.2]
-        search: [lan]
 EOF
     write_file /etc/systemd/resolved.conf.d/90-homelab-dns.conf 0644 <<'EOF'
 [Resolve]
 DNS=192.168.0.2
-Domains=lan
 LLMNR=no
 MulticastDNS=no
 EOF
     netplan generate
     # Resolver-only live changes: no netplan apply, link restart or DHCP release.
     resolvectl dns "$IFACE" 192.168.0.2
-    resolvectl domain "$IFACE" lan
     resolvectl llmnr "$IFACE" no
     resolvectl mdns "$IFACE" no
 elif command -v ifquery >/dev/null && ifquery "$IFACE" >/dev/null 2>&1 && pgrep -a dhclient | grep -qE "(^| )$IFACE( |$)"; then
@@ -54,14 +51,11 @@ elif command -v ifquery >/dev/null && ifquery "$IFACE" >/dev/null 2>&1 && pgrep 
 # BEGIN HOMELAB DNS
 send host-name = gethostname();
 supersede domain-name-servers 192.168.0.2;
-supersede domain-name "lan";
-supersede domain-search "lan";
 # END HOMELAB DNS
 EOF
     write_file /etc/dhcp/dhclient.conf 0644 < "$TMP/dhclient"
     # Proxmox supplies resolv.conf on LXC startup; never edit that generated file.
     grep -Eq '^nameserver[[:space:]]+192\.168\.0\.2([[:space:]]|$)' /etc/resolv.conf || { echo 'Persistent settings staged; resolver update requires managed reboot'; exit 1; }
-    grep -Eq '^(search|domain)[[:space:]]+lan([[:space:]]|$)' /etc/resolv.conf || { echo 'Persistent settings staged; search domain update requires managed reboot'; exit 1; }
 else
     echo 'Unsupported or ambiguous network manager; no networking changes made'
     exit 1

@@ -104,13 +104,15 @@ Create a container (ID 9200 is an example; availability is checked live):
 ```sh
 sudo /opt/homelab-server-builds/scripts/create-container.sh \
   --id 9200 --hostname debian-lxc-test --cores 2 --memory 1 --disk 8 \
-  --storage local-zfs --bridge vmbr0 --ip dhcp --dns '192.168.0.2' \
+  --storage local-zfs --bridge vmbr0 --ip dhcp \
   --template-id 9100
 ```
 
-For static IPv4, supply `--ip 192.168.0.220/24 --gateway 192.168.0.1`, after
-reserving that address in the network's DHCP configuration. Optional flags are
-`--search-domain lan` and `--ssh-public-key 'ssh-ed25519 AAAA... comment'`.
+DHCP is the default: Pi-hole at `192.168.0.2` supplies the lease and search domain,
+with the Vodafone router at `192.168.0.1` as the gateway. DNS is fixed to Pi-hole.
+For a manually assigned IPv4, supply `--ip 192.168.0.220/24 --gateway 192.168.0.1`
+after reserving that address in DHCP. The optional SSH key flag is
+`--ssh-public-key 'ssh-ed25519 AAAA... comment'`.
 Only one public key without authorized_keys options is accepted. No user account
 is created. Without a key, use `pct enter ID` for administration; the SSH listener
 is checked but SSH login is unavailable. IPv6-only provisioning is not implemented.

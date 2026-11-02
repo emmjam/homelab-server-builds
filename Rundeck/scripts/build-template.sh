@@ -59,7 +59,7 @@ case $MODE in
         CONFIG=$(pct config "$2")
         grep -Eq '^tags: .*homelab-lxc' <<< "$CONFIG" || fail 'Not a managed guest'
         ! grep -qx 'template: 1' <<< "$CONFIG" || fail 'Use template DNS action'
-        pct set "$2" --nameserver 192.168.0.2 --searchdomain lan
+        pct set "$2" --nameserver 192.168.0.2 --delete searchdomain
         exit 0;;
     --configure-template-dns)
         (($# == 2)) || fail 'Expected LXC template ID'
@@ -68,7 +68,7 @@ case $MODE in
         CONFIG=$(pct config "$2")
         grep -qx 'template: 1' <<< "$CONFIG" || fail 'Not a template'
         grep -Eq '^tags: .*homelab-debian-lxc' <<< "$CONFIG" || fail 'Unmanaged template'
-        pct set "$2" --nameserver 192.168.0.2 --searchdomain lan
+        pct set "$2" --nameserver 192.168.0.2 --delete searchdomain
         exit 0;;
 
     --inspect-service-vm)
@@ -179,7 +179,7 @@ case $MODE in
         pct create "$CANDIDATE" "$IMAGE_STORAGE:vztmpl/$IMAGE" \
             --hostname debian-lxc-build --ostype debian --unprivileged 1 \
             --cores 2 --memory 1024 --swap 0 --rootfs "$STORAGE:4" \
-            --net0 "name=eth0,bridge=$BRIDGE,ip=dhcp" --nameserver 192.168.0.2 --searchdomain lan --onboot 0 \
+            --net0 "name=eth0,bridge=$BRIDGE,ip=dhcp" --nameserver 192.168.0.2 --onboot 0 \
             --tags "homelab-debian-lxc-build;$BUILD_TOKEN"
         OWNED=1
         pct start "$CANDIDATE"
@@ -221,6 +221,8 @@ pct exec "$CANDIDATE" -- bash -ec '
     : > /etc/machine-id
     rm -f /var/lib/dbus/machine-id /var/lib/systemd/random-seed
     rm -f /var/lib/dhcp/*.leases /var/lib/dhcp/*.leases~
+    rm -f /etc/hostname
+    sed -i "/^127\\.0\\.1\\.1[[:space:]]/d" /etc/hosts
     rm -rf /var/log/journal/* /tmp/* /var/tmp/*
     find /var/log -type f -exec truncate -s 0 {} +
     rm -f /root/.bash_history
@@ -228,7 +230,13 @@ pct exec "$CANDIDATE" -- bash -ec '
 '
 pct shutdown "$CANDIDATE" --timeout 60
 pct status "$CANDIDATE" | grep -qx 'status: stopped' || fail 'Candidate did not stop cleanly'
-pct set "$CANDIDATE" --hostname debian-lxc-template --tags homelab-debian-lxc
+pct set "$CANDIDATE" --delete hostname,searchdomain --nameserver 192.168.0.2 --tags homelab-debian-lxc
+pct set "$CANDIDATE" --net0 "name=eth0,bridge=$BRIDGE,ip=dhcp"
+CANDIDATE_CONFIG=$(pct config "$CANDIDATE")
+grep -Eq '^net0: .*ip=dhcp([,[:space:]]|$)' <<< "$CANDIDATE_CONFIG" || fail 'Candidate network is not DHCP-configured'
+if grep -Eq '^(hostname|searchdomain):|^net[0-9]+: .*hwaddr=' <<< "$CANDIDATE_CONFIG"; then
+    fail 'Candidate template contains a hostname, search domain, or fixed MAC'
+fi
 pct template "$CANDIDATE"
 if pct config "$TEMPLATE_ID" >/dev/null 2>&1; then
     BACKUP=9998
@@ -253,7 +261,18 @@ else
     free_id "$TEMPLATE_ID"
 fi
 log "Publishing validated template at ID $TEMPLATE_ID"
-pct clone "$CANDIDATE" "$TEMPLATE_ID" --full 1 --hostname debian-lxc-template --storage "$STORAGE"
+pct clone "$CANDIDATE" "$TEMPLATE_ID" --full 1 --storage "$STORAGE"
+pct set "$TEMPLATE_ID" --delete hostname,searchdomain --nameserver 192.168.0.2 --tags homelab-debian-lxc
+pct set "$TEMPLATE_ID" --net0 "name=eth0,bridge=$BRIDGE,ip=dhcp"
 pct template "$TEMPLATE_ID"
-pct config "$TEMPLATE_ID" | grep -qx 'template: 1' || fail 'Published target is not a template'
+PUBLISHED_CONFIG=$(pct config "$TEMPLATE_ID")
+grep -qx 'template: 1' <<< "$PUBLISHED_CONFIG" || fail 'Published target is not a template'
+grep -qx 'nameserver: 192.168.0.2' <<< "$PUBLISHED_CONFIG" || fail 'Published template DNS is not Pi-hole'
+grep -Eq '^net0: .*ip=dhcp([,[:space:]]|$)' <<< "$PUBLISHED_CONFIG" || fail 'Published template is not using DHCP'
+if grep -Eq '^(hostname|searchdomain):' <<< "$PUBLISHED_CONFIG"; then
+    fail 'Published template has a baked hostname or search domain'
+fi
+if grep -Eq '^net[0-9]+: .*hwaddr=' <<< "$PUBLISHED_CONFIG"; then
+    fail 'Published template has a baked MAC address'
+fi
 log "SUCCESS: Debian 13 LXC template $TEMPLATE_ID; retained backup=${BACKUP:-none}"

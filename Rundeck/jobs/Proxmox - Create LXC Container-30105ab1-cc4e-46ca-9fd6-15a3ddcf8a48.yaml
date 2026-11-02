@@ -43,14 +43,6 @@
   - name: gateway
     required: false
     regex: ([0-9]{1,3}\.){3}[0-9]{1,3}
-  - name: dns
-    required: true
-    value: 192.168.0.2
-    regex: '[0-9a-fA-F:. ]+'
-  - name: search_domain
-    value: lan
-    required: false
-    regex: '[a-zA-Z0-9.-]+'
   - name: template_id
     required: true
     value: '9001'

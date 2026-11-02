@@ -154,7 +154,8 @@ log "Cloning template ${TEMPLATE_ID} to candidate ${CANDIDATE_ID}."
 qm clone "$TEMPLATE_ID" "$CANDIDATE_ID" \
     --name "$CANDIDATE_NAME" --full 1
 CANDIDATE_CREATED=1
-qm set "$CANDIDATE_ID" --nameserver 192.168.0.2 --searchdomain lan
+qm set "$CANDIDATE_ID" --net0 virtio,bridge=vmbr0 --ipconfig0 ip=dhcp \
+    --nameserver 192.168.0.2 --delete searchdomain
 
 log "Starting candidate."
 qm start "$CANDIDATE_ID"
@@ -308,40 +309,92 @@ guest_exec "$CANDIDATE_ID" /usr/bin/test '!' -e "$BASELINE_STATUS_FILE"
 
 log "Validating candidate OS, SSH hardening, and baseline services."
 guest_exec "$CANDIDATE_ID" /usr/bin/env bash -lc '
-set -eu
-. /etc/os-release
-test "$ID" = debian
-test "${VERSION_ID%%.*}" = 13
+set -u -o pipefail
+VALIDATION_FAILURES=0
 
-# Validate SSH configuration
-test -x /usr/sbin/sshd
-/usr/sbin/sshd -t
-systemctl is-enabled ssh.service >/dev/null
-systemctl is-active ssh.service >/dev/null
+check() {
+    local name="$1"
+    shift
+    if "$@" >/dev/null 2>&1; then
+        printf "PASS: %s\n" "$name"
+    else
+        printf "FAIL: %s\n" "$name"
+        VALIDATION_FAILURES=$((VALIDATION_FAILURES + 1))
+    fi
+}
 
-# Validate SSH hardening settings
-SSH_CONFIG="$(sshd -T)"
-grep -qx "permitrootlogin no" <<< "$SSH_CONFIG"
-grep -qx "pubkeyauthentication yes" <<< "$SSH_CONFIG"
-grep -qx "passwordauthentication no" <<< "$SSH_CONFIG"
-grep -qx "kbdinteractiveauthentication no" <<< "$SSH_CONFIG"
+check "OS release metadata exists" test -r /etc/os-release
+if [[ -r /etc/os-release ]]; then
+    . /etc/os-release
+else
+    ID=""
+    VERSION_ID=""
+fi
+check "OS is Debian" test "$ID" = debian
+check "OS major version is 13" test "${VERSION_ID%%.*}" = 13
 
-# Validate core baseline services
-systemctl is-active --quiet fail2ban
-systemctl is-active --quiet qemu-guest-agent
-systemctl is-enabled --quiet apt-daily.timer
-systemctl is-enabled --quiet apt-daily-upgrade.timer
+check "OpenSSH server binary exists" test -x /usr/sbin/sshd
+check "OpenSSH configuration is valid" /usr/sbin/sshd -t
+check "SSH service is enabled" systemctl is-enabled --quiet ssh.service
+check "SSH service is active" systemctl is-active --quiet ssh.service
 
-# Generic DNS defaults belong in the baseline; per-clone registration does not.
-test -x /usr/local/sbin/homelab-configure-dns
-test -s /etc/netplan/90-homelab-dns.yaml
-grep -q 'search: \[lan\]' /etc/netplan/90-homelab-dns.yaml
-if systemctl is-enabled --quiet homelab-dhcp-renew.service 2>/dev/null; then
-    echo "Obsolete competing DHCP renewal service is enabled" >&2
-    exit 1
+SSH_CONFIG="$(/usr/sbin/sshd -T 2>/dev/null || true)"
+check "SSH root login is disabled" grep -qx "permitrootlogin no" <<< "$SSH_CONFIG"
+check "SSH public-key authentication is enabled" grep -qx "pubkeyauthentication yes" <<< "$SSH_CONFIG"
+check "SSH password authentication is disabled" grep -qx "passwordauthentication no" <<< "$SSH_CONFIG"
+check "SSH keyboard-interactive authentication is disabled" grep -qx "kbdinteractiveauthentication no" <<< "$SSH_CONFIG"
+
+check "Fail2ban service is active" systemctl is-active --quiet fail2ban
+check "QEMU Guest Agent service is active" systemctl is-active --quiet qemu-guest-agent
+check "APT update timer is enabled" systemctl is-enabled --quiet apt-daily.timer
+check "APT upgrade timer is enabled" systemctl is-enabled --quiet apt-daily-upgrade.timer
+check "DNS configuration helper is installed" test -x /usr/local/sbin/homelab-configure-dns
+
+if [[ -s /etc/netplan/90-homelab-dns.yaml ]]; then
+    check "Netplan DNS server is Pi-hole" grep -Fq "addresses: [192.168.0.2]" /etc/netplan/90-homelab-dns.yaml
+    if grep -Eq "^[[:space:]]+search:" /etc/netplan/90-homelab-dns.yaml; then
+        printf "FAIL: Netplan search domain is statically configured\n"
+        VALIDATION_FAILURES=$((VALIDATION_FAILURES + 1))
+    else
+        printf "PASS: Netplan search domain comes from DHCP\n"
+    fi
+elif [[ -f /etc/dhcp/dhclient.conf ]]; then
+    check "DHCP DNS server is configured" grep -Fqx "supersede domain-name-servers 192.168.0.2;" /etc/dhcp/dhclient.conf
+    if grep -Eq "^[[:space:]]*supersede[[:space:]]+(domain-name|domain-search)" /etc/dhcp/dhclient.conf; then
+        printf "FAIL: DHCP search domain is statically overridden\n"
+        VALIDATION_FAILURES=$((VALIDATION_FAILURES + 1))
+    else
+        printf "PASS: DHCP search domain comes from DHCP\n"
+    fi
+else
+    printf "FAIL: no supported DHCP DNS configuration found\n"
+    VALIDATION_FAILURES=$((VALIDATION_FAILURES + 1))
 fi
 
-# Guest-side temporary files are checked immediately after cleanup.
+check "Template hostname file is empty" test ! -s /etc/hostname
+if grep -Eq "^127\\.0\\.1\\.1[[:space:]]" /etc/hosts; then
+    printf "FAIL: /etc/hosts contains a seeded guest hostname\n"
+    VALIDATION_FAILURES=$((VALIDATION_FAILURES + 1))
+else
+    printf "PASS: /etc/hosts has no seeded guest hostname\n"
+fi
+
+if systemctl is-enabled --quiet homelab-dhcp-renew.service 2>/dev/null; then
+    printf "FAIL: obsolete DHCP renewal service is enabled\n"
+    VALIDATION_FAILURES=$((VALIDATION_FAILURES + 1))
+else
+    printf "PASS: obsolete DHCP renewal service is disabled\n"
+fi
+
+check "Temporary baseline script was removed" test ! -e /home/ian/debian-baseline.sh
+check "Temporary baseline PID file was removed" test ! -e /home/ian/baseline.pid
+check "Temporary baseline status file was removed" test ! -e /home/ian/baseline.status
+
+if (( VALIDATION_FAILURES > 0 )); then
+    printf "VALIDATION SUMMARY: %s check(s) failed\n" "$VALIDATION_FAILURES"
+    exit 1
+fi
+printf "All candidate validation checks passed\n"
 '
 
 log "Cleaning Cloud-Init state before template creation."
@@ -366,6 +419,20 @@ if (( STOPPED == 0 )); then
     log "Requesting Proxmox to stop the candidate."
     qm stop "$CANDIDATE_ID" --timeout 60 ||
         fail "Could not stop candidate."
+fi
+
+log "Removing the build NIC so the template contains no MAC address."
+qm set "$CANDIDATE_ID" --delete net0
+CANDIDATE_CONFIG="$(qm config "$CANDIDATE_ID")"
+if grep -q '^net0:' <<< "$CANDIDATE_CONFIG"; then
+    fail "Candidate template still contains a MAC-bearing NIC."
+fi
+grep -qx 'ipconfig0: ip=dhcp' <<< "$CANDIDATE_CONFIG" ||
+    fail "Candidate template lost its Cloud-Init DHCP configuration."
+grep -qx 'nameserver: 192.168.0.2' <<< "$CANDIDATE_CONFIG" ||
+    fail "Candidate template DNS is not Pi-hole."
+if grep -q '^searchdomain:' <<< "$CANDIDATE_CONFIG"; then
+    fail "Candidate template has a baked search domain."
 fi
 
 log "Validation succeeded. Beginning template replacement."

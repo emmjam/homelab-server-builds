@@ -11,7 +11,7 @@ SSH=( -i "$KEY" -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=
 case $MODE in
     deploy) SCRIPT=''; OPTIONS=();;
     build) SCRIPT=build-template.sh; OPTIONS=(template_id storage image_storage bridge);;
-    create) SCRIPT=create-container.sh; OPTIONS=(id hostname cores memory disk storage bridge ip gateway dns search_domain template_id ssh_public_key);;
+    create) SCRIPT=create-container.sh; OPTIONS=(id hostname cores memory disk storage bridge ip gateway template_id ssh_public_key);;
     delete) SCRIPT=delete-container.sh; OPTIONS=(id confirm);;
     *) echo 'Unsupported LXC action' >&2; exit 1;;
 esac

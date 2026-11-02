@@ -220,6 +220,11 @@ export PATH
 EOF
 chmod 0644 /etc/profile.d/00-sbin-path.sh
 
+log "Clearing the build candidate hostname before template promotion."
+: > /etc/hostname
+sed -i '/^127\.0\.1\.1[[:space:]]/d' /etc/hosts
+rm -f /etc/netplan/50-cloud-init.yaml
+
 if [[ "$REBOOT_REQUIRED" -eq 1 ]]; then
     log "PASS WITH REBOOT REQUIRED: baseline configured; QEMU Guest Agent needs post-reboot validation."
 else

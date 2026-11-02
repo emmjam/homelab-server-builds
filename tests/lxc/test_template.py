@@ -28,26 +28,45 @@ elif cmd=='ansible-playbook':
 elif cmd=='pct':
  op,ct=a[:2]
  if op=='config':
-  if ct not in s['cts']: fail()
-  print(s['cts'][ct])
+    if ct not in s['cts']: fail()
+    print(s['cts'][ct])
  elif op=='create':
-  if ct in s['cts']: fail()
-  s['cts'][ct]='tags: '+a[a.index('--tags')+1]+'\n'
+    if ct in s['cts']: fail()
+    config='tags: '+a[a.index('--tags')+1]+'\n'
+    if '--hostname' in a: config+='hostname: '+a[a.index('--hostname')+1]+'\n'
+    if '--net0' in a:
+     network=a[a.index('--net0')+1]
+     if 'hwaddr=' not in network: network+=',hwaddr=02:00:00:00:00:01'
+     config+='net0: '+network+'\n'
+    if '--nameserver' in a: config+='nameserver: '+a[a.index('--nameserver')+1]+'\n'
+    s['cts'][ct]=config
  elif op=='clone':
-  target=a[2]
-  if target in s['cts']: fail()
-  if os.environ.get('FAIL')=='publish' and target=='9001': fail()
-  s['cts'][target]=s['cts'][ct].replace('template: 1\n','')
+    target=a[2]
+    if target in s['cts']: fail()
+    if os.environ.get('FAIL')=='publish' and target=='9001': fail()
+    s['cts'][target]=s['cts'][ct].replace('template: 1\n','')
  elif op=='template': s['cts'][ct]+='template: 1\n'
  elif op=='destroy': s['cts'].pop(ct,None)
  elif op=='set':
-  config=s['cts'][ct]
-  for flag,field in [('--cores','cores'),('--memory','memory'),('--hostname','hostname'),('--tags','tags')]:
-   if flag in a:
-    import re
-    config=re.sub(r'^'+field+r': .*\n','',config,flags=re.M)
-    config+=field+': '+a[a.index(flag)+1]+'\n'
-  s['cts'][ct]=config
+    config=s['cts'][ct]
+    if '--delete' in a:
+     import re
+     for field in a[a.index('--delete')+1].split(','):
+        config=re.sub(r'^'+field+r': .*\n','',config,flags=re.M)
+    if '--net0' in a:
+     import re
+     config=re.sub(r'^net0: .*\n','',config,flags=re.M)
+     config+='net0: '+a[a.index('--net0')+1]+'\n'
+    for flag,field in [('--cores','cores'),('--memory','memory'),('--hostname','hostname'),('--tags','tags')]:
+     if flag in a:
+        import re
+        config=re.sub(r'^'+field+r': .*\n','',config,flags=re.M)
+        config+=field+': '+a[a.index(flag)+1]+'\n'
+    if '--nameserver' in a:
+     import re
+     config=re.sub(r'^nameserver: .*\n','',config,flags=re.M)
+     config+='nameserver: '+a[a.index('--nameserver')+1]+'\n'
+    s['cts'][ct]=config
  elif op=='resize':
   import re
   s['cts'][ct]=re.sub(r'size=[0-9.]+G','size='+a[3],s['cts'][ct])
@@ -152,6 +171,10 @@ class TemplateTests(ProxmoxFixture):
         result, state = self.run_build({'110': 'hostname: rufus\n'})
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn('template: 1', state['cts']['9001'])
+        self.assertIn('nameserver: 192.168.0.2', state['cts']['9001'])
+        self.assertIn('ip=dhcp', state['cts']['9001'])
+        self.assertNotIn('hostname:', state['cts']['9001'])
+        self.assertNotIn('searchdomain:', state['cts']['9001'])
         self.assertEqual(set(state['cts']), {'110', '9001'})
 
     def test_baseline_failure_preserves_existing(self):

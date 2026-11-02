@@ -5,7 +5,7 @@ set -Eeuo pipefail
 if [[ ${1:-} == --configure-template-dns ]]; then
     [[ $# == 1 && $EUID == 0 ]] || exit 1
     qm config 9000 | grep -qx 'template: 1'
-    qm set 9000 --nameserver 192.168.0.2 --searchdomain lan
+    qm set 9000 --nameserver 192.168.0.2 --delete searchdomain
     exit 0
 fi
 
@@ -246,6 +246,8 @@ fi
 log "Cloning template ${TEMPLATE_ID} to new VM ${VMID} (${NAME})..."
 qm clone "$TEMPLATE_ID" "$VMID" --name "$NAME" --full 1
 VM_CREATED=1
+qm set "$VMID" --net0 virtio,bridge=vmbr0 --ipconfig0 ip=dhcp \
+    --nameserver 192.168.0.2 --delete searchdomain
 
 # Apply optional CPU cores, disk or memory overrides if specified
 if [[ -n "$CORES" || -n "$MEMORY" || -n "$DISK" ]]; then
@@ -268,7 +270,7 @@ if [[ -n "$CORES" || -n "$MEMORY" || -n "$DISK" ]]; then
 fi
 
 # Cloud-Init DNS defaults are generic; final identity is supplied by this clone.
-qm set "$VMID" --nameserver 192.168.0.2 --searchdomain lan
+qm set "$VMID" --nameserver 192.168.0.2 --delete searchdomain
 
 # Start VM
 log "Starting VM ${VMID} (${NAME})..."

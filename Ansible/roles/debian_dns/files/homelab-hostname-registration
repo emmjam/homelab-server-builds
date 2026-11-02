@@ -3,6 +3,7 @@
 set -Eeuo pipefail
 export PATH=/usr/sbin:/usr/bin:/sbin:/bin
 LOG=/var/log/homelab-hostname-registration.log
+RESOLV_CONF="${HOMELAB_RESOLV_CONF:-/etc/resolv.conf}"
 log() { printf '[%s] %s\n' "$(date --iso-8601=seconds)" "$*" | tee -a "$LOG"; }
 if command -v cloud-init >/dev/null; then timeout 180 cloud-init status --wait >/dev/null 2>&1 || true; fi
 for ((attempt=0;attempt<120;attempt++)); do
@@ -13,9 +14,12 @@ for ((attempt=0;attempt<120;attempt++)); do
 done
 [[ -n ${IP:-} ]] || { log 'ERROR: no current global IPv4'; exit 1; }
 NAME=$(hostname -s)
+SEARCH_DOMAIN=$(awk '$1 == "search" || $1 == "domain" {print $2; exit}' "$RESOLV_CONF")
+[[ -n $SEARCH_DOMAIN ]] || { log 'ERROR: no DHCP-provided search domain'; exit 1; }
+FQDN="$NAME.$SEARCH_DOMAIN"
 check() {
     local fqdn short
-    fqdn=$(dig +time=2 +tries=1 +short @192.168.0.2 "$NAME.lan" A)
+    fqdn=$(dig +time=2 +tries=1 +short @192.168.0.2 "$FQDN" A)
     short=$(dig +time=2 +tries=1 +search +short @192.168.0.2 "$NAME" A)
     [[ $fqdn == "$IP" && $short == "$IP" ]]
 }
@@ -29,9 +33,9 @@ if ! check; then
         networkctl renew "$IFACE"
         sleep 5
     else
-        log "ERROR: $NAME.lan does not match $IP; no safe live renewal for this manager; use managed reboot"
+        log "ERROR: $FQDN does not match $IP; no safe live renewal for this manager; use managed reboot"
         exit 1
     fi
 fi
-check || { log "ERROR: Pi-hole record/search mismatch: $NAME.lan expected $IP"; exit 1; }
-log "SUCCESS: DNS short name $NAME and FQDN $NAME.lan match $IP via Pi-hole"
+check || { log "ERROR: Pi-hole record/search mismatch: $FQDN expected $IP"; exit 1; }
+log "SUCCESS: DNS short name $NAME and FQDN $FQDN match $IP via Pi-hole"

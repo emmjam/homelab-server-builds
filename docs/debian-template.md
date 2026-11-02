@@ -16,7 +16,7 @@ The build process is automated by `Rundeck/scripts/rebuild-debian-template.sh`, 
 - **Rollback Backup VM ID**: `9999` (`debian-13-template-backup`)
 - **Base OS**: Debian 13 Generic AMD64 Cloud Image
 - **Storage**: `local-zfs`
-- **Network**: `vmbr0`, Cloud-Init DHCP IPv4
+- **Network**: `vmbr0`, Cloud-Init DHCP IPv4; Pi-hole (`192.168.0.2`) is the DNS server and DHCP server, with the Vodafone router (`192.168.0.1`) supplied as the DHCP gateway. DHCP supplies guest addresses and search domains.
 - **Cloud-Init User**: `ian` (SSH key authentication only)
 - **APT Cache Proxy**: `http://192.168.0.101:3142` (`apt-cacher-ng` on TNAS)
 - **Locale**: `en_GB.UTF-8`
@@ -26,6 +26,8 @@ The build process is automated by `Rundeck/scripts/rebuild-debian-template.sh`, 
 ## Baseline Hardening Configuration
 
 The reusable baseline script (`scripts/debian-baseline.sh`) configures and validates:
+
+0. **Network identity**: DHCP provides the address and search domain. The template pins DNS to Pi-hole at `192.168.0.2`, but does not store a guest hostname or per-guest MAC in the image. Proxmox assigns a fresh MAC and Cloud-Init applies the VM name on each clone.
 
 1. **APT Cache Proxy**:
    - Injects `/etc/apt/apt.conf.d/02proxy` pointing to `http://192.168.0.101:3142`.

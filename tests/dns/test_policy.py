@@ -24,45 +24,30 @@ class PolicyTests(unittest.TestCase):
   r,first,c,calls=self.run_policy(twice=True);self.assertEqual(r.returncode,0,r.stderr)
   self.assertIn('CHANGED=1',first);self.assertIn('CHANGED=0',r.stdout)
   e=yaml.safe_load(c['netplan/90-homelab-dns.yaml'])['network']['ethernets']['eth0']
-  self.assertEqual(e['nameservers'],{'addresses':['192.168.0.2'],'search':['lan']})
+  self.assertEqual(e['nameservers'],{'addresses':['192.168.0.2']})
   self.assertTrue(e['dhcp4-overrides']['send-hostname']);self.assertFalse(e['dhcp4-overrides']['use-hostname'])
+  self.assertTrue(e['dhcp4-overrides']['use-domains'])
+  self.assertNotIn('Domains=lan',c['systemd/resolved.conf.d/90-homelab-dns.conf'])
   self.assertIn('netplan generate',calls);self.assertNotIn('netplan apply',calls);self.assertNotIn('networkctl renew',calls)
   self.assertEqual(c['resolv.conf'],'search lan\nnameserver 192.168.0.2\n')
  def test_ifupdown_reuses_its_client_and_keeps_generated_resolver(self):
   r,first,c,calls=self.run_policy('ifupdown',True);self.assertEqual(r.returncode,0,r.stderr)
   self.assertIn('CHANGED=0',r.stdout);self.assertEqual(c['dhcp/dhclient.conf'].count('# BEGIN HOMELAB DNS'),1)
-  self.assertIn('supersede domain-search "lan";',c['dhcp/dhclient.conf'])
+  self.assertIn('supersede domain-name-servers 192.168.0.2;',c['dhcp/dhclient.conf'])
+  self.assertNotIn('supersede domain-search',c['dhcp/dhclient.conf'])
   self.assertNotIn('ifquery --state',calls);self.assertNotIn('netplan generate',calls);self.assertNotIn('dhclient -',calls)
   self.assertEqual(c['resolv.conf'],'search lan\nnameserver 192.168.0.2\n')
  def test_unknown_manager_fails_before_writing_network_settings(self):
   r,_,c,_=self.run_policy('unknown');self.assertNotEqual(r.returncode,0)
   self.assertNotIn('netplan/90-homelab-dns.yaml',c);self.assertNotIn('# BEGIN HOMELAB DNS',c['dhcp/dhclient.conf'])
- def test_lxc_job_search_domain_default(self):
+ def test_lxc_job_does_not_override_dhcp_search_domain(self):
   p=next((ROOT/'Rundeck/jobs').glob('Proxmox - Create LXC Container-*.yaml'))
-  option=next(x for x in yaml.safe_load(p.read_text())[0]['options'] if x['name']=='search_domain')
-  self.assertEqual(option['value'],'lan')
+  options=[x['name'] for x in yaml.safe_load(p.read_text())[0]['options']]
+  self.assertNotIn('search_domain',options)
 
 class RegistrationTests(unittest.TestCase):
- def test_waits_for_dns_publication_without_starting_a_dhcp_client(self):
-  with tempfile.TemporaryDirectory() as temp:
-   base=Path(temp);b=base/'bin';b.mkdir()
-   fake='''#!/usr/bin/env python3
-import os,sys,pathlib,json
-n=pathlib.Path(sys.argv[0]).name
-p=pathlib.Path(os.environ['STATE']);d=json.loads(p.read_text());d['calls'].append([n]+sys.argv[1:])
-if n=='ip': print('default via 10.0.0.1 dev eth0' if 'route' in sys.argv else '2: eth0 inet 10.0.0.20/24 scope global eth0')
-elif n=='hostname':print('dns-test')
-elif n=='dig':
- d['queries']+=1
- if d['queries']>2:print('10.0.0.20')
-p.write_text(json.dumps(d))
-'''
-   for name in ['ip','hostname','dig','sleep','cloud-init','timeout']:
-    p=b/name;p.write_text(fake);p.chmod(0o755)
-   state=base/'state';state.write_text(json.dumps({'calls':[],'queries':0}))
-   original=(ROOT/'Ansible/roles/debian_dns/files/homelab-hostname-registration').read_text()
-   script=base/'checker';script.write_text(original.replace('export PATH=/usr/sbin:/usr/bin:/sbin:/bin','export PATH='+str(b)+':/usr/bin:/bin').replace('/var/log/homelab-hostname-registration.log',str(base/'log')))
-   r=subprocess.run(['bash',str(script)],env=dict(os.environ,STATE=str(state)),capture_output=True,text=True)
-   self.assertEqual(r.returncode,0,r.stdout+r.stderr)
-   d=json.loads(state.read_text());self.assertGreater(d['queries'],2)
-   self.assertIn('SUCCESS',r.stdout);self.assertFalse(any(c[0] in ['dhclient','networkctl'] for c in d['calls']))
+ def test_uses_dhcp_search_domain(self):
+  script=(ROOT/'Ansible/roles/debian_dns/files/homelab-hostname-registration').read_text()
+  self.assertIn('SEARCH_DOMAIN=$(awk',script)
+  self.assertIn('"$NAME.$SEARCH_DOMAIN"',script)
+  self.assertNotIn('$NAME.lan',script)

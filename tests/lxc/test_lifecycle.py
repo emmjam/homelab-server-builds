@@ -4,7 +4,7 @@ import os
 import subprocess
 from test_template import ProxmoxFixture
 
-BASELINE = 'tags: homelab-debian-lxc\ntemplate: 1\nrootfs: local-zfs:base-9100-disk-0,size=4G\n'
+BASELINE = 'tags: homelab-debian-lxc\ntemplate: 1\nnameserver: 192.168.0.2\nrootfs: local-zfs:base-9100-disk-0,size=4G\n'
 
 class LifecycleTests(ProxmoxFixture):
     def run_action(self, script, args, cts=None, failure='', statuses=None):
@@ -16,7 +16,7 @@ class LifecycleTests(ProxmoxFixture):
     def create_args(self):
         return ['--id','220','--hostname','lxc-test','--cores','2','--memory','1',
                 '--disk','6','--storage','local-zfs','--bridge','vmbr0',
-                '--ip','dhcp','--dns','192.168.0.2','--template-id','9100']
+            '--ip','dhcp','--template-id','9100']
 
     def test_provision_resources(self):
         result, state = self.run_action('create-container.sh', self.create_args(), {'9100':BASELINE})
@@ -27,6 +27,9 @@ class LifecycleTests(ProxmoxFixture):
         self.assertEqual(state['cts']['9100'],BASELINE)
         net = next(c for c in state['calls'] if c[:2]==['pct','set'])
         self.assertRegex(net[net.index('--net0')+1],r'hwaddr=02:([0-9a-f]{2}:){4}[0-9a-f]{2},ip=dhcp')
+        self.assertIn('--nameserver', net)
+        self.assertEqual(net[net.index('--nameserver')+1], '192.168.0.2')
+        self.assertNotIn('--searchdomain', net)
 
     def test_provision_failure_cleans_own_target(self):
         result, state = self.run_action('create-container.sh', self.create_args(), {'9100':BASELINE,'110':'rufus'},'start')
@@ -43,13 +46,19 @@ class LifecycleTests(ProxmoxFixture):
         mutations={'create','clone','set','resize','start','stop','shutdown','destroy'}
         for flag,value in [('--id',''),('--id','0'),('--id','110'),('--id','00110'),('--id','220;id'),
                            ('--cores','0'),('--memory','-1'),('--memory','1.5'),('--disk','3'),
-                           ('--hostname','bad name'),('--dns','999.1.1.1'),('--ip','192.168.0.999/24'),
+                           ('--hostname','bad name'),('--ip','192.168.0.999/24'),
                            ('--storage','local;id'),('--bridge','vmbr0,tag=2'),('--template-id','x')]:
             with self.subTest(flag=flag,value=value):
                 args=self.create_args();args[args.index(flag)+1]=value
                 result,state=self.run_action('create-container.sh',args,{'9100':BASELINE})
                 self.assertNotEqual(result.returncode,0)
                 self.assertFalse(any(c[0]=='pct' and c[1] in mutations for c in state['calls']))
+
+    def test_dns_and_search_domain_overrides_are_not_accepted(self):
+        for override in [['--dns','192.168.0.99'],['--search-domain','example.test']]:
+            result,state=self.run_action('create-container.sh',self.create_args()+override,{'9100':BASELINE})
+            self.assertNotEqual(result.returncode,0)
+            self.assertFalse(any(c[0]=='pct' and c[1] in {'create','clone','set','start'} for c in state['calls']))
 
     def test_static_ip_and_gateway_validation(self):
         args=self.create_args();args[args.index('--ip')+1]='192.168.0.220/24'

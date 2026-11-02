@@ -3,22 +3,21 @@ set -Eeuo pipefail
 BASE=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck source=Rundeck/scripts/common.sh
 source "$BASE/common.sh"
-CTID='' HOSTNAME='' CORES='' MEMORY='' DISK='' STORAGE='' BRIDGE='' IP='' GATEWAY='' DNS=192.168.0.2 SEARCH_DOMAIN=lan TEMPLATE_ID='' SSH_PUBLIC_KEY=''
+CTID='' HOSTNAME='' CORES='' MEMORY='' DISK='' STORAGE='' BRIDGE='' IP='' GATEWAY='' DNS=192.168.0.2 TEMPLATE_ID='' SSH_PUBLIC_KEY=''
 CREATED=0
 TEMP=''
 usage() {
-    echo "Usage: $0 --id ID --hostname NAME --cores N --memory GB --disk GB --storage NAME --bridge NAME --ip dhcp|IPv4/CIDR --dns 'IP [IP ...]' --template-id ID [--gateway IPv4] [--search-domain DOMAIN] [--ssh-public-key 'TYPE BASE64 COMMENT']"
+    echo "Usage: $0 --id ID --hostname NAME --cores N --memory GB --disk GB --storage NAME --bridge NAME --ip dhcp|IPv4/CIDR --template-id ID [--gateway IPv4] [--ssh-public-key 'TYPE BASE64 COMMENT']"
 }
 while (($#)); do
     case $1 in
         --help|-h) usage; exit 0;;
-        --id|--hostname|--cores|--memory|--disk|--storage|--bridge|--ip|--gateway|--dns|--search-domain|--template-id|--ssh-public-key)
+        --id|--hostname|--cores|--memory|--disk|--storage|--bridge|--ip|--gateway|--template-id|--ssh-public-key)
             (($# >= 2)) || fail "Missing value for $1"
             case $1 in
                 --id) CTID=$2;; --hostname) HOSTNAME=$2;; --cores) CORES=$2;;
                 --memory) MEMORY=$2;; --disk) DISK=$2;; --storage) STORAGE=$2;;
                 --bridge) BRIDGE=$2;; --ip) IP=$2;; --gateway) GATEWAY=$2;;
-                --dns) DNS=$2;; --search-domain) SEARCH_DOMAIN=$2;;
                 --template-id) TEMPLATE_ID=$2;; --ssh-public-key) SSH_PUBLIC_KEY=$2;;
             esac
             shift 2;;
@@ -36,9 +35,6 @@ safe_name storage "$STORAGE"; safe_name bridge "$BRIDGE"
 [[ -n $IP ]] || fail 'Missing --ip'
 network "$IP" "$GATEWAY"
 dns "$DNS"
-if [[ -n $SEARCH_DOMAIN ]]; then
-    [[ $SEARCH_DOMAIN =~ ^[a-zA-Z0-9]([a-zA-Z0-9.-]{0,251}[a-zA-Z0-9])?$ ]] || fail 'Invalid DNS search domain'
-fi
 root_and_lock
 free_id "$CTID"
 storage "$STORAGE" rootdir
@@ -46,6 +42,13 @@ bridge "$BRIDGE"
 CONFIG=$(pct config "$TEMPLATE_ID") || fail 'Cannot read source template'
 grep -qx 'template: 1' <<< "$CONFIG" || fail 'Source must be an LXC template'
 grep -Eq '^tags: .*homelab-debian-lxc' <<< "$CONFIG" || fail 'Source must have the Debian LXC baseline tag'
+grep -qx 'nameserver: 192.168.0.2' <<< "$CONFIG" || fail 'Source template must use Pi-hole DNS 192.168.0.2'
+if grep -Eq '^(hostname|searchdomain):' <<< "$CONFIG"; then
+    fail 'Source template must not bake in a guest hostname or search domain'
+fi
+if grep -Eq '^net[0-9]+: .*hwaddr=' <<< "$CONFIG"; then
+    fail 'Source template must not bake in a MAC address'
+fi
 DATA=$(resources)
 jq -e --arg name "$HOSTNAME" 'all(.[]; .name != $name)' <<< "$DATA" >/dev/null || fail 'Hostname already exists in cluster'
 SOURCE_GB=$(python3 - "$CONFIG" <<'PY'
@@ -92,7 +95,6 @@ log "Cloning LXC template $TEMPLATE_ID to $CTID ($HOSTNAME)"
 pct clone "$TEMPLATE_ID" "$CTID" --full 1 --hostname "$HOSTNAME" --storage "$STORAGE"
 CREATED=1
 ARGS=(--hostname "$HOSTNAME" --cores "$CORES" --memory "$((MEMORY * 1024))" --swap 0 --net0 "$NET" --nameserver "$DNS" --onboot 1 --tags homelab-lxc)
-[[ -z $SEARCH_DOMAIN ]] || ARGS+=(--searchdomain "$SEARCH_DOMAIN")
 pct set "$CTID" "${ARGS[@]}"
 if ((DISK > SOURCE_GB)); then pct resize "$CTID" rootfs "${DISK}G"; fi
 pct start "$CTID"
