@@ -90,10 +90,11 @@ uses a separately invoked read-only operation and HTTP evidence. Inspect host
 availability before diagnosing configuration; do not change SSH/network settings
 because a host is unavailable.
 
-The production cache is currently active. Real failure acceptance therefore needs
-an agreed isolated disposable fixture, never an artificial production outage.
-The fixture must use distinct fixed operation/target identities and must not
-silently redirect a production proposal to a test system.
+AI2 acceptance used an approved isolated disposable fixture because production
+was healthy. It had distinct operation/target identities and has since been
+removed. Any future real-fault acceptance needs a genuine fault or a newly agreed
+disposable fixture; never manufacture a production outage or silently redirect
+a production proposal to a test target.
 
 ## Implementation status — 2 November 2026
 
@@ -150,8 +151,8 @@ sudo env ANSIBLE_ROLES_PATH="$PWD/Ansible/roles" ansible-playbook \
 ```
 
 Then **HomeLab - Deploy Rufus AI2** (`34053c09-7207-4ac4-a89f-24fd1c595976`)
-refreshes Git and deploys only the Rufus application and APT-cache fixture through
-Ansible. It cannot approve or execute a repair. No controller sudo grants are
+refreshes Git, deploys the Rufus application and enforces removal of the completed
+APT-cache fixture through Ansible. It cannot approve or execute a repair. No controller sudo grants are
 added. The catalogue and `policy.json` record every exact permitted operation,
 job UUID, target, empty option schema, classification, approval policy and timeout.
 After acceptance cleanup, only the existing health check and three production

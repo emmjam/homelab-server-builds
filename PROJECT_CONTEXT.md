@@ -707,37 +707,17 @@ Rundeck job (`7d9a3328-c8df-4e31-bbf6-49a6d9ce5a11`) with `action=wake` and the
 allowlisted hostname. A sent packet is not verified wake; failed hostname-based
 verification is not by itself proof of failed hardware wake. See `AGENTS.md`.
 
-## HP inference / AI1 acceptance — 2 November 2026
+## Rufus implementation and completed milestones
 
-The existing HP installation is now managed by
-`Ansible/playbooks/ai-inference.yml`, role `ollama_inference`, through Rundeck job
-**HomeLab - Deploy HP Inference** (`0b42e662-1cce-49ec-a43e-7345db516937`).
-Retained runtime: Ollama 0.40.13; model: `qwen3:4b` Q4_K_M. No runtime reinstall,
-model download or GPU-driver change was needed. Hardware verified: i5-6500T,
-four cores/threads, 7824 MiB RAM, Intel HD 530, 91 GiB root space free.
+AI1, AI2 and AI3 are complete. Use [Rufus/README.md](Rufus/README.md) as the
+implementation entry point. Authoritative specifications, operational procedures,
+limitations and completion evidence are maintained in:
 
-HP endpoint is `http://ai-agent.lan:11434` (currently `192.168.0.118`). A dedicated
-nftables table allows only the verified inventory Rufus IPv4 remotely (currently
-`192.168.0.52/32`) and local HP checks; other traffic to this port is dropped.
-The enabled firewall service is required before Ollama starts. Rufus remains
-unprivileged, its own API remains loopback-only and it receives no infrastructure
-SSH keys. Client/settings: `/opt/rufus/app/inference.py` and
-`/opt/rufus/config/inference.json`.
+- [AI1 — HP inference](docs/ai-inference.md).
+- [AI2 — supervised repair and approval API](docs/ai2-api.md).
+- [AI3 — general conversation](docs/ai3.md).
 
-Acceptance execution [171](http://192.168.0.51:4440/project/HomeLab/execution/show/171)
-passed real structured inference as Rufus, local inference, enabled/active
-services, controller denial and safe unavailable-backend errors. Second deployment
-reported zero changes on all hosts. Shared repository validation: 67 tests and
-shell syntax passed. No AI1 reboot was performed. LAN inference is source-IP
-restricted HTTP, without TLS/application authentication, as approved. See
-`docs/ai-inference.md` for exact model digest, procedures and acceptance evidence.
-AI1 is complete; AI2 passed approved repair 188 and independent verification 189; disposable fixture removed by cleanup 191 (see `docs/ai2-api.md`). HP/Dell long-sleep recovery is fixed, as confirmed by the user on 2 November 2026. The earlier approved short suspend/WOL cycle passed 167/168.
-
-## AI3 general conversation acceptance — 2 November 2026
-
-AI3 is complete: execution 196 deployed source `b217029` and proved local HP
-Qwen3 4B multi-turn conversation, saved assistant replies, context/history across
-a managed Rufus restart and zero Rundeck executions during ordinary chat. Existing
-AI2 approval and repair paths remain protected and passed regression tests;
-no live repair was repeated. The API remains authenticated and loopback-only.
-See `docs/ai3.md` for files, context limits, errors and exact acceptance evidence.
+The HP/Dell long-sleep issue is resolved; see [the WOL record](docs/wol-investigation.md).
+Remaining work is maintained in [BACKLOG.md](BACKLOG.md). Continue development
+from repository code, Ansible, tests and these documents, without external prompt
+storage or historical conversations.

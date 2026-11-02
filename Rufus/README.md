@@ -1,12 +1,25 @@
-# Minimal Rufus application
+# Rufus application
 
-Rufus combines its existing deterministic approved-job API with a conversational,
-supervised APT-cache workflow. The HP model interprets requests and explains
-structured evidence; application validation, exact one-use approval and independent
-Rundeck ACLs control execution. Rufus receives no shell endpoint, SSH keys, sudo
-permissions or Proxmox credentials. [AI2 API contract](../docs/ai2-api.md) describes
-the conversation/action routes and durable state machine. `catalogue.json` and
-`policy.json` contain only the approved production and isolated-fixture operations.
+Rufus provides ordinary local-AI conversation and a supervised APT-cache repair
+workflow. Model output cannot authorise infrastructure changes; deterministic
+validation, exact one-use approval and independent Rundeck ACLs control execution.
+Rufus receives no shell endpoint, SSH keys, sudo permissions or Proxmox credentials.
+
+## Development reference
+
+These documents contain the reusable requirements, implementation details and
+completion evidence; no external prompt archive is required:
+
+| Milestone | Authoritative technical documentation and completion record |
+|---|---|
+| AI1 — HP local inference | [Inference deployment, configuration and acceptance](../docs/ai-inference.md) |
+| AI2 — supervised repair | [API contract, approval rules and repair acceptance](../docs/ai2-api.md) |
+| AI3 — general conversation | [Dialogue processing, persistence, limits and acceptance](../docs/ai3.md) |
+
+Code, operation catalogues, policies, Ansible and tests define current behaviour.
+Read `../AGENTS.md` and `../PROJECT_CONTEXT.md` before infrastructure work; use
+[BACKLOG.md](../BACKLOG.md) for remaining work. Historical acceptance results are
+labelled by milestone and must not be mistaken for current configuration.
 
 ## Deployment and service
 
@@ -59,8 +72,8 @@ reported as integration failures. No automatic token renewal is implemented.
 
 The managed `Ansible/playbooks/rundeck.yml` installs
 `Rundeck/policies/rufus.aclpolicy` as a system ACL and sets
-`rundeck.api.tokens.duration.max=1y`. It grants project visibility, read/run of health check
-UUID `6e0b2f6c-aaa0-4031-ba96-73c86164cb43`, and node read/run needed by that job.
+`rundeck.api.tokens.duration.max=1y`. The exact current job grants and node permissions are defined in
+`Rundeck/policies/rufus.aclpolicy`; the API allow-list is `Rufus/policy.json`.
 It grants no ad-hoc commands, other jobs, job editing or key storage. The initial
 token is issued with **only** `rufus-api`, never the admin role.
 
@@ -76,9 +89,8 @@ All responses are JSON. Supply `Authorization: Bearer <RUFUS_API_TOKEN>`.
 | GET | `/executions/ID` | Retrieve state and last 100 output lines for a Rufus-recorded execution |
 | GET | `/executions/ID?wait=30` | Poll up to 30 seconds, then return terminal or current state |
 
-The original `health-check` accepts **no options**. AI2 adds the six fixed
-production/fixture diagnostic, restart and independent verification operations
-listed in `policy.json`; all accept no options. Restart operations are blocked
+The original `health-check` and production APT-cache operations in `policy.json`
+accept **no options**. Disposable fixture operations were retired after acceptance. Restart operations are blocked
 on direct `/executions` calls and require the conversational approval endpoint. Policy entries
 can define named string options with `required` and full-match `pattern` fields;
 unknown options, invalid types and strings over 256 characters are rejected.

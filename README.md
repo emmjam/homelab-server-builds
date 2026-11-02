@@ -8,10 +8,15 @@ GitHub is the source of truth for homelab automation definitions and supporting 
 - `Rundeck/pipelines/` — versioned YAML definitions for complete workflows.
 - `Rundeck/scripts/` — Rundeck helpers and Proxmox scripts deployed to TNAS; LXC execution scripts live in `Rundeck/scripts/`.
 - `scripts/` — flat collection of shared Debian, PXE, LXC, system, and service scripts.
-- `Ansible/` — reserved for future inventory, roles, and playbooks; none are currently defined.
+- `Ansible/` — managed inventories, roles and deployment/acceptance playbooks.
 - `docs/` — operational documentation.
 
 See [Rundeck/README.md](Rundeck/README.md) for job synchronization and Rufus integration. See [docs/debian-template.md](docs/debian-template.md) for template build and VM provisioning details.
+
+## Rufus
+
+See [Rufus/README.md](Rufus/README.md) for the application development entry point,
+AI1–AI3 technical specifications and completion records.
 
 ## Debian 13 baseline
 

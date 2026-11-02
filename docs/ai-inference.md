@@ -3,8 +3,9 @@
 Status, 2 November 2026: **AI1 complete**. Existing Ollama 0.40.13 and
 qwen3:4b retained under Ansible management; Rufus-only LAN firewall deployed.
 Real structured inference as the unprivileged Rufus account passed, controller
-access was denied and the second deployment reported zero changes. AI2 has not
-been started.
+access was denied and the second deployment reported zero changes. Subsequent
+completed milestones: [AI2 supervised repair](ai2-api.md) and
+[AI3 general conversation](ai3.md).
 
 ## Verified inspection results
 

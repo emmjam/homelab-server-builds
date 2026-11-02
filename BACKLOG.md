@@ -57,24 +57,18 @@ Rundeck refreshes Git and transfers the required scripts to TNAS when needed.
 | ID | Status | Work and completion criteria | Evidence / dependency |
 |---|---|---|---|
 | RUFUS-01 | DONE | Deterministic Rufus API discovers approved jobs, validates parameters, submits and tracks executions, polls status and retrieves structured output. | Real health check [157](http://192.168.0.51:4440/project/HomeLab/execution/show/157) succeeded; execution tracking survived service restart. Failure reporting covered by mocks. Full post-acceptance suite: 55 tests passed. [Acceptance record](Rufus/README.md#real-acceptance-record--1-november-2026). |
-| RUFUS-02 | DONE | Rufus uses only restricted Rundeck identity and approved-job policy; no infrastructure shell or arbitrary run-script endpoint. | Identity `rufus`, role `rufus-api`, health-check-only ACL. Rufus rejected an unapproved operation with 403; Rundeck independently rejected an unapproved job run with 403. Existing Rundeck administrative privileges unchanged. |
+| RUFUS-02 | DONE | Rufus uses only restricted Rundeck identity and approved-job policy; no infrastructure shell or arbitrary run-script endpoint. | Identity `rufus`, role `rufus-api`, restricted approved-operation ACL (see `Rundeck/policies/rufus.aclpolicy`). Rufus rejected an unapproved operation with 403; Rundeck independently rejected an unapproved job run with 403. Existing Rundeck administrative privileges unchanged. |
 | RUFUS-03 | DONE | Rufus provisioning and application deployment validated with management separate from HP/Dell inference. | Current CT 111 (`rufus`, `192.168.0.52`), creation [150](http://192.168.0.51:4440/project/HomeLab/execution/show/150); Ansible provisioning `ok=23 failed=0`, application credential deployment `ok=8 failed=0`. Local Ollama disabled. One-year token policy managed by Ansible; token expiry 1 November 2027, superseded token revoked. |
 | RUFUS-04 | DONE | Client-independent authenticated Rufus API established for health, job discovery, execution submission and monitoring. | [API contract](Rufus/README.md#api) and real acceptance test 157. Loopback only; controlled client transport and VS Code integration remain VSCODE work. |
 
-AI2 was explicitly requested on 2 November 2026 after AI1 acceptance. Its
-conversational/supervised-repair work is **DONE**: current HP inference
-reverified, [API contract](docs/ai2-api.md) drafted, and target-independent
-conversation/approval persistence implemented in source. The APT-cache target, listed read-only diagnostics and isolated disposable
-fixture are now approved. Workflow, six fixed operations and restricted ACL
-additions are deployed through execution 183 (source `3277356`). All six automated validation groups and live permission boundaries passed. Fixture diagnostics and rejected-proposal acceptance passed; exact user approval, repair 188 and independent recovery verification 189 passed. AI2 is complete. User-requested cleanup 191 removed the fixture and live test operations; all six validation groups and production health passed.
+Completed Rufus milestones (requirements and evidence are maintained in the
+linked documents):
 
-AI3 general conversational processing is **DONE**, 2 November 2026:
-[deployment/acceptance 196](http://192.168.0.51:4440/project/HomeLab/execution/show/196)
-passed real HP Qwen3 4B multi-turn conversation, durable user/assistant history,
-post-restart context and zero Rundeck executions during ordinary chat. All six
-validation groups passed, including existing AI2 regressions. See
-[implementation and evidence](docs/ai3.md). Remote clients and worker allocation
-were not implemented.
+| Milestone | Status | Technical specification and completion record |
+|---|---|---|
+| AI1 — HP local inference | DONE | [Inference deployment and acceptance](docs/ai-inference.md) |
+| AI2 — supervised repair | DONE | [API/approval contract and acceptance](docs/ai2-api.md) |
+| AI3 — general conversation | DONE | [Dialogue processing and acceptance](docs/ai3.md) |
 
 ## P2 — Rufus VS Code integration: IMMEDIATE PRIORITY AFTER BASIC RUFUS WORKS
 
