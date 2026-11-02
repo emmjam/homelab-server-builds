@@ -339,3 +339,19 @@ revocation/reset remains available without adding a session-management UI.
 Message request IDs use UUIDv4 generated with `crypto.getRandomValues`, which
 works on trusted-LAN HTTP. The secure-context-only `crypto.randomUUID` is not
 required. This preserves the existing API request format and idempotency.
+
+Verification: backend fix `d058632` passed the complete automated acceptance
+script (controller log `/tmp/rufus-web-final-dk5xfr24.log`): 121 tests plus shell
+syntax, AI2 mocks, live local multi-turn chat, history/context across Rufus restart,
+independent HTTP sessions, CSRF rejection, absent/null Origin with valid CSRF,
+reopened history and logout isolation. Ordinary chat generated zero Rundeck
+executions. Temporary acceptance identity was removed; repeat deployment changed
+zero resources. LAN binding/firewall and loopback-only bearer API passed.
+
+HTTP JavaScript fix `d2e7215` passed syntax and UUID format/uniqueness checks with
+`randomUUID` unavailable. Ansible deployment succeeded and the served asset was
+byte-for-byte equal to committed source, with the corrected referrer policy
+(controller log `/tmp/rufus-web-http-fix-S2Zfco.log`). No actual laptop/phone
+browser test is claimed. Reload `http://rufus.lan:8788/` on both devices, sign in,
+start/follow up/reopen a conversation and check logout independently. Use the
+existing approval checklist without creating a live fault for testing.
