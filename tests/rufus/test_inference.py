@@ -1,0 +1,66 @@
+"""Validate inference boundaries and safe failures without loading a model."""
+import json
+from pathlib import Path
+import sys
+import unittest
+from unittest.mock import Mock, patch
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'Rufus'))
+from inference import Client, InferenceError
+
+
+class InferenceTests(unittest.TestCase):
+    def setUp(self):
+        self.client = Client({'url': 'http://ai-agent.lan:11434', 'model': 'qwen3:4b'})
+        self.connection = Mock()
+        self.response = self.connection.getresponse.return_value
+        self.response.status = 200
+        self.response.read.return_value = json.dumps(
+            {'done': True, 'message': {'content': '{"status":"ready"}'}}).encode()
+        self.factory = patch('inference.http.client.HTTPConnection', return_value=self.connection)
+        self.factory.start()
+        self.addCleanup(self.factory.stop)
+
+    def test_structured_response_and_bounded_request(self):
+        self.assertEqual(json.loads(self.client.chat([], {'type': 'object'})), {'status': 'ready'})
+        body = json.loads(self.connection.request.call_args.kwargs['body'])
+        self.assertEqual(body['model'], 'qwen3:4b')
+        self.assertFalse(body['stream'])
+        self.assertEqual(body['options']['num_ctx'], 4096)
+        self.connection.sock.settimeout.assert_called_once_with(120)
+        self.connection.close.assert_called_once()
+
+    def test_unavailable_and_timeout_are_safe(self):
+        for error, message in [(OSError('sensitive upstream text'), 'unavailable'),
+                               (TimeoutError('sensitive upstream text'), 'timed out')]:
+            with self.subTest(error=type(error).__name__):
+                self.connection.connect.side_effect = error
+                with self.assertRaisesRegex(InferenceError, message) as caught:
+                    self.client.chat([])
+                self.assertNotIn('sensitive', str(caught.exception))
+
+    def test_http_error_does_not_disclose_body(self):
+        self.response.status = 500
+        with self.assertRaisesRegex(InferenceError, 'returned an error'):
+            self.client.chat([])
+        self.response.read.assert_not_called()
+
+    def test_invalid_or_incomplete_responses(self):
+        for body in (b'not JSON', b'{}', b'{"done":false,"message":{"content":"partial"}}',
+                     b'{"done":true,"message":{"content":42}}'):
+            with self.subTest(body=body):
+                self.response.read.return_value = body
+                with self.assertRaisesRegex(InferenceError, 'invalid response'):
+                    self.client.chat([])
+
+    def test_response_size_limit(self):
+        self.response.read.return_value = b'x' * (1024 * 1024 + 1)
+        with self.assertRaisesRegex(InferenceError, 'size limit'):
+            self.client.chat([])
+
+    def test_invalid_urls_and_timeouts(self):
+        for url in ('file:///tmp/model', 'http://user:password@host', 'http://host?token=secret'):
+            with self.assertRaises(ValueError):
+                Client({'url': url, 'model': 'qwen3:4b'})
+        with self.assertRaises(ValueError):
+            Client({'url': 'http://host', 'model': 'qwen3:4b', 'inference_timeout': 0})
