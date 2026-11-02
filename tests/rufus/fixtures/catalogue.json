@@ -1,0 +1,10 @@
+{
+  "fixture": {
+    "diagnostic": "fixture-diagnose",
+    "repair": "fixture-restart",
+    "verification": "fixture-verify",
+    "change": "Restart only the disposable apt-cache-ai2-fixture service on apt-cache.lan",
+    "expected_effect": "Restore a running APT-cache service and a successful independent HTTP probe.",
+    "risks": "Only the isolated test cache is restarted. No production service changes. A restart may fail; no automatic rollback."
+  }
+}

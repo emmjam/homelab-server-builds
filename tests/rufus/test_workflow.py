@@ -23,6 +23,8 @@ class WorkflowTests(unittest.TestCase):
         self.config={'jobs':json.loads((ROOT/'Rufus/policy.json').read_text()),'api_token':'private-api-token',
             'token':'private-rundeck-token','rundeck_url':'http://rundeck:4440','database':self.temp.name+'/db'}
         self.catalogue=json.loads((ROOT/'Rufus/catalogue.json').read_text())
+        self.config['jobs'].update(json.loads((ROOT/'tests/rufus/fixtures/policy.json').read_text()))
+        self.catalogue.update(json.loads((ROOT/'tests/rufus/fixtures/catalogue.json').read_text()))
         self.app=Application(self.config,self.client)
         self.flow=Workflow(self.app,self.catalogue,self.model,recover=False)
         self.app.workflow=self.flow

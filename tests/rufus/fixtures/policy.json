@@ -1,0 +1,35 @@
+{
+  "fixture-diagnose": {
+    "id": "c133f247-6db6-4f57-8edc-a934c5461ff4",
+    "name": "Rufus - fixture diagnose",
+    "options": {},
+    "target": "fixture",
+    "classification": "diagnostic",
+    "requires_approval": false,
+    "auto_run": true,
+    "timeout_seconds": 90,
+    "retries": 0
+  },
+  "fixture-restart": {
+    "id": "9c24690e-b736-430a-95b6-d507e77204e4",
+    "name": "Rufus - fixture restart",
+    "options": {},
+    "target": "fixture",
+    "classification": "mutation",
+    "requires_approval": true,
+    "auto_run": false,
+    "timeout_seconds": 90,
+    "retries": 0
+  },
+  "fixture-verify": {
+    "id": "b821d25a-12af-4589-a5db-c159f4961430",
+    "name": "Rufus - fixture verify",
+    "options": {},
+    "target": "fixture",
+    "classification": "diagnostic",
+    "requires_approval": false,
+    "auto_run": true,
+    "timeout_seconds": 90,
+    "retries": 0
+  }
+}

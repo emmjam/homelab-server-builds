@@ -1,75 +1,36 @@
 ---
-- name: Prepare approved isolated APT-cache acceptance fixture
+- name: Remove completed disposable APT-cache acceptance fixture
   hosts: apt_cache
   become: true
   gather_facts: false
   tags: [ai2_configuration]
   tasks:
-    - name: Require existing APT-cache daemon
-      ansible.builtin.command: test -x /usr/sbin/apt-cacher-ng
-      changed_when: false
-
-    - name: Create isolated fixture configuration directory
-      ansible.builtin.file:
-        path: /etc/homelab-ai2-fixture
-        state: directory
-        owner: root
-        group: root
-        mode: '0755'
-
-    - name: Create isolated fixture data directories
-      ansible.builtin.file:
-        path: '{{ item }}'
-        state: directory
-        owner: apt-cacher-ng
-        group: apt-cacher-ng
-        mode: '0750'
-      loop: [/var/cache/apt-cacher-ng-ai2-fixture, /var/log/apt-cacher-ng-ai2-fixture]
-
-    - name: Configure fixture without touching production cache
-      ansible.builtin.copy:
-        dest: /etc/homelab-ai2-fixture/acng.conf
-        owner: root
-        group: root
-        mode: '0644'
-        content: |
-          CacheDir: /var/cache/apt-cacher-ng-ai2-fixture
-          LogDir: /var/log/apt-cacher-ng-ai2-fixture
-          Port: 13142
-          BindAddress: 127.0.0.1
-          PidFile: /run/apt-cache-ai2-fixture/pid
-          ReportPage: acng-report.html
-
-    - name: Install disposable fixture service
-      ansible.builtin.copy:
-        dest: /etc/systemd/system/apt-cache-ai2-fixture.service
-        owner: root
-        group: root
-        mode: '0644'
-        content: |
-          [Unit]
-          Description=Disposable AI2 APT-cache acceptance fixture
-          After=network.target
-          [Service]
-          User=apt-cacher-ng
-          Group=apt-cacher-ng
-          RuntimeDirectory=apt-cache-ai2-fixture
-          ExecStart=/usr/sbin/apt-cacher-ng -c /etc/homelab-ai2-fixture ForeGround=1
-          [Install]
-          WantedBy=multi-user.target
+    - name: Locate disposable fixture unit
+      ansible.builtin.stat:
+        path: /etc/systemd/system/apt-cache-ai2-fixture.service
       register: ai2_fixture_unit
 
-    - name: Keep disposable fixture disabled at boot
-      ansible.builtin.systemd_service:
-        name: apt-cache-ai2-fixture
-        daemon_reload: true
-        enabled: false
-
-    - name: Initialise newly created fixture as stopped for approved failure test
+    - name: Stop and disable disposable fixture before removal
       ansible.builtin.systemd_service:
         name: apt-cache-ai2-fixture
         state: stopped
-      when: ai2_fixture_unit.changed
+        enabled: false
+      when: ai2_fixture_unit.stat.exists
+
+    - name: Remove only disposable fixture files
+      ansible.builtin.file:
+        path: '{{ item }}'
+        state: absent
+      loop:
+        - /etc/systemd/system/apt-cache-ai2-fixture.service
+        - /etc/homelab-ai2-fixture
+        - /var/cache/apt-cacher-ng-ai2-fixture
+        - /var/log/apt-cacher-ng-ai2-fixture
+        - /run/apt-cache-ai2-fixture
+
+    - name: Reload systemd after fixture removal
+      ansible.builtin.systemd_service:
+        daemon_reload: true
 
 - name: Deploy application through existing Rufus application tasks
   ansible.builtin.import_playbook: rufus.yml

@@ -118,7 +118,8 @@ class Workflow:
             # An explicit fixture request must never select production, even if
             # the inference backend ignores its response schema.
             fixture_requested='fixture' in message['content'].casefold().split()
-            targets=['fixture','unknown'] if fixture_requested else list(self.catalogue)+['unknown']
+            targets=([name for name in self.catalogue if name=='fixture']+['unknown']
+                     if fixture_requested else list(self.catalogue)+['unknown'])
             repair_requested=any(word in message['content'].casefold().split() for word in ('repair','restart'))
             intents=['repair','clarify','unsupported'] if repair_requested else ['diagnose','repair','clarify','unsupported']
             plan=self.infer('Classify the user request for the ONLY supported repair: diagnose or restart the APT cache. '
