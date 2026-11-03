@@ -1,0 +1,21 @@
+{
+  "name": "rufus-chat",
+  "displayName": "Rufus Chat",
+  "description": "Thin client for existing Rufus conversations and approved homelab operations.",
+  "version": "0.1.0",
+  "publisher": "emmjam",
+  "engines": {"vscode": "^1.96.0"},
+  "categories": ["Other"],
+  "repository": {"type": "git", "url": "https://github.com/emmjam/homelab-server-builds"},
+  "main": "./extension.js",
+  "extensionKind": ["ui"],
+  "capabilities": {"untrustedWorkspaces": {"supported": "limited", "description": "Chat is available; workspace context is disabled until trusted."}},
+  "activationEvents": ["onWebviewPanel:rufus.chat"],
+  "contributes": {
+    "commands": [{"command": "rufus.open", "title": "Rufus: Open Chat"}],
+    "configuration": {
+      "title": "Rufus",
+      "properties": {"rufus.serverUrl": {"type": "string", "default": "http://rufus.lan:8788", "scope": "application", "description": "Existing Rufus Web origin. Uses its normal account login; never enter a token or password here."}}
+    }
+  }
+}

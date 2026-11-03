@@ -84,9 +84,9 @@ product deliverable after basic Rufus, before OpenBao.
 
 | ID | Status | Work and completion criteria | Evidence / dependency |
 |---|---|---|---|
-| VSCODE-01 | TODO | Build a thin VS Code chat extension/panel, similar in concept to the Codex chat tab, communicating through the Rufus API. | User requirement. No extension implementation is present in the inspected repository. |
-| VSCODE-02 | TODO | Support persistent chat, streamed progress/results, useful current repository/file context, approved Rundeck operations, and deployment/status/log viewing. | User requirement; depends on VSCODE-01 and the shared Rufus API. |
-| VSCODE-03 | TODO | Provide explicit approval/rejection for sensitive operations and carry the decision through the Rufus/Rundeck workflow. Keep execution and authorisation in the backend rather than making the panel an unrestricted infrastructure client. | User requirement; depends on RUFUS-02 and VSCODE-01. |
+| VSCODE-01 | DONE | Build a thin VS Code chat extension/panel, similar in concept to the Codex chat tab, communicating through the Rufus API. | [Rufus Chat 0.1.0 extension/package and acceptance](docs/rufus-vscode.md). Implemented and packaged 3 November 2026; isolated real VS Code CLI installation passed. Interactive checks remain pending. |
+| VSCODE-02 | DONE | Support persistent chat, streamed progress/results, useful current repository/file context, approved Rundeck operations, and deployment/status/log viewing. | [Acceptance and limits](docs/rufus-vscode.md): persisted chat, backend-supported progress polling, explicit bounded context and approved-operation/status/log views. Six client tests and 91 Rufus regressions passed; live authenticated gateway acceptance passed. |
+| VSCODE-03 | DONE | Provide explicit approval/rejection for sensitive operations and carry the decision through the Rufus/Rundeck workflow. Keep execution and authorisation in the backend rather than making the panel an unrestricted infrastructure client. | [Approval contract and evidence](docs/rufus-vscode.md): exact native confirmation and backend decision forwarding; changed/replayed approvals, rejection and direct mutation denial verified with isolated real API/Web/SQLite and mocked infrastructure. No live repair was manufactured. |
 
 ### VS Code integration — agreed responsibility boundary
 

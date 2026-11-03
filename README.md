@@ -16,7 +16,9 @@ See [Rundeck/README.md](Rundeck/README.md) for job synchronization and Rufus int
 ## Rufus
 
 See [Rufus/README.md](Rufus/README.md) for the application development entry point,
-AI1–AI3 technical specifications and completion records.
+AI1–AI3 technical specifications and completion records. The thin desktop
+[VS Code chat client](docs/rufus-vscode.md) reuses the existing Web login and
+backend conversations/approvals; [installation and use](RufusVSCode/README.md).
 
 ## Architecture documentation
 

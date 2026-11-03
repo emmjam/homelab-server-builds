@@ -43,7 +43,10 @@ class Client:
 
 def allowed(method,path):
     ident=r'[0-9a-f-]{36}'
-    return ((path=='/conversations' and method in ('GET','POST')) or
+    return ((path=='/jobs' and method=='GET') or
+            (path=='/executions' and method=='POST') or
+            (method=='GET' and re.fullmatch(r'/executions/[1-9][0-9]*',path)) or
+            (path=='/conversations' and method in ('GET','POST')) or
             (method=='GET' and re.fullmatch(r'/conversations/'+ident,path)) or
             (method=='POST' and re.fullmatch(r'/conversations/'+ident+r'/messages',path)) or
             (method=='GET' and re.fullmatch(r'/actions/'+ident,path)) or

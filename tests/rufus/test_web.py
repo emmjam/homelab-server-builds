@@ -152,12 +152,30 @@ class WebTests(unittest.TestCase):
             self.assertEqual(self.a.call('/api/actions/'+ident+'/decision',body)[0],200)
             self.upstream.request.assert_called_with('POST','/actions/'+ident+'/decision',body)
         self.upstream.reset_mock()
-        for path in ('/api/executions','/api/jobs','/api/http://evil'):
+        for path in ('/api/commands','/api/jobs','/api/http://evil'):
             self.assertEqual(self.a.call(path,{})[0],404)
         self.upstream.request.assert_not_called()
         self.upstream.request.return_value=(200,{'text':self.upstream.token})
         status,text,headers=self.a.call('/api/conversations');self.assertEqual(status,200);self.assertNotIn(self.upstream.token,text)
         self.assertIn("frame-ancestors 'none'",headers['Content-Security-Policy'])
+    def test_vscode_job_execution_routes_keep_session_csrf_and_backend_policy(self):
+        self.assertEqual(self.a.call('/api/jobs')[0],401)
+        self.assertEqual(self.a.call('/api/executions/12')[0],401)
+        self.a.login()
+        self.assertEqual(self.a.call('/api/jobs')[0],200)
+        self.upstream.request.assert_called_with('GET','/jobs',None)
+        self.assertEqual(self.a.call('/api/executions/12')[0],200)
+        self.upstream.request.assert_called_with('GET','/executions/12',None)
+        self.upstream.reset_mock()
+        self.assertEqual(self.a.call('/api/executions',{},csrf=False)[0],403)
+        self.upstream.request.assert_not_called()
+        self.upstream.request.return_value=(403,{'error':'Exact conversational approval required'})
+        body={'operation':'apt-cache-restart','options':{}}
+        self.assertEqual(self.a.call('/api/executions',body)[0],403)
+        self.upstream.request.assert_called_with('POST','/executions',body)
+        for path in ('/api/executions/0','/api/executions/12/command','/api/jobs/run'):
+            self.assertEqual(self.a.call(path)[0],404)
+
     def test_secure_cookie_https_setting(self):
         self.config['cookie_secure']=True
         self.config['allowed_origins']=['https://'+self.url.removeprefix('http://')]

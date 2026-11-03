@@ -62,9 +62,10 @@ Ansible also sets the default editor to Vim on a full provisioning run.
 
 `/opt/rufus/config/config.json` configures Rundeck URL, 10-second HTTP timeout,
 loopback port 8787, policy file, credential file and SQLite path. The API binds only
-to `127.0.0.1`; run initial requests inside the container. The planned VS Code
-Rufus client will later need controlled LAN access with authentication and an
-approved transport/access policy. No LAN listener is enabled at this stage.
+to `127.0.0.1`; run initial requests inside the container. The VS Code
+client uses the existing authenticated Rufus Web gateway on LAN TCP 8788; it
+receives no API bearer token. See [VS Code integration](../docs/rufus-vscode.md).
+No LAN listener is enabled for the bearer API.
 Every endpoint requires a bearer API token.
 
 The ignored laptop `CRAP/secrets.txt` and controller `/tmp/secrets.txt` hold:

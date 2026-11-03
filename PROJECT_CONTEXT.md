@@ -783,3 +783,12 @@ Ubuntu 20.04 per user confirmation on 2 November 2026. Do not rebuild or modify
 them for Task 2. Discovery does not wake/suspend nodes or allocate work. See
 [the discovery design and evidence](docs/node-discovery.md) and combined Ansible
 inventory for sourced hardware, current availability and freshness semantics.
+
+## Rufus VS Code client (3 November 2026)
+
+The thin desktop extension in `RufusVSCode/` reuses the existing authenticated
+Rufus Web gateway rather than exposing the bearer API. Backend conversations,
+progress polling, approved operations/logs and exact approval/rejection are
+presented in a webview; explicit bounded context is previewed before sending.
+Infrastructure execution/authorisation remains in Rufus/Rundeck. See
+[installation, validation and manual-check status](docs/rufus-vscode.md).
