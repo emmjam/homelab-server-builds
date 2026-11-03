@@ -6,11 +6,40 @@ Use British English. Never commit secrets.
 
 ## Repository knowledge
 
-The repository must support continued Rufus development without Codex prompt
-storage. Keep completion evidence and reusable requirements in the relevant
+The repository must support continued Rufus development from maintained technical
+documentation and the active task continuation file. Keep completion evidence and reusable requirements in the relevant
 technical documentation; code and Ansible define implementation/configuration.
-Do not retain redundant prompt transcripts or duplicate maintained information.
-Use links to authoritative documents instead of copying their contents.
+Do not retain redundant completed prompt transcripts or duplicate maintained
+information. Active continuation files are an explicit exception: they must
+contain complete actionable instructions, not merely links to a conversation.
+Use links for supplementary authoritative detail.
+
+## Task persistence and continuation
+
+For every task that may be interrupted by usage limits, credit exhaustion,
+session termination or any other interruption:
+
+1. Before substantive work, save the complete actionable task instructions in a
+   clearly named repository continuation file, normally `TASK-CONTINUATION.md`.
+   Preserve an existing unfinished file; use another clear task-specific filename
+   if necessary rather than overwriting a different unfinished task.
+2. Include the original objectives and requirements; agreed constraints and
+   architectural decisions; ordered implementation steps; current progress and
+   completed steps; outstanding work; tests performed and results; relevant file
+   references and deployment details; and the exact next action needed to resume.
+   The file must stand alone without access to the conversation.
+3. Update it throughout the task, particularly after significant stages, recording
+   verified checkpoints and distinguishing local, committed, pushed, deployed and
+   live-accepted state. Never put secrets or credentials in it.
+4. On interruption, leave it intact and accurately identify the next action.
+5. On resumption, read the continuation file first and continue from the last
+   verified checkpoint. Do not unnecessarily repeat completed work; perform only
+   the current-state checks needed to establish whether the checkpoint still holds.
+6. **Never delete an unfinished continuation file.** Delete it only after the
+   entire task has been completed, tested and verified, transferring lasting
+   evidence to the relevant maintained documentation first.
+7. Implementation alone is not completion when required deployment or acceptance
+   testing remains outstanding. Retain the file until that work is verified.
 
 ## Testing and validation directive
 
