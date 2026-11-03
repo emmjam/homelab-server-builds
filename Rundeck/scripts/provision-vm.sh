@@ -311,7 +311,7 @@ log "Installing Pi-hole hostname registration cron job in VM ${VMID}..."
 BASE_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 CHECKER_PAYLOAD=$(base64 -w0 "$BASE_DIR/homelab-hostname-registration")
 DNS_PAYLOAD=$(base64 -w0 "$BASE_DIR/configure-debian-dns.sh")
-guest_install="set -e; cloud-init status --wait || [[ $? -eq 2 ]]; export DEBIAN_FRONTEND=noninteractive; apt-get update; apt-get install -y cron bind9-dnsutils; printf '%s' '${CHECKER_PAYLOAD}' | base64 -d > /usr/local/sbin/homelab-hostname-registration; chmod 0755 /usr/local/sbin/homelab-hostname-registration; printf '%s\\n' '@reboot root /usr/local/sbin/homelab-hostname-registration' > /etc/cron.d/homelab-hostname-registration; chmod 0644 /etc/cron.d/homelab-hostname-registration; systemctl enable --now cron"
+guest_install="set -e; cloud-init status --wait || true; export DEBIAN_FRONTEND=noninteractive; apt-get update; apt-get install -y cron bind9-dnsutils; printf '%s' '${CHECKER_PAYLOAD}' | base64 -d > /usr/local/sbin/homelab-hostname-registration; chmod 0755 /usr/local/sbin/homelab-hostname-registration; printf '%s\\n' '@reboot root /usr/local/sbin/homelab-hostname-registration' > /etc/cron.d/homelab-hostname-registration; chmod 0644 /etc/cron.d/homelab-hostname-registration; systemctl enable --now cron"
 if ((DIRECT_APT)); then
     guest_install="printf '%s\\n' 'Acquire::http::Proxy \"DIRECT\";' 'Acquire::https::Proxy \"DIRECT\";' > /etc/apt/apt.conf.d/99apt-cache-direct; $guest_install"
 fi
