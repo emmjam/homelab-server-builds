@@ -1,0 +1,67 @@
+---
+# Controller only. Never modifies or contacts workers.
+- name: Configure existing worker power mechanism and restricted Rundeck access
+  hosts: rundeck_controller
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Require the existing discovery trust store and configured worker pool
+      ansible.builtin.stat:
+        path: /opt/rufus-discovery/known_hosts
+      register: power_trust
+    - name: Validate deployment prerequisites
+      ansible.builtin.assert:
+        that:
+          - power_trust.stat.exists
+          - groups.compute_pool | length == 5
+    - name: Create protected power directory
+      ansible.builtin.file:
+        path: /opt/rufus-power
+        state: directory
+        owner: root
+        group: rundeck
+        mode: '0750'
+    - name: Install existing fixed power entry point
+      ansible.builtin.copy:
+        src: '{{ playbook_dir }}/../../Rundeck/scripts/power-ai-host.sh'
+        dest: /opt/rufus-power/power-ai-host.sh
+        owner: root
+        group: rundeck
+        mode: '0750'
+    - name: Export shared worker inventory
+      ansible.builtin.template:
+        src: ../templates/worker-power.json.j2
+        dest: /opt/rufus-power/config.json
+        owner: root
+        group: rundeck
+        mode: '0640'
+        validate: /usr/bin/python3 -m json.tool %s
+    - name: Read existing administrative Rundeck API credential
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/python3
+          - '{{ playbook_dir }}/../../Rundeck/scripts/read-secret.py'
+          - RUNDECK_TOKEN
+      register: power_admin_token
+      changed_when: false
+      no_log: true
+    - name: Import existing power job preserving its UUID
+      ansible.builtin.uri:
+        url: http://127.0.0.1:4440/api/50/project/HomeLab/jobs/import?dupeOption=update&jobUuidOption=preserve
+        method: POST
+        headers:
+          X-Rundeck-Auth-Token: '{{ power_admin_token.stdout }}'
+          Accept: application/json
+          Content-Type: application/yaml
+        body: "{{ lookup('ansible.builtin.file', playbook_dir + '/../../Rundeck/jobs/HomeLab - AI Host Power-7d9a3328-c8df-4e31-bbf6-49a6d9ce5a11.yaml') }}"
+        return_content: true
+      register: power_job_import
+      failed_when: power_job_import.status != 200 or (power_job_import.json.failed | default([]) | length > 0) or (power_job_import.json.succeeded | default([]) | length != 1)
+      no_log: true
+    - name: Install restricted Rufus job ACL
+      ansible.builtin.copy:
+        src: '{{ playbook_dir }}/../../Rundeck/policies/rufus.aclpolicy'
+        dest: /etc/rundeck/rufus.aclpolicy
+        owner: rundeck
+        group: rundeck
+        mode: '0640'

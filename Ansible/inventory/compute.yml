@@ -3,6 +3,10 @@ compute_pool:
   children:
     ai_inference:
       vars:
+        compute_power_control:
+          mac: "10:62:e5:0d:17:a4"
+          broadcast: "255.255.255.255"
+          suspend_enabled: true
         compute_machine_type: HP EliteDesk 800 G3 DM
         compute_roles: [primary_interactive_inference, general_compute]
         compute_workloads: [cpu, batch, inference]
@@ -23,6 +27,10 @@ compute_pool:
           compute_workloads: [cpu, virtualisation]
         ai-worker:
           ansible_user: rundeck
+          compute_power_control:
+            mac: "b0:83:fe:5b:62:5d"
+            broadcast: "255.255.255.255"
+            suspend_enabled: true
           compute_machine_type: Dell OptiPlex mini
           compute_roles: [secondary_inference, background_compute, general_compute]
           compute_workloads: [cpu, batch, inference]
@@ -45,7 +53,15 @@ compute_pool:
           recorded_at: '2026-11-02'
           verified_at: null
       hosts:
-        server1: {}
-        server2: {}
+        server1:
+          compute_power_control:
+            mac: "00:1d:4f:46:53:44"
+            broadcast: "192.168.0.255"
+            suspend_enabled: false
+        server2:
+          compute_power_control:
+            mac: "00:1d:4f:46:39:b4"
+            broadcast: "192.168.0.255"
+            suspend_enabled: false
   vars:
     ansible_ssh_private_key_file: /var/lib/rundeck/.ssh/target_ed25519

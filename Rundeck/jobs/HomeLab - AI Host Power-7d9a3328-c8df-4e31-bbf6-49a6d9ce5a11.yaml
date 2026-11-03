@@ -1,5 +1,5 @@
 - defaultTab: nodes
-  description: 'Wake or suspend the allowlisted ai-agent and ai-worker hosts. Sleep requires the Rundeck SSH key and passwordless suspend permission on the selected host; each action is checked and reported.'
+  description: 'Wake or suspend the inventory-approved workers (Mac suspend remains disabled). Sleep requires the Rundeck SSH key and passwordless suspend permission on the selected host; each action is checked and reported.'
   executionEnabled: true
   group: jobs
   id: 7d9a3328-c8df-4e31-bbf6-49a6d9ce5a11
@@ -15,6 +15,8 @@
     values:
     - ai-agent
     - ai-worker
+    - server1
+    - server2
   - description: Wake with a magic packet or suspend to RAM.
     enforced: true
     label: Action
@@ -29,7 +31,7 @@
   sequence:
     commands:
     - description: Wake or suspend and verify the selected AI host
-      scriptfile: /opt/homelab-server-builds/Rundeck/scripts/power-ai-host.sh
+      scriptfile: /opt/rufus-power/power-ai-host.sh
       scriptInterpreter: /bin/bash
     keepgoing: false
     strategy: node-first

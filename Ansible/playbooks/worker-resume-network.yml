@@ -1,0 +1,45 @@
+---
+# Only the two verified ifupdown/dhclient workers; never matches the Macs.
+- name: Restore existing DHCP registration promptly after worker resume
+  hosts: ai-agent.lan:ai-worker
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Verify the existing ifupdown manager is active
+      ansible.builtin.command: /usr/bin/systemctl is-active networking.service
+      changed_when: false
+    - name: Verify the existing interface uses dhclient
+      ansible.builtin.command: /usr/bin/pgrep -x dhclient
+      changed_when: false
+    - name: Create suspend service drop-in directory
+      ansible.builtin.file:
+        path: /etc/systemd/system/systemd-suspend.service.d
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+    - name: Refresh DHCP through its existing manager after resume
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/systemd-suspend.service.d/20-homelab-dhcp-resume.conf
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          # dhclient may retain an expired lease across suspend; republish via DHCP.
+          [Service]
+          ExecStartPost=/usr/bin/systemctl --no-block restart networking.service
+      register: resume_network
+    - name: Reload the managed resume action
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+      when: resume_network.changed
+    - name: Refresh current expired registration without adding a DHCP client
+      ansible.builtin.command: /usr/bin/systemctl restart networking.service
+      async: 60
+      poll: 0
+      when: resume_network.changed
+    - name: Wait for the existing SSH identity after initial DHCP refresh
+      ansible.builtin.wait_for_connection:
+        delay: 3
+        timeout: 90
+      when: resume_network.changed
