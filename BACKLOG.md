@@ -88,6 +88,31 @@ product deliverable after basic Rufus, before OpenBao.
 | VSCODE-02 | TODO | Support persistent chat, streamed progress/results, useful current repository/file context, approved Rundeck operations, and deployment/status/log viewing. | User requirement; depends on VSCODE-01 and the shared Rufus API. |
 | VSCODE-03 | TODO | Provide explicit approval/rejection for sensitive operations and carry the decision through the Rufus/Rundeck workflow. Keep execution and authorisation in the backend rather than making the panel an unrestricted infrastructure client. | User requirement; depends on RUFUS-02 and VSCODE-01. |
 
+### VS Code integration — agreed responsibility boundary
+
+This diagram describes the agreed client/backend separation for VSCODE-01–03,
+not deployment acceptance. Consult the integration implementation record for
+its own completion evidence; local files alone do not complete these criteria. API progress
+uses polling; token streaming is not implied by the streamed-progress requirement.
+
+```mermaid
+flowchart LR
+    Operator["Operator in VS Code"] --> Panel["Thin chat panel / explicit context and decisions"]
+    Panel --> Transport["Controlled authenticated client transport"]
+    Transport --> API["Shared Rufus conversation, action and execution API"]
+    API --> History["Durable history and progress"]
+    API --> Policy["Backend catalogue, exact approval and one-use checks"]
+    Policy --> RD["Restricted Rundeck API identity / independent ACL"]
+    RD --> Jobs["Approved infrastructure jobs"]
+```
+
+In words: the panel supplies reviewed context, displays persisted progress/results
+and conveys explicit approval/rejection. The backend owns authorisation and
+execution; the panel receives no arbitrary shell, infrastructure SSH or unrestricted
+Rundeck client. Repo editing, validation and Git capabilities must not be inferred
+from this thin-client architecture. Transport details and completed acceptance
+belong to the integration's own implementation record.
+
 ## GitHub/Rundeck security — separate planned track
 
 The instruction to leave the current Git setup working remains in effect during

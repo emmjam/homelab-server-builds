@@ -33,10 +33,29 @@ The importer uses Rundeck's [job import API](https://docs.rundeck.com/docs/api/#
 ## Rufus integration
 
 Rufus uses a dedicated `rufus` API identity with the `rufus-api` role.
-`policies/rufus.aclpolicy` grants access only to the existing health-check job;
+`policies/rufus.aclpolicy` grants health-check, fixed APT-cache operations and
+the inventory-backed worker power job;
 `../Rufus/policy.json` independently enforces the application allow-list. The
-presence of a job in Rundeck alone does not approve it for Rufus. See
+presence of a job in Rundeck alone does not approve it for Rufus. The power ACL grant does not add an application power operation. See
 [the Rufus application documentation](../Rufus/README.md).
+
+## Git refresh and deployment flow
+
+```mermaid
+flowchart LR
+    Git["GitHub main"] -->|"Existing refresh credential"| Checkout["Controller checkout"]
+    Checkout --> Import["Import YAML / preserve UUIDs"]
+    Import --> Reconcile["Remove absent UUIDs only in managed jobs and pipelines groups"]
+    Checkout --> Helpers["Controller helpers and Ansible"]
+    Helpers -->|"Existing SSH and deployed paths"| TNAS["TNAS Proxmox scripts / sudo -n"]
+    Helpers -->|"Managed service deployment"| Guests["Rufus and other managed services"]
+```
+
+In words: Git refresh reconciles definitions, including deletions in the managed
+groups. Running/deploying infrastructure still uses existing controller credentials
+and target permissions. This administrative route is separate from Rufus's
+restricted job identity. The proposed single temporary-script privilege wrapper
+is backlog work and is not a current execution gate.
 
 ## TNAS execution and privilege boundary
 

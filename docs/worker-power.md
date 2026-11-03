@@ -66,6 +66,32 @@ a chat command, automatic wake, scheduling, or an application-level power API.
 A later Rufus client can use this restricted job contract without worker SSH.
 Do not infer a new chat command from the Rundeck ACL grant.
 
+## Power-control boundary and availability flow
+
+```mermaid
+flowchart TD
+    Caller["Caller using existing restricted Rufus Rundeck identity"] --> ACL["Rundeck job ACL / existing power UUID"]
+    ACL --> Gate["Enforced worker/action options and trusted inventory"]
+    Gate -->|"Invalid selection or disabled Mac sleep"| Reject["Reject before node I/O"]
+    Gate --> Wake{"Wake or sleep?"}
+    Wake -->|"Wake"| Check{"Trusted SSH and hostname already reachable?"}
+    Check -->|"Yes"| Ready["Verified awake / no packet needed"]
+    Check -->|"No"| Packet["Existing magic packet"]
+    Packet --> Verify{"Bounded trusted SSH and hostname verification"}
+    Verify -->|"Pass"| Ready
+    Verify -->|"Fail"| Unknown["Availability unresolved"]
+    Wake -->|"Sleep enabled"| Suspend["Check deep sleep and existing fixed sudo command"]
+    Suspend -->|"Request accepted"| Observe["Three failed SSH checks / sleep independently unverified"]
+    Suspend -->|"Request rejected"| Failure["Fail / no automatic retry"]
+```
+
+In words: inventory and ACL checks constrain a fixed controller-side mechanism;
+Rufus receives no worker SSH key. A packet is not wake proof and disappearance
+alone is not independent sleep proof. The separate acceptance record below adds
+kernel/DHCP evidence for HP/Dell. Task 3 grants Rundeck-side access only: the
+Rufus application catalogue, chat approval workflow and passive discovery cache
+do not gain a power command or automatic orchestration from this grant.
+
 ## Result semantics
 
 - An already reachable host succeeds without sending an unnecessary packet.

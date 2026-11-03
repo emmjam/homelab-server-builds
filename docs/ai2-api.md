@@ -37,6 +37,45 @@ The POST still returns 202; poll history for completion or a persisted error.
 Existing operational proposals and decision endpoints retain their AI2 rules.
 See [AI3](ai3.md) for bounded dialogue context, errors and live acceptance.
 
+## Conversation and execution flow
+
+```mermaid
+sequenceDiagram
+    actor Operator
+    participant Client as Authenticated client
+    participant API as Rufus API
+    participant Store as SQLite
+    participant Worker as Rufus workflow
+    participant Model as HP inference
+    participant RD as Rundeck ACL and jobs
+    Operator->>Client: Send message
+    Client->>API: POST message with request_id
+    API->>Store: Persist once, reject conflicting reuse
+    API-->>Client: 202 and message identity
+    API->>Worker: Schedule processing
+    Worker->>Model: Bounded structured classification
+    Model-->>Worker: Untrusted intent and target
+    alt Ordinary chat
+        Worker->>Model: Bounded dialogue, no operation tools
+        Model-->>Worker: Reply or error
+        Worker->>Store: Atomically save reply and completion, or error
+    else Supported operational request
+        Worker->>Worker: Validate catalogue and diagnostic policy
+        Worker->>RD: Fixed read-only diagnostic
+        RD-->>Worker: Execution status and bounded evidence
+        Worker->>Store: Evidence and, only when warranted, immutable proposal
+    end
+    Client->>API: Poll conversation and action history
+    API->>Store: Read persisted progress
+    API-->>Client: Reply, error, evidence or approval proposal
+```
+
+In words: message acceptance is asynchronous and idempotent; the client polls
+persisted results. Chat cannot invoke jobs. Operational classification must pass
+application policy before a diagnostic reaches Rundeck; healthy/unavailable or
+unsupported requests do not become repair submissions. The workflow executor is
+local application concurrency, not a distributed HP/Dell worker scheduler.
+
 ## Proposal and approval
 
 An action is persisted before it is returned for approval. It includes:
@@ -66,6 +105,28 @@ A successful repair job produces an executed state, not a recovered claim.
 Independent verification must complete and its evidence must establish the
 original fault is resolved. Outcomes distinguish `recovered`, `still_failing`,
 `unable_to_verify`, `failed`, `submission_unknown`, `rejected` and `expired`.
+
+### Exact-action decision and recovery boundary
+
+```mermaid
+flowchart TD
+    P["Persisted immutable proposal"] --> D{"Decision matches action, conversation, hash, expiry and current policy?"}
+    D -->|"No"| Block["Reject request / no submission"]
+    D -->|"Valid rejection"| Reject["Persist rejected / no repair"]
+    D -->|"Valid approval"| Reserve["Atomic one-use transition and durable submission reservation"]
+    Reserve --> ACL["Rundeck independently checks fixed job grant"]
+    ACL --> Run["Repair execution / record known ID"]
+    Reserve -->|"Ambiguous submission or restart without ID"| Unknown["submission_unknown / manual reconciliation"]
+    Run -->|"Job failed"| Failed["failed"]
+    Run -->|"Job succeeded"| Verify["Reserve and submit separate read-only verification"]
+    Verify --> Result["recovered / still_failing / unable_to_verify"]
+```
+
+In words: an authenticated operator must approve the exact proposal once. Model
+output and logs are not approval; direct mutation submission cannot bypass this
+path. A successful repair is only execution evidence. Recovery needs independent
+verification; unknown submission outcomes are never automatically retried.
+Known execution IDs can resume monitoring after restart.
 
 ## Trust and operation catalogue
 

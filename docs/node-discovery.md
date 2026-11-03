@@ -45,6 +45,27 @@ they are unreachable. When reachable the collector attempts the configured
 identity, reporting authentication/host-key/probe failures honestly. It does not
 install keys, create accounts or modify the Macs to repair access.
 
+## Collection and read-only API flow
+
+```mermaid
+flowchart LR
+    Inventory["Merged Ansible inventory and existing SSH trust"] --> Config["Root-owned collector configuration"]
+    Timer["Controller timer: 300 seconds plus jitter"] --> Collector["Fixed bounded collector / existing Rundeck account"]
+    Config --> Collector
+    Collector -->|"Fixed read-only SSH probe; no node sudo"| Nodes["TNAS, HP, Dell and two Macs"]
+    Nodes -->|"Observed facts or explicit probe failures"| Collector
+    Collector --> Cache["Controller cache / retained last verified facts"]
+    Cache -->|"Fixed publisher / atomic snapshot"| Snapshot["Rufus-readable status file"]
+    Snapshot --> Reader["Rufus freshness evaluation / 660-second TTL"]
+    Reader --> API["Bearer GET nodes / no refresh or power action"]
+```
+
+In words: a scheduled controller collector probes configured nodes and publishes
+bounded snapshots. API reads evaluate freshness without network I/O. Unreachable
+nodes are not assumed asleep; stale current metrics become unknown while dated
+facts remain available. Inventory eligibility and reported readiness do not
+authorise work allocation. No arrow here triggers WOL, suspend or scheduling.
+
 ## Facts and freshness
 
 Each record separates:

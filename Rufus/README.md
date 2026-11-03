@@ -24,6 +24,16 @@ Read `../AGENTS.md` and `../PROJECT_CONTEXT.md` before infrastructure work; use
 [BACKLOG.md](../BACKLOG.md) for remaining work. Historical acceptance results are
 labelled by milestone and must not be mistaken for current configuration.
 
+## Architecture and flow diagrams
+
+The [project HLD](../PROJECT_CONTEXT.md#high-level-design--implemented-baseline)
+shows management, inference and execution responsibilities. Detailed diagrams:
+[Web authentication](../docs/rufus-web.md#authentication-and-request-boundaries),
+[conversation and approval](../docs/ai2-api.md#conversation-and-execution-flow),
+[discovery](../docs/node-discovery.md#collection-and-read-only-api-flow) and
+[worker power](../docs/worker-power.md#power-control-boundary-and-availability-flow).
+Each includes a prose equivalent for readers without Mermaid rendering.
+
 ## Deployment and service
 
 Ansible runs on Rundeck and installs modules under `/opt/rufus/app`, configuration

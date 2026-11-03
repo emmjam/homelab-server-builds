@@ -13,6 +13,27 @@ as `rufus-web` under `rufus-web.service`. No new VM, LXC or Docker container.
 Rufus retains its own account, SQLite conversations, API authentication and
 AI2 approval/Rundeck restrictions. No browser-automation integration is required.
 
+## Authentication and request boundaries
+
+```mermaid
+flowchart LR
+    B["Trusted-LAN browser"] -->|"Login: password and pre-auth CSRF"| W["Web: Host/origin, rate limit and scrypt checks"]
+    W -->|"Issue random HttpOnly session cookie"| B
+    B -->|"Allowed request: cookie and mutation CSRF"| S["Web: expiry, account and credential-version checks"]
+    Accounts["Administrator-managed account hashes"] --> W
+    Accounts --> S
+    Sessions["Web SQLite session digests and expiry"] <--> S
+    S -->|"Allowlisted route; server-held bearer"| API["Loopback Rufus API"]
+    API --> Approval["Existing exact-action approval and policy checks"]
+```
+
+In words: login establishes a revocable Web session, not infrastructure approval.
+Every protected request checks the account and session; mutations also require
+CSRF. Only allowlisted routes reach the bearer API. The browser never receives
+the API token, Rundeck token or SSH credentials. Web sessions and Rufus's
+conversation/action store have separate responsibilities; authorised accounts
+currently share the operator archive.
+
 ## Binding, firewall and optional HTTPS
 
 Browser → `http://rufus.lan:8788` (or the verified guest LAN IP) → Rufus Web →
@@ -355,3 +376,13 @@ byte-for-byte equal to committed source, with the corrected referrer policy
 browser test is claimed. Reload `http://rufus.lan:8788/` on both devices, sign in,
 start/follow up/reopen a conversation and check logout independently. Use the
 existing approval checklist without creating a live fault for testing.
+
+## VS Code client gateway routes
+
+The thin [VS Code client](rufus-vscode.md) reuses the existing Web login/session/
+CSRF contract. Its additive allowlist routes are GET `/api/jobs`, POST
+`/api/executions` and GET `/api/executions/{positive integer}`. The gateway
+forwards only these fixed paths; Rufus continues to enforce approved-operation
+policy, block direct sensitive mutations and restrict execution ownership. The
+bearer API remains loopback-only and its credential never reaches the client.
+Existing browser conversations, authentication and approval routes are unchanged.

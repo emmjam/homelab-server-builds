@@ -18,6 +18,17 @@ See [Rundeck/README.md](Rundeck/README.md) for job synchronization and Rufus int
 See [Rufus/README.md](Rufus/README.md) for the application development entry point,
 AI1–AI3 technical specifications and completion records.
 
+## Architecture documentation
+
+Start with the [implemented HLD and planned architecture boundary](PROJECT_CONTEXT.md#high-level-design--implemented-baseline).
+Follow [Rufus's diagram index](Rufus/README.md#architecture-and-flow-diagrams)
+for authentication, conversation/approval, discovery and power flows; see
+[Rundeck's Git/deployment flow](Rundeck/README.md#git-refresh-and-deployment-flow)
+for the separate administrative route. Diagrams include prose equivalents and
+retain the detailed specifications and dated acceptance records in their existing
+locations. [Diagram validation evidence](docs/validation.md#documentation-diagrams)
+records the documentation-only checks.
+
 ## Debian 13 baseline
 
 The guest baseline is [scripts/debian-baseline.sh](scripts/debian-baseline.sh). It configures QEMU Guest Agent, SSH hardening, `vi` as the system default editor, Fail2ban, unattended upgrades, and validates services. The template pipeline downloads and runs it on a candidate VM, then removes the temporary copy before promotion.

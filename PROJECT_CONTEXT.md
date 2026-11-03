@@ -46,6 +46,49 @@ The general principle is to automate repeatable infrastructure deployment throug
 
 Local AI responsibilities are split across three machines: TNAS/Rufus manages and coordinates workloads; the HP/`ai-agent.lan` provides primary interactive inference; and the Dell/`ai-worker.lan` handles background agents, parallel processing and additional AI workloads. Keep management independent of inference so the compute machines can be started, stopped, maintained or reassigned without losing central coordination.
 
+## High-level design — implemented baseline
+
+This HLD summarises the implemented paths documented in the linked milestone
+records; it is not a fresh live inventory. Arrows indicate logical dependencies,
+not unrestricted network access. Rufus and Rundeck are separate guests/services
+on TNAS. Web is a separate account/service in the Rufus guest.
+
+```mermaid
+flowchart LR
+    Browser["Operator browser on trusted LAN"] -->|"HTTP 8788: session and CSRF"| Web
+    subgraph TNAS["TNAS / Proxmox"]
+        subgraph Guest["Rufus CT 111"]
+            Web["Rufus Web / rufus-web"] -->|"Loopback 8787: bearer"| API["Rufus API and workflow"]
+            API --> Store["SQLite conversations, actions and executions"]
+        end
+        API -->|"Restricted API identity"| RD["Rundeck / independent ACL"]
+        RD -->|"Approved jobs and existing credentials"| PVE["Proxmox scripts / managed guests"]
+    end
+    API -->|"HTTP 11434: Rufus-only source-IP firewall"| HP["HP ai-agent.lan / Ollama"]
+    Git["GitHub main / definitions and scripts"] -->|"Managed checkout refresh"| RD
+    RD -->|"Ansible deployment / existing administrator access"| HP
+```
+
+In words: the browser authenticates to Web, which holds the API credential;
+Rufus persists conversations and validates operations before using its restricted
+Rundeck identity. Rundeck independently authorises jobs and holds infrastructure
+credentials. HP supplies inference, with source-address restrictions rather than
+application authentication. Git refresh/deployment uses the separate controller
+administrative path, not the model's restricted identity.
+
+[Web boundaries](docs/rufus-web.md), [approval API](docs/ai2-api.md),
+[inference](docs/ai-inference.md), [passive discovery](docs/node-discovery.md) and
+[worker power](docs/worker-power.md) describe the detailed current paths.
+
+### Planned architecture beyond this baseline
+
+Distributed workload allocation, automatic HP-to-Dell placement, hosted/local
+fallback and OpenBao remain backlog work. The Dell's preferred background role
+is not evidence of an implemented scheduler. Discovery and restricted power-job
+access exist independently; neither automatically dispatches workloads. VS Code
+requirements and implementation/acceptance status are tracked under VSCODE-01–03
+in [BACKLOG.md](BACKLOG.md). Do not infer deployment from local extension files.
+
 ## Separate media-library project: Bobarr and Plex
 
 Bobarr is intended to manage a self-hosted film and television media library, with that library feeding into Plex for media playback. Bobarr is a separate homelab project; it is not part of Rufus or the Rundeck automation infrastructure. The project reference is [Bobarr](https://github.com/iam4x/bobarr). Deployment choices and integrations beyond this relationship have not been finalised.
