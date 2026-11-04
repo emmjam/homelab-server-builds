@@ -1,0 +1,15 @@
+{"check":"live-login-and-capabilities","conversation":"7e0aee89-bcae-42a6-b83c-7beac944d57e","limits":{"context_tokens":8192,"generation_tokens":2048,"structured_generation_tokens":256,"framing_tokens":512,"workflow_reserve_tokens":1024,"current_message_tokens":4096,"system_tokens":375,"history_max_exchanges":6,"history_context_tokens":2048,"incoming_message_tokens":4096,"repository_context_tokens":1536,"message_max_bytes":131072,"repository_max_bytes":32768,"request_max_bytes":131072,"accounting":"conservative-utf8-byte-estimate"}}
+{"check":"structured-413-rejections-no-persistence"}
+{"check":"message-accepted","message":"4aa89ece-95f5-4f24-9126-a444991a8979","characters":2790,"repositoryBytes":86}
+{"check":"live-progress-observed","message":"4aa89ece-95f5-4f24-9126-a444991a8979"}
+{"check":"message-completed","message":"4aa89ece-95f5-4f24-9126-a444991a8979","replyCharacters":5,"progressObserved":true,"usage":{"accounting":"conservative-utf8-byte-estimate","context_tokens":8192,"history_exchanges_used":0,"history_tokens_used":0,"input_tokens_reserved":3880,"repository_bytes_received":86,"repository_bytes_used":86,"repository_shortened":false,"repository_tokens_used":86,"reserved_output_tokens":2048}}
+{"check":"message-accepted","message":"d66a234f-39fa-4a1e-8047-73d7a868e21c","characters":82,"repositoryBytes":86}
+{"check":"live-progress-observed","message":"d66a234f-39fa-4a1e-8047-73d7a868e21c"}
+{"check":"message-completed","message":"d66a234f-39fa-4a1e-8047-73d7a868e21c","replyCharacters":6,"progressObserved":true,"usage":{"accounting":"conservative-utf8-byte-estimate","context_tokens":8192,"history_exchanges_used":0,"history_tokens_used":0,"input_tokens_reserved":1172,"repository_bytes_received":86,"repository_bytes_used":86,"repository_shortened":false,"repository_tokens_used":86,"reserved_output_tokens":2048}}
+{"check":"message-accepted","message":"100f878e-a332-4d8b-a506-4beb05c9a450","characters":74,"repositoryBytes":0}
+{"check":"live-progress-observed","message":"100f878e-a332-4d8b-a506-4beb05c9a450"}
+{"check":"message-completed","message":"100f878e-a332-4d8b-a506-4beb05c9a450","replyCharacters":6,"progressObserved":true,"usage":{"accounting":"conservative-utf8-byte-estimate","context_tokens":8192,"history_exchanges_used":1,"history_tokens_used":120,"input_tokens_reserved":1113,"repository_bytes_received":0,"repository_bytes_used":0,"repository_shortened":false,"repository_tokens_used":0,"reserved_output_tokens":2048}}
+{"check":"persistent-conversation-restored","conversation":"7e0aee89-bcae-42a6-b83c-7beac944d57e","messages":3}
+{"check":"sensitive-direct-operation-csrf-command-and-forged-approval-denied"}
+{"check":"logout-revocation"}
+{"check":"PASS","conversation":"7e0aee89-bcae-42a6-b83c-7beac944d57e","limitation":"Transport/API acceptance, not interactive VS Code visual acceptance; no real repair proposal was created."}

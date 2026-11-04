@@ -127,6 +127,7 @@
   notify: Restart managed Ollama
 
 - name: Manage Ollama service configuration
+  tags: [ollama_service_configuration]
   ansible.builtin.template:
     src: ollama.service.j2
     dest: /etc/systemd/system/ollama.service

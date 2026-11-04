@@ -10,6 +10,7 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from config import load
+from budget import limits, REQUEST_BYTES
 from rundeck import Client, IntegrationError
 from conversations import ConversationError
 from workflow import Workflow
@@ -150,15 +151,17 @@ def handler(app):
                     if self.headers.get('Transfer-Encoding'):
                         raise RequestError('Transfer encoding unsupported')
                     length = int(self.headers.get('Content-Length', '0'))
-                    if not 0 < length <= 8192:
-                        raise RequestError('Invalid request size')
+                    if not 0 < length <= REQUEST_BYTES:
+                        raise ConversationError('Invalid request size',413,{'code':'request_too_large','budget':'http_request','limit':REQUEST_BYTES,'unit':'bytes'})
                     body = json.loads(self.rfile.read(length))
                 if method == 'POST' and self.path == '/executions':
                     return self.respond(202, app.start(body))
                 if app.workflow:
                     workflow = app.workflow
                     if method == 'GET' and self.path == '/conversations':
-                        return self.respond(200, workflow.store.list_conversations())
+                        result=workflow.store.list_conversations()
+                        result['limits']=limits(app.config.get('inference',{}))
+                        return self.respond(200,result)
                     if method == 'POST' and self.path == '/conversations':
                         if body != {}: raise RequestError('Expected empty object')
                         return self.respond(201, workflow.store.create())
@@ -182,7 +185,7 @@ def handler(app):
                     return self.respond(200, app.result(int(match[1]), wait))
                 raise RequestError('Endpoint not found', 404)
             except (RequestError, IntegrationError, ConversationError, NodeStatusError) as error:
-                self.respond(error.status, {'error': str(error)})
+                self.respond(error.status, {'error': str(error), **getattr(error,'details',{})})
             except (ValueError, UnicodeError):
                 self.respond(400, {'error': 'Malformed request'})
             except Exception:

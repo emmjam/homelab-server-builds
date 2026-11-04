@@ -1,0 +1,1 @@
+{"clock_basis": "HP expiry and HP request-completion journal timestamp; no cross-host subtraction", "hp_request_completed": "2026-11-03T22:40:44.704293+00:00", "expires_at": "2026-11-03T23:10:44.704409047Z", "retention_seconds": 1800.000116, "currently_loaded": true, "hp_now": "2026-11-03T22:41:23.084135+00:00"}

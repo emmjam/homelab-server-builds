@@ -1,0 +1,12 @@
+{"check": "staged-working-snapshot", "source": "/tmp/rufus-vscode-source.sO8l20Jk", "archive_sha256": "69763b06560a2be741dfb89e7e790b0a7313b6161711f43d2da1ed6bbfac8ca9", "local_evidence": "/tmp/rufus-vscode-deployment-iydkbu8s"}
+{"check": "source-verified", "source": "/tmp/rufus-vscode-source.sO8l20Jk", "base_commit": "13d68487c063f1303575270ccb2256da4412e7f8", "log": "/tmp/rufus-vscode-deploy-ssn9ufs_.log"}
+{"check": "quiescent-preflight-and-protected-backup", "executions": 11, "backup": "/var/backups/rufus-vscode-20261103T203239Z", "conversations": 17}
+{"check": "application-deployed"}
+{"check": "inference-client-and-budget-config-deployed"}
+{"check": "gateway-deployed"}
+{"check": "deployed-source-services-config-and-logs", "modules_verified": 14, "services": "active", "budget_config": "verified", "recent_error_log_lines": 0}
+{"check": "local-extension-transport-live-acceptance-passed"}
+{"check": "real-ollama-output-exhaustion-rejected", "incomplete_detected": true, "code": "inference_incomplete", "ollama": {"done": true, "done_reason": "length", "prompt_eval_count": 23, "eval_count": 1}}
+{"check": "original-accounts-restored-and-redeployed"}
+{"check": "PASS", "zero_infrastructure_jobs": true, "log": "/tmp/rufus-vscode-deploy-ssn9ufs_.log", "backup": "/var/backups/rufus-vscode-20261103T203239Z", "limitations": ["Actual VS Code visual acceptance remains separate", "No real sensitive proposal created"]}
+{"check": "combined-deployment-and-live-transport-PASS", "evidence": "/tmp/rufus-vscode-deployment-iydkbu8s"}

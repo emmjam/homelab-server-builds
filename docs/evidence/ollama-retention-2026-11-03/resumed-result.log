@@ -1,0 +1,8 @@
+{"check": "syntax-already-PASS"}
+{"check": "rendered-config-PASS", "unit_syntax": "PASS"}
+{"check": "check-mode-PASS"}
+{"check": "deployment-PASS"}
+{"check": "service-and-unchanged-resources-PASS", "active_keep_alive": "30m", "pid": "11519"}
+{"check": "live-retention-PASS", "api_reachable_as": "rufus", "model": "qwen3:4b", "inference_done": true, "reply_characters": 918, "load_duration_ns": 3585917927, "prompt_eval_count": 19, "expires_at": "2026-11-03T23:10:44.704409047Z", "retention_seconds_after_request": 1840.003703, "still_loaded_after_seconds": 5, "natural_30_minute_unload": "unverified; no 30-minute wait", "inference_sha256": "aeb4f4d229b37dcefe615378e3da1a4ad446a6d12a0a71af35aaca956e1a00c8"}
+{"check": "convergence-check-PASS"}
+{"check": "PASS", "evidence": "/tmp/ollama-retention.DVkOk5ZH", "limitation": "Rufus keep_alive=0 still overrides server default; application unchanged"}

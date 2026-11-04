@@ -1,7 +1,8 @@
 ---
 # HP: 8 GB RAM, CPU inference; loaded 4K context leaves ~4.25 GiB available.
 # Qwen3's native 262K window is not an appropriate RAM/latency target here.
-# History is bounded to six exchanges / 6000 characters before the system prompt.
+# Chat budgets system/current/repository/history plus reserved output in the model window.
+# At most six whole exchanges; token accounting lives in Rufus/budget.py.
 rufus_chat_context_tokens: 8192
 # The reproduced short question required 1107 reasoning+answer tokens.
 rufus_chat_generation_tokens: 2048
@@ -10,3 +11,10 @@ rufus_chat_timeout_seconds: 360
 rufus_inference_connect_timeout_seconds: 5
 # Preserve the existing AI2 structured-request timeout and 256-token allowance.
 rufus_structured_timeout_seconds: 120
+
+# Conservative UTF-8 byte estimates; no tokenizer dependency.
+rufus_incoming_message_tokens: 4096
+rufus_history_context_tokens: 2048
+rufus_repository_context_tokens: 1536
+rufus_context_framing_tokens: 512
+rufus_workflow_context_reserve_tokens: 1024

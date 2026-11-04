@@ -15,14 +15,26 @@ routes remain supported. Future LAN/VS Code transport is a separate task.
 |---|---|---|
 | POST | `/conversations` | Empty object creates a durable conversation; returns its ID |
 | GET | `/conversations/ID` | Messages, timestamped progress/evidence and linked actions |
-| POST | `/conversations/ID/messages` | `request_id` and `content`; persist once and return HTTP 202 with message ID/status |
+| POST | `/conversations/ID/messages` | `request_id`, `content`, optional `repository_context`; persist once and return HTTP 202 with message ID/status |
 | GET | `/actions/ID` | Exact immutable proposal, approval state, execution, verification and final outcome |
 | POST | `/actions/ID/decision` | `conversation_id`, `proposal_hash`, and `decision` (`approve` or `reject`) |
 
 IDs are opaque server-generated UUIDs. Message request IDs are client-generated
 UUIDs, unique within a conversation. Retrying the same ID/content returns the
 original message; changing its content returns conflict. A conversation accepts
-one active request at a time. Message text and model/diagnostic context are bounded.
+one active request at a time. Changing repository context for an existing request
+also conflicts. `GET /conversations` adds `limits` describing configured model
+window/output, estimated input allowance, separate history/repository budgets,
+accounting mode and resource ceilings.
+User messages include persisted `repository_context` (empty on migrated rows).
+HTTP 413 errors include `code`, `budget`, `limit`, `unit` and (where counted)
+`estimated`, alongside the compatible `error` string. The Web gateway preserves
+these fields. The message is rejected if it exceeds its configured estimated budget, never
+length-truncated; existing credential redaction remains. Context is independently
+bounded to a separate 32 KiB resource ceiling and may be excerpted for inference. A `context_budget`
+event records inclusion/omission. See [budgeting](rufus-vscode.md#message-and-context-budgeting-020)
+for accounting, classifier excerpts and backwards compatibility. Approval and
+operation permissions are unchanged.
 Polling provides persisted progress and final results without keeping an HTTP
 request open for model generation or Rundeck execution. No streaming framework is
 needed for this milestone.

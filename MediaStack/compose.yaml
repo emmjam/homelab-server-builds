@@ -1,0 +1,200 @@
+# UNVALIDATED on TerraMaster TOS. Read ../docs/media-tos.md before use.
+# No Transmission host ports; Sonarr/Radarr use gluetun:9091.
+services:
+  gluetun:
+    restart: unless-stopped
+    networks: &id002
+    - media
+    logging: &id001
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+    image: ${GLUETUN_IMAGE:?Set GLUETUN_IMAGE in a private .env}
+    cap_add:
+    - NET_ADMIN
+    devices:
+    - /dev/net/tun:/dev/net/tun
+    environment:
+      TZ: ${TZ:?Set TZ in a private .env}
+      VPN_SERVICE_PROVIDER: nordvpn
+      VPN_TYPE: openvpn
+      OPENVPN_USER: ${NORDVPN_SERVICE_USER:?Set NORDVPN_SERVICE_USER in a private
+        .env}
+      OPENVPN_PASSWORD: ${NORDVPN_SERVICE_PASSWORD:?Set NORDVPN_SERVICE_PASSWORD in
+        a private .env}
+      SERVER_COUNTRIES: ${NORDVPN_COUNTRIES:?Set NORDVPN_COUNTRIES in a private .env}
+      FIREWALL: 'on'
+      FIREWALL_INPUT_PORTS: '9091'
+    volumes:
+    - type: bind
+      source: ${CONFIG_ROOT:?Set CONFIG_ROOT in a private .env}/gluetun
+      target: /gluetun
+      bind:
+        create_host_path: false
+  transmission:
+    restart: unless-stopped
+    logging: *id001
+    image: ${TRANSMISSION_IMAGE:?Set TRANSMISSION_IMAGE in a private .env}
+    network_mode: service:gluetun
+    depends_on:
+      gluetun:
+        condition: service_healthy
+        restart: true
+    dns:
+    - 127.0.0.1
+    environment:
+      PUID: ${MEDIA_UID:?Set MEDIA_UID in a private .env}
+      PGID: ${MEDIA_GID:?Set MEDIA_GID in a private .env}
+      TZ: ${TZ:?Set TZ in a private .env}
+      UMASK: '002'
+      USER: ${TRANSMISSION_USER:?Set TRANSMISSION_USER in a private .env}
+      PASS: ${TRANSMISSION_PASSWORD:?Set TRANSMISSION_PASSWORD in a private .env}
+    volumes:
+    - type: bind
+      source: ${CONFIG_ROOT:?Set CONFIG_ROOT in a private .env}/transmission
+      target: /config
+      bind:
+        create_host_path: false
+    - type: bind
+      source: ${DATA_ROOT:?Set DATA_ROOT in a private .env}/downloads
+      target: /data/downloads
+      bind:
+        create_host_path: false
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:9091/transmission/rpc
+        | grep -Eq '^(401|409)$'
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+  sonarr:
+    restart: unless-stopped
+    networks: *id002
+    logging: *id001
+    image: ${SONARR_IMAGE:?Set SONARR_IMAGE in a private .env}
+    environment:
+      PUID: ${MEDIA_UID:?Set MEDIA_UID in a private .env}
+      PGID: ${MEDIA_GID:?Set MEDIA_GID in a private .env}
+      TZ: ${TZ:?Set TZ in a private .env}
+      UMASK: '002'
+    ports:
+    - ${NAS_BIND_IP:?Set NAS_BIND_IP in a private .env}:${SONARR_PORT:?Set SONARR_PORT
+      in a private .env}:8989
+    volumes:
+    - type: bind
+      source: ${CONFIG_ROOT:?Set CONFIG_ROOT in a private .env}/sonarr
+      target: /config
+      bind:
+        create_host_path: false
+    - type: bind
+      source: ${DATA_ROOT:?Set DATA_ROOT in a private .env}
+      target: /data
+      bind:
+        create_host_path: false
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - curl -fsS http://127.0.0.1:8989/ping >/dev/null
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+  radarr:
+    restart: unless-stopped
+    networks: *id002
+    logging: *id001
+    image: ${RADARR_IMAGE:?Set RADARR_IMAGE in a private .env}
+    environment:
+      PUID: ${MEDIA_UID:?Set MEDIA_UID in a private .env}
+      PGID: ${MEDIA_GID:?Set MEDIA_GID in a private .env}
+      TZ: ${TZ:?Set TZ in a private .env}
+      UMASK: '002'
+    ports:
+    - ${NAS_BIND_IP:?Set NAS_BIND_IP in a private .env}:${RADARR_PORT:?Set RADARR_PORT
+      in a private .env}:7878
+    volumes:
+    - type: bind
+      source: ${CONFIG_ROOT:?Set CONFIG_ROOT in a private .env}/radarr
+      target: /config
+      bind:
+        create_host_path: false
+    - type: bind
+      source: ${DATA_ROOT:?Set DATA_ROOT in a private .env}
+      target: /data
+      bind:
+        create_host_path: false
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - curl -fsS http://127.0.0.1:7878/ping >/dev/null
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+  prowlarr:
+    restart: unless-stopped
+    networks: *id002
+    logging: *id001
+    image: ${PROWLARR_IMAGE:?Set PROWLARR_IMAGE in a private .env}
+    environment:
+      PUID: ${MEDIA_UID:?Set MEDIA_UID in a private .env}
+      PGID: ${MEDIA_GID:?Set MEDIA_GID in a private .env}
+      TZ: ${TZ:?Set TZ in a private .env}
+      UMASK: '002'
+    ports:
+    - ${NAS_BIND_IP:?Set NAS_BIND_IP in a private .env}:${PROWLARR_PORT:?Set PROWLARR_PORT
+      in a private .env}:9696
+    volumes:
+    - type: bind
+      source: ${CONFIG_ROOT:?Set CONFIG_ROOT in a private .env}/prowlarr
+      target: /config
+      bind:
+        create_host_path: false
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - curl -fsS http://127.0.0.1:9696/ping >/dev/null
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+  seerr:
+    restart: unless-stopped
+    networks: *id002
+    logging: *id001
+    image: ${SEERR_IMAGE:?Set SEERR_IMAGE in a private .env}
+    init: true
+    user: ${SEERR_UID:?Set SEERR_UID in a private .env}:${SEERR_GID:?Set SEERR_GID
+      in a private .env}
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    environment:
+      TZ: ${TZ:?Set TZ in a private .env}
+      DB_TYPE: sqlite
+      LOG_LEVEL: info
+    ports:
+    - ${NAS_BIND_IP:?Set NAS_BIND_IP in a private .env}:${SEERR_PORT:?Set SEERR_PORT
+      in a private .env}:5055
+    volumes:
+    - type: bind
+      source: ${CONFIG_ROOT:?Set CONFIG_ROOT in a private .env}/seerr
+      target: /app/config
+      bind:
+        create_host_path: false
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - wget --no-verbose --tries=1 --spider http://127.0.0.1:5055/api/v1/settings/public
+        || exit 1
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+networks:
+  media:
+    driver: bridge

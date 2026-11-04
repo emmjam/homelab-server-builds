@@ -1,6 +1,6 @@
 # Rufus context budgeting and VS Code 0.2.0 — continuation
 
-Updated: 3 November 2026. **Task unfinished: deployment and acceptance pending.**
+Updated: 3 November 2026. **Accepted for current use; detailed acceptance checks deferred by the user.**
 Repository: `/home/ian/Projects/homelab-server-builds`, branch `main`.
 Read this file first on resumption, then `AGENTS.md` and `PROJECT_CONTEXT.md`.
 Do not delete this file until the entire task, including deployment and acceptance,
@@ -8,15 +8,71 @@ is tested and verified. Update its checkpoint after each significant stage.
 
 ## Current authorisation and exact next action
 
-The current instruction is documentation only. **Do not deploy as part of this
-change.** Record the permanent directive and this file in a separate commit and
-push them under the standing directive; exclude all pending implementation files.
+The user now authorises backend deployment, local VS Code 0.2.0 installation,
+live integration/visual acceptance and necessary narrow corrections. **Do not
+commit or push** without a new instruction. This supersedes the earlier
+documentation-only instruction and the commit-before-deployment step below.
+Use a checksummed isolated working-source bundle on Rundeck with the existing
+Ansible playbooks; do not overwrite the managed Git checkout or publish changes.
 
-When the user resumes the deployment task: first run `git status --short --branch`
-and `git diff --stat` in this repository, compare the pending files against this
-checkpoint, and inspect the existing deployment/acceptance scripts listed below.
-Then prepare the narrow managed deployment and combined acceptance script. Do not
-run the old final script assuming it deploys/tests all 0.2.0 components: it does not.
+Current stage: backend deployment, live transport and local installation verified.
+Resume check on 3 November 2026: repository changes preserved; UI inventory still
+returns no apps/browsers and native window discovery is unavailable. No deployment,
+installation or passing test was repeated. The subsequent provisional user
+acceptance below supersedes the request for an immediate normal-profile check.
+**Do not rerun deployment or repeat passing tests merely to reconfirm them.**
+
+User checkpoint, 3 November 2026: “it will do for now”. Record this as
+provisional acceptance for current use, not proof that every visual, keyboard,
+resizing or genuine-proposal rejection check passed. Further work is deferred.
+
+Exact next action: no further changes or testing now. On a future request to
+resume, review this checkpoint and ask which deferred check or reported issue the
+user wants addressed; do not automatically repeat deployment/tests or request the
+same visual confirmation. Preserve this file while detailed acceptance remains
+unfinished. Do not commit or push without a new instruction.
+
+Verified resumed checkpoint (3 November 2026):
+- Combined runner completed with exit 0 and PASS; exec session 83300 is finished.
+- Working snapshot: `/tmp/rufus-vscode-source.sO8l20Jk` on Rundeck; archive SHA256
+  `69763b06560a2be741dfb89e7e790b0a7313b6161711f43d2da1ed6bbfac8ca9`.
+- Local temporary evidence: `/tmp/rufus-vscode-deployment-iydkbu8s/`.
+  Controller log: `/tmp/rufus-vscode-deploy-ssn9ufs_.log`.
+  **Durable evidence:** `docs/evidence/rufus-vscode-0.2.0/` (manifest, controller
+  log, client results, host lifecycle markers and explanatory README).
+- Protected backup on Rufus: `/var/backups/rufus-vscode-20261103T203239Z`.
+- Scoped application/inference/Web Ansible deployment completed. All 14 deployed
+  module/static hashes matched source; budget config verified; both services active;
+  recent service error lines zero. No managed Git checkout change was made.
+- Live extension transport: authenticated new budget capabilities; structured message
+  and repository HTTP 413 rejections with no storage; complete 2,790-character message;
+  explicit file context answer; follow-up history recall; progress on all three
+  messages; persisted replies readable through a restored client session.
+- Conversation `7e0aee89-bcae-42a6-b83c-7beac944d57e` retains the three benign test
+  exchanges. Direct sensitive execution, missing CSRF, arbitrary commands and forged
+  approval were denied; logout revocation passed.
+- Real Ollama test-only one-token generation returned `done_reason=length`,
+  `eval_count=1`, and the deployed client rejected it with `inference_incomplete`.
+  Managed inference configuration was not reduced or disrupted.
+- Original managed accounts restored byte-for-byte with metadata unchanged and
+  redeployed. Final services active; zero processing messages; execution count stayed
+  11 before/after, so no infrastructure operations were executed.
+- Normal local VS Code 0.2.0 install succeeded. Installed runtime files match VSIX;
+  only expected VS Code `__metadata` differs in package.json. VSIX SHA256:
+  `e60a2e04a147ac026b62418ccd18f8c39b23c4529813d3bc7013403ac933a9fa`.
+- Real VS Code 1.144.0 host activation, `rufus.open` command and webview
+  open/close/reopen passed in a disposable profile against the installed payload.
+  Original log: `/tmp/rufus-vscode-real-host-profile/logs/20261103T203400/window1/renderer.log`.
+  The host exited 0. This is not visual or normal-profile acceptance.
+- No production backend/extension source needed correction during this deployment;
+  earlier 106 backend and 7 client test results remain the implementation checkpoint.
+- No commit/push performed; deployed working-source implementation remains uncommitted.
+
+Remaining: actual normal-profile interactive/visual checks; genuine sensitive-proposal
+rejection only when independently justified (no real proposal was manufactured).
+Do not delete this file or claim full task acceptance while these required checks
+remain unperformed. Keep automated denial/approval proof separate from live proposal
+rejection and keep host lifecycle proof separate from visual acceptance.
 
 ## Original objectives and requirements
 
@@ -69,7 +125,7 @@ acceptance remain part of the unfinished task.
   SSH/SCP, existing verified host keys and least privilege. Inspect current state
   and `sudo -n -l` before operations. Never expose secrets or modify the ownership,
   permissions or transfer process of Rundeck `/tmp/secrets.txt`.
-- Preserve unrelated changes and active infrastructure. No new accounts/auth scheme,
+- Preserve unrelated changes and active infrastructure. No Docker, new accounts/auth scheme,
   firewall/network redesign, model download, Mac changes or GitHub Actions workflow.
   Do not manufacture a production fault or approve a repair solely to test the UI.
 - If HP is needed and unavailable, use the approved Rundeck HomeLab - AI Host Power
@@ -79,7 +135,7 @@ acceptance remain part of the unfinished task.
 - Put final end-to-end validation in one script and execute it with one SSH call.
   Avoid unnecessary repetition of passing tests unless code/state changes justify it.
 
-## Last verified checkpoint and completed steps
+## Initial local implementation checkpoint (deployment status superseded above)
 
 Local implementation and automated acceptance passed on 3 November 2026:
 
@@ -119,63 +175,32 @@ Historical 0.1.0 deployment/CLI install evidence is not 0.2.0 acceptance. User
 reported baseline login, saved Willow chat, follow-ups, conversation switching and
 panel reopen worked; revised layout and other manual checks remain unverified.
 
-## Ordered remaining implementation, deployment and acceptance work
+## Ordered remaining acceptance and completion work
 
-1. Reconcile the working tree with this checkpoint; inspect changed code and current
-   deployment configuration. Preserve other work. Address any actual review findings.
-2. Prepare a single final controller script for **all** 0.2.0 components. Existing
-   `scripts/rufus-vscode-final.py` deploys only Web and checks read-only HTTP/auth;
-   it does not deploy the revised backend/inference config or test live ordinary
-   inference. Extend/reuse carefully, with failure-safe cleanup and safe logging.
-3. Before any Git-fetched deployment, commit/push the reviewed implementation and
-   tests/docs separately from the directive commit. Verify the exact remote revision
-   and managed controller checkout; do not overwrite local or controller changes.
-4. Deploy the Rufus application, Web gateway and inference-client/config changes
-   through existing managed routes. Inspect playbooks first: avoid the full HP
-   adoption/model/acceptance path just to update the Rufus client. Applicable files:
-   `Ansible/playbooks/rufus.yml`, `rufus-web.yml`, `ai-inference.yml`;
-   inventories `Ansible/inventory/ai2.ini`, `ai-inference.ini`.
-   Existing scoped client route uses `--limit rufus_inference --tags rufus_inference_client`
-   with the inference inventory. Confirm scope and module/config completeness before
-   execution. Existing controller checkout is `/opt/homelab-server-builds`.
-5. Execute combined final end-to-end validation via one SSH call on the authorised
-   controller. Verify deployed source/config revision, both Rufus services, new
-   capabilities, persisted history/migration, safe structured oversized-message
-   rejection/no stored request, context omissions and current-message preservation.
-   Run ordinary live chat and follow-up with HP inference and verify full final
-   answers. Compare actual Ollama prompt usage with estimates when available;
-   document calibration limits. Establish unavailable/incomplete failure behaviour
-   non-disruptively; never break production to induce a failure. Preserve independent
-   auth/CSRF/approval checks and inspect existing execution logs without new repairs.
-6. If reusing temporary Web-account acceptance, preserve the existing managed account
-   source at `/var/lib/rundeck/rufus-web-accounts.json`; restore it and its deployment
-   in `finally`, verify restoration and remove the temporary identity. Keep plaintext
-   credentials in memory and never commit credentials. Revalidate any historical
-   execution ID (the old script uses 157) before relying on its availability.
-7. Install the matching `/tmp/rufus-chat-0.2.0.vsix` in the intended VS Code profile
-   using Install from VSIX, then reload and run **Rufus: Open Chat**. Default server
-   `http://rufus.lan:8788`; use the existing Web account, never the API bearer token.
-   Rebuild only if source changed or artifact disappeared; do not claim install from
-   successful packaging or from historical 0.1.0 CLI evidence.
-8. Perform actual interactive acceptance in the normal VS Code profile:
-   - Login, create/send/follow up, switch conversations, close/reopen, reload VS Code;
-     confirm shared history in browser. Confirm progress while waiting for inference.
-   - Narrow/wide panes, high contrast, keyboard focus, Enter/Shift+Enter, long replies
-     and logs; composer stays usable while transcript scrolls. Inspect real layout.
-   - Explicit selection/file attachment preview/removal; credential/untrusted-file
-     refusal, visible excerpt omissions and oversized-message error with draft intact.
-   - View approved operations and existing execution/logs. Inspect and reject only an
-     independently justified proposal; never manufacture a fault or approve a real
-     repair to exercise buttons. Record unavailable acceptance cases as outstanding.
-   - Logout/re-login, history retention and independent browser/extension sessions;
-     expiry/revocation where practical. Do not call mocks interactive verification.
-9. Correct actual findings and run affected checks only. Update this file after each
-   stage with exact revisions, execution IDs, commands, logs/results and next action.
-10. Update maintained docs/BACKLOG with local/pushed/deployed/live/manual evidence and
-    remaining limitations. Report all changed files, details and tests. Only after
-    every required stage is complete and verified, transfer lasting evidence to docs
-    and delete this continuation file. Unperformed deployment or acceptance means
-    this file must remain and the overall task must not be marked complete.
+1. Continue from the verified resumed checkpoint above. Do not repeat deployment,
+   installation or passing live/host tests absent a source change or new failure.
+2. Complete the actual normal-profile interactive checklist:
+   - Reload VS Code; run `Rufus: Open Chat`; login, create/send/follow up, switch,
+     close/reopen and compare the browser archive. Confirm visible progress.
+   - Inspect composer/history scrolling, narrow/wide panels, high contrast,
+     keyboard focus, Enter/Shift+Enter and long replies/logs in the real interface.
+   - Attach/review/remove selection/file context; check visible omissions and
+     over-budget draft retention. Automated/backend context tests already passed.
+   - Read approved operations/existing logs. Reject only a genuinely justified
+     proposal if one exists. Never manufacture a fault or execute an operation for
+     approval UI testing. Otherwise keep real-proposal rejection explicitly pending.
+   - Check normal-profile logout/re-login and independent browser sessions as needed;
+     transport revocation and persisted history are already live-verified.
+3. Correct only actual findings and run affected tests. If source changes, rebuild
+   the reproducible VSIX, use existing scoped Ansible mechanisms for affected backend
+   files, and preserve all source/database/credentials and evidence. Keep secrets out
+   of logs. `scripts/run-rufus-vscode-deployment.py` orchestrates a fresh authorised
+   deployment if genuinely required; inspect it and live state before rerunning.
+4. Update this checkpoint after significant stages and update maintained docs/BACKLOG
+   with actual visual/user-reported evidence, remaining limits and precise Git state.
+   Do not commit or push without a new user instruction.
+5. Only after all required work is complete, tested and verified, transfer lasting
+   evidence to maintained docs and delete this continuation file. Until then retain it.
 
 ## Relevant files and deployment references
 
@@ -197,6 +222,7 @@ and acceptance requirements contained in this file.
 Conservative byte estimates may reject inputs a tokenizer would accept; framing
 headroom is approximate and not calibrated live for this revision. Complete reply
 storage retains its 8,192-character ceiling. Progress uses polling rather than token
-streaming. Remote/non-file context attachment is unsupported. Automated mocks do
-not verify live Ollama behaviour, normal-profile layout or accessibility. Deployment,
-installation and live/manual acceptance are all outstanding.
+streaming. Remote/non-file context attachment is unsupported. Live Ollama/transport
+and real-host lifecycle acceptance now passed. Normal-profile
+layout/accessibility and genuine-proposal rejection remain unverified; see the
+current checkpoint above. Byte estimates are not fully calibrated model token counts.

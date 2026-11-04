@@ -16,33 +16,42 @@ new port, account, authentication scheme or firewall change is introduced.
 ## Install
 
 Install the packaged `.vsix` using **Extensions → … → Install from VSIX…**,
-then reload VS Code. Or run `code --install-extension /path/to/rufus-chat-0.1.0.vsix`.
+then reload VS Code. Or run `code --install-extension /path/to/rufus-chat-0.2.0.vsix`.
 The desktop extension runs on the UI side; VS Code’s desktop host supplies Node.
 No npm install, runtime dependencies, language model API key or Marketplace
 publication is needed. VS Code 1.96 or later is required.
 
-The gateway needs the additive `/jobs` and `/executions` allowlist update from
+The 0.2.0 backend/gateway needs the conservative UTF-8 estimator, separate repository-context intake, model-window
+budgeting and a larger bounded request envelope as well as the original additive `/jobs` and `/executions` allowlist update from
 this deliverable; conversation and approval routes are unchanged. Deployment
 and completion evidence: [VS Code integration](../docs/rufus-vscode.md).
 
 ## Use
 
-- Choose or create a conversation. History stays in the existing Rufus SQLite
+- Choose or create a conversation in the compact header. Sign-in, sign-out, refresh
+  and approved operations are in the ⋯ menu. History is the main scroll area,
+  with a bottom multiline composer: Enter sends, Shift+Enter adds a line. History stays in the existing Rufus SQLite
   store and is shared with your existing browser archive. Only selected IDs and
   up to ten recent execution IDs are saved locally, separated by server origin.
 - Progress/events, outcomes and completed replies refresh every 2.5 seconds.
   There is no token-by-token generation stream in the backend. Reopen/refresh to
   recover after a connection failure; POSTs are never automatically retried.
-- Attach a selection, small active file or repository/file details explicitly.
+- Attach a selection, active file excerpt or repository/file details explicitly.
   Review the exact preview before sending; remove it to send only your message.
   No workspace crawl, automatic file upload or Git/shell command occurs. Context
-  is limited to 1000 characters; total message/context to the backend’s 2048.
+  uses the backend-advertised resource ceiling; omissions are marked in preview.
+  The backend reserves the full message and generation allowance, then fits
+  context and whole recent exchanges within its configured model window. It uses
+  a replaceable conservative UTF-8 byte estimator, with separate message,
+  repository, history and overall budgets. Messages
+  exceeding the backend budget are rejected clearly, never silently truncated.
+  The backend can shorten the attachment further; see context-budget activity.
   Credential filenames and recognised private keys/tokens are refused. This is
   a guard, not a guarantee that arbitrary source contains no secrets: review it.
   Untrusted workspaces cannot attach context. Nothing is attached by default.
 - Infrastructure requests use Rufus’s current classifier and catalogue. Review
   every proposal’s change, target, parameters, risks, hash and expiry. Approve
-  or reject through the card and VS Code’s explicit native confirmation. The
+  or reject through the visible approval card and VS Code’s explicit native confirmation. The
   existing backend alone validates expiry, hash, one-use state and permissions.
 - **Approved operations…** discovers only Rufus-approved jobs. Explicitly confirm
   an operation before submission. Sensitive operations are rejected on this
@@ -50,7 +59,7 @@ and completion evidence: [VS Code integration](../docs/rufus-vscode.md).
   This panel does not expand the existing operation catalogue or grant Task 3
   power operations to the Rufus application policy.
 - Diagnostic, repair, verification and submitted execution IDs appear with
-  backend status and bounded logs. Only Rufus-recorded execution IDs discovered
+  backend status and bounded logs in the collapsed Operations and activity area. Only Rufus-recorded execution IDs discovered
   through this client’s conversations or submissions are queried. There is no
   arbitrary Rundeck URL, job UUID, shell, SSH, deployment or cancellation endpoint.
 
@@ -61,7 +70,7 @@ does not wake nodes, deploy models or repair infrastructure automatically.
 
 ## Build and tests
 
-`python3 scripts/package-rufus-vscode.py --output /tmp/rufus-chat-0.1.0.vsix`
+`python3 scripts/package-rufus-vscode.py --output /tmp/rufus-chat-0.2.0.vsix`
 creates a deterministic, dependency-free VSIX with an explicit runtime-file
 allowlist. Tests and development files are excluded. JavaScript tests use Node’s
 built-in test runner; `scripts/validate-rufus-vscode.py` performs client tests,

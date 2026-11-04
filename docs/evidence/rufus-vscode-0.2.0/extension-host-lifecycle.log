@@ -1,0 +1,5 @@
+2026-11-03 20:34:15.726 [info] {"check":"real-host-0.2.0-activation"}
+2026-11-03 20:34:16.088 [info] {"check":"real-host-command-registered"}
+2026-11-03 20:34:16.321 [info] {"check":"real-host-webview-opened"}
+2026-11-03 20:34:16.586 [info] {"check":"real-host-webview-reopened"}
+2026-11-03 20:34:16.665 [info] {"check":"PASS-real-host-lifecycle-not-visual-acceptance"}

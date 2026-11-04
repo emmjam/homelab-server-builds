@@ -91,6 +91,19 @@ in [BACKLOG.md](BACKLOG.md). Do not infer deployment from local extension files.
 
 ## Separate media-library project: Bobarr and Plex
 
+**Current media direction, 4 November 2026:** Seerr discovery/requests with
+Sonarr/Radarr, Prowlarr and NordVPN-isolated Transmission, deployed eventually
+through Docker Compose on **native TerraMaster TOS**, not a Proxmox VM. This
+supersedes the historical Bobarr/custom Boba media proposals and Debian media VM
+choice below; it does not assert a live migration or revise unrelated infrastructure.
+Four-disk TRAID synchronisation is user-reported; no NAS/infrastructure/storage
+operations are authorised for this preparation task. Actual TOS version and paths
+are unknown. See [design](docs/media-tos.md), MEDIA-01 and
+[continuation](TASK-CONTINUATION-MEDIA-TOS.md). Templates are local and unvalidated
+on TOS. OpenClaw/Mac WOL assessment is independent of media-stack delivery.
+
+Historical proposal follows:
+
 Bobarr is intended to manage a self-hosted film and television media library, with that library feeding into Plex for media playback. Bobarr is a separate homelab project; it is not part of Rufus or the Rundeck automation infrastructure. The project reference is [Bobarr](https://github.com/iam4x/bobarr). Deployment choices and integrations beyond this relationship have not been finalised.
 
 # 3. Primary Infrastructure: TNAS
@@ -792,3 +805,14 @@ progress polling, approved operations/logs and exact approval/rejection are
 presented in a webview; explicit bounded context is previewed before sending.
 Infrastructure execution/authorisation remains in Rufus/Rundeck. See
 [installation, validation and manual-check status](docs/rufus-vscode.md).
+
+
+Rufus VS Code 0.2.0 was subsequently installed locally and its backend/configuration
+was deployed from an uncommitted, checksummed working-source bundle through the
+existing Ansible mechanisms on 3 November 2026. Live extension-transport chat,
+context/history, structured limits, incomplete-output detection and denial checks
+passed without infrastructure executions. Real VS Code host activation and tab
+reopening passed in a disposable profile; normal-profile visual acceptance remains
+pending. No implementation commit/push was made. See the evidence in
+[the resumed deployment record](docs/rufus-vscode.md#resumed-deployment-and-installation--3-november-2026)
+and retain `TASK-CONTINUATION.md` until the remaining acceptance work is verified.

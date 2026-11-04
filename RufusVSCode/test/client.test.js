@@ -13,8 +13,8 @@ test('configured origin and route allowlists reject credential URLs, redirects a
   assert.doesNotThrow(()=>route('/jobs'));assert.doesNotThrow(()=>route('/executions/12'));
 });
 test('explicit context is bounded and request identity is generated without automatic context',()=>{
-  assert.equal(message('Hello','').content,'Hello');assert.match(message('Hello','File: one').content,/untrusted data/);
-  assert.throws(()=>message('x'.repeat(2048),'y'));assert.throws(()=>message('',''));
+  assert.equal(message('Hello','').content,'Hello');assert.equal(message('Hello','File: one').repository_context,'File: one');
+  assert.equal(message('x'.repeat(3000),'y',{message_max_bytes:5000}).content.length,3000);assert.throws(()=>message('x'.repeat(5001),'',{message_max_bytes:5000}),/not truncated/);assert.throws(()=>message('',''));
   assert.notEqual(message('Hello','').request_id,message('Hello','').request_id);
 });
 test('transport never follows redirects or retries ambiguous POSTs and clears expired sessions',async t=>{
@@ -38,10 +38,17 @@ test('actual Web/Auth/API/SQLite end-to-end: chat, restored session/history, ope
   assert.ok(!JSON.stringify([...vault.data]).includes('test-only-password'));
   backend.stdin.write('stats\n');const initial=JSON.parse((await iterator.next()).value).executions;
   const conversation=await client.api('/conversations',{});
-  await client.api('/conversations/'+conversation.id+'/messages',message('Remember Willow',''));
+  const capabilities=(await client.api('/conversations')).limits;
+  await assert.rejects(client.api('/conversations/'+conversation.id+'/messages',message('x'.repeat(capabilities.current_message_tokens+1),'')),error=>{
+    assert.equal(error.status,413);assert.equal(error.code,'message_too_large');assert.equal(error.budget,'incoming_message');return true;
+  });
+  assert.equal((await client.api('/conversations/'+conversation.id)).messages.length,0);
+  const longText='Remember Willow '+ 'x'.repeat(2500);
+  const longBody=message(longText,'File: test.js\n'+'const x=1;'.repeat(1500));assert.ok(Buffer.byteLength(JSON.stringify(longBody))>8192);
+  await client.api('/conversations/'+conversation.id+'/messages',longBody);
   let history;
   for(let n=0;n<60;n++){history=await client.api('/conversations/'+conversation.id);if(history.messages.some(m=>m.role==='assistant'))break;await new Promise(r=>setTimeout(r,30));}
-  assert.match(history.messages.at(-1).content,/Willow/);
+  assert.match(history.messages.at(-1).content,/Willow/);assert.equal(history.messages[0].content,longText);assert.ok(history.messages[0].content.length>2048);assert.match(history.messages[0].repository_context,/File: test.js/);assert.equal((await client.api('/conversations')).limits.context_tokens,8192);
   const restored=new Client(fixture.url,vault);await restored.restore();assert.deepEqual(await restored.api('/conversations/'+conversation.id),history);
   backend.stdin.write('stats\n');assert.equal(JSON.parse((await iterator.next()).value).executions,initial,'Ordinary chat must start zero jobs');
   const {jobs}=await client.api('/jobs');assert.ok(jobs.length);

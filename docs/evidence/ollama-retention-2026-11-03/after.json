@@ -1,0 +1,13 @@
+{
+  "MainPID": "11519",
+  "MemoryMax": "infinity",
+  "CPUQuotaPerSecUSec": "infinity",
+  "User": "ollama",
+  "Group": "ollama",
+  "ExecStart": "{ path=/usr/local/bin/ollama ; argv[]=/usr/local/bin/ollama serve ; ignore_errors=no ; start_time=[Tue 2026-11-03 22:40:14 GMT] ; stop_time=[n/a] ; pid=11519 ; code=(null) ; status=0/0 }",
+  "DropInPaths": "",
+  "EnvironmentFiles": "",
+  "unit": "[Unit]\nDescription=Ollama HP inference (Ansible managed)\nWants=network-online.target\nAfter=network-online.target homelab-inference-firewall.service\nBindsTo=homelab-inference-firewall.service\nRequires=homelab-inference-firewall.service\n\n[Service]\nExecStart=/usr/local/bin/ollama serve\nUser=ollama\nGroup=ollama\nRestart=on-failure\nRestartSec=3\nEnvironment=\"OLLAMA_HOST=192.168.0.118:11434\"\nEnvironment=\"OLLAMA_MODELS=/usr/share/ollama/.ollama/models\"\nEnvironment=\"OLLAMA_CONTEXT_LENGTH=4096\"\nEnvironment=\"OLLAMA_NUM_PARALLEL=1\"\nEnvironment=\"OLLAMA_MAX_LOADED_MODELS=1\"\nEnvironment=\"OLLAMA_NO_CLOUD=1\"\nEnvironment=\"OLLAMA_KEEP_ALIVE=30m\"\n\n[Install]\nWantedBy=multi-user.target\n",
+  "model_hash": "31d9857b5705086d352d4d6db04e86c5d0f6a2b5d59a4dc7ce5cdb271ccf9141",
+  "active_keep_alive": "30m"
+}

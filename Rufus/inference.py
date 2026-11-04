@@ -6,10 +6,15 @@ import socket
 from urllib.parse import urlsplit
 
 from config import secret
+from budget import Budget, BudgetError
 
 
 class InferenceError(Exception):
     """Safe upstream error; never includes request content or credentials."""
+    def __init__(self, message, code='inference_failed', details=None):
+        super().__init__(message)
+        self.details = details or {'code':code, 'retryable':code in ('inference_unavailable','inference_timeout')}
+
 
 
 class Client:
@@ -27,16 +32,19 @@ class Client:
             raise ValueError('Invalid inference timeouts')
 
     def chat(self, messages, schema=None):
+        budget=Budget(self.config)
         data = {'model': self.config['model'], 'messages': messages, 'stream': False,
                 'think': False, 'keep_alive': 0,
-                'options': {'num_ctx': 4096 if schema is not None else int(self.config.get('chat_num_ctx',8192)),
-                            'num_predict': 256 if schema is not None else int(self.config.get('chat_num_predict',2048)), 'temperature': 0}}
+                'options': {'num_ctx': budget.window,
+                            'num_predict': budget.structured_output if schema is not None else budget.output, 'temperature': 0}}
         if schema is None and self.config.get('chat_empty_thinking_prefill',False):
             # This retained template unconditionally opens <think>; complete the
             # empty block on the wire without changing stored conversation history.
             data['messages']=list(messages)+[{'role':'assistant','content':'<think>\n\n</think>\n\n'}]
         if schema is not None:
             data['format'] = schema
+        try:budget.ensure_request(data['messages'],schema)
+        except BudgetError as error:raise InferenceError(str(error),details=error.details) from None
         headers = {'Content-Type': 'application/json'}
         if self.config.get('auth_secret_name'):
             headers['Authorization'] = 'Bearer ' + secret(
@@ -58,6 +66,10 @@ class Client:
             if len(raw) > 1024 * 1024:
                 raise InferenceError('Inference response exceeded the size limit')
             result = json.loads(raw)
+            if not isinstance(result,dict) or result.get('error'):
+                raise InferenceError('Inference backend returned an error')
+            if result.get('done_reason') == 'length':
+                raise InferenceError('Inference response reached its limit before completing; try a shorter question',code='inference_incomplete')
             content = result['message']['content']
             if result.get('done') is not True or not isinstance(content, str) or not content.strip():
                 raise ValueError()
@@ -75,10 +87,10 @@ class Client:
                 json.loads(content)
             return content
         except (TimeoutError, socket.timeout):
-            raise InferenceError('Inference backend timed out') from None
+            raise InferenceError('Inference backend timed out',code='inference_timeout') from None
         except (OSError, http.client.HTTPException):
-            raise InferenceError('Inference backend unavailable') from None
-        except (ValueError, KeyError, TypeError):
+            raise InferenceError('Inference backend unavailable',code='inference_unavailable') from None
+        except (ValueError, KeyError, TypeError, AttributeError):
             raise InferenceError('Inference backend returned an invalid response') from None
         finally:
             connection.close()

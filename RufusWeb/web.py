@@ -34,7 +34,7 @@ class Client:
             with self.opener.open(request,timeout=20) as response:return response.status,json.load(response)
         except urllib.error.HTTPError as error:
             # Do not reflect upstream authentication errors or arbitrary response bodies.
-            if error.code in (400,403,404,409):
+            if error.code in (400,403,404,409,413):
                 try:return error.code,json.loads(error.read(16384))
                 except ValueError:pass
             return 502,{'error':'Rufus API request failed; check its service and the managed web credential.'}
@@ -86,7 +86,7 @@ def handler(config,auth,client):
                 raw=b''
                 if method=='POST':
                     length=int(self.headers.get('Content-Length','0'))
-                    if not 0<length<=8192:return self.respond(400,{'error':'Invalid request size'})
+                    if not 0<length<=131072:return self.respond(413,{'error':'Invalid request size','code':'request_too_large','budget':'http_request','limit':131072,'unit':'bytes'})
                     raw=self.rfile.read(length)
                 token=self.cookie();session=auth.session(token)
                 secure='; Secure' if config.get('cookie_secure',False) else ''

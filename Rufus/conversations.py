@@ -5,12 +5,14 @@ import json
 import sqlite3
 import time
 import uuid
+from budget import MAX_MESSAGE_BYTES, MAX_CONTEXT_BYTES, cost
 
 
 class ConversationError(Exception):
-    def __init__(self, message, status=409):
+    def __init__(self, message, status=409, details=None):
         super().__init__(message)
         self.status = status
+        self.details = details or {}
 
 
 def canonical(value):
@@ -47,6 +49,8 @@ class Store:
                     execution_id INTEGER, verification_id INTEGER,
                     updated REAL NOT NULL);
             ''')
+            if 'repository_context' not in {row[1] for row in db.execute('PRAGMA table_info(messages)')}:
+                db.execute("ALTER TABLE messages ADD COLUMN repository_context TEXT NOT NULL DEFAULT ''")
 
     @contextmanager
     def db(self):
@@ -76,29 +80,31 @@ class Store:
                 FROM conversations c ORDER BY updated DESC,c.id DESC LIMIT 100""").fetchall()
         return {'conversations':[dict(row, title=row['title'][:100]) for row in rows]}
 
-    def message(self, conversation, request_id, content):
+    def message(self, conversation, request_id, content, repository_context=''):
         try:
             if str(uuid.UUID(request_id)) != request_id:
                 raise ValueError()
         except (ValueError, TypeError, AttributeError):
             raise ConversationError('Expected canonical UUID request_id', 400) from None
-        if not isinstance(content, str) or not content.strip() or len(content) > 2048:
-            raise ConversationError('Message must contain 1 to 2048 characters', 400)
+        if not isinstance(content, str) or not content.strip() or cost(content)>MAX_MESSAGE_BYTES:
+            raise ConversationError('Message must be non-empty and within the HTTP resource envelope',400)
+        if not isinstance(repository_context,str) or cost(repository_context)>MAX_CONTEXT_BYTES:
+            raise ConversationError('Repository context exceeds its separate resource intake budget',400)
         with self.db() as db:
             db.execute('BEGIN IMMEDIATE')
             self.require_conversation(db, conversation)
             row = db.execute('SELECT * FROM messages WHERE conversation=? AND request_id=?',
                              (conversation, request_id)).fetchone()
             if row:
-                if row['content'] != content:
+                if row['content'] != content or row['repository_context'] != repository_context:
                     raise ConversationError('Request ID already used with different content')
                 return dict(row), False
             if db.execute("SELECT 1 FROM messages WHERE conversation=? AND status='processing'",
                           (conversation,)).fetchone():
                 raise ConversationError('Conversation already has an active request')
             result = dict(id=str(uuid.uuid4()), conversation=conversation, request_id=request_id,
-                          content=content, created=self.clock(), status='processing')
-            db.execute('INSERT INTO messages VALUES (:id,:conversation,:request_id,:content,:created,:status)', result)
+                          content=content, repository_context=repository_context, created=self.clock(), status='processing')
+            db.execute('INSERT INTO messages (id,conversation,request_id,content,created,status,repository_context) VALUES (:id,:conversation,:request_id,:content,:created,:status,:repository_context)',result)
         return result, True
 
     def event(self, conversation, kind, data):
@@ -130,7 +136,7 @@ class Store:
                        (str(uuid.uuid4()),row['conversation'],message,content,self.clock()))
             db.execute("UPDATE messages SET status='completed' WHERE id=?", (message,))
 
-    def context(self, conversation, current, max_chars=6000, max_messages=12):
+    def context(self, conversation, current, max_messages=12):
         # Only complete exchanges are reusable. Failed/interrupted prompts remain
         # in history but cannot silently become successful conversational context.
         with self.db() as db:
@@ -139,14 +145,10 @@ class Store:
                 WHERE m.conversation=? AND m.status='completed'
                 ORDER BY m.created DESC,m.id DESC LIMIT ?""",
                 (conversation,max_messages//2)).fetchall()
-        remaining=max_chars-len(current)
         exchanges=[]
         for row in rows:
-            size=len(row['user'])+len(row['assistant'])
-            if size>remaining: break
             exchanges.append([{'role':'user','content':row['user']},
                               {'role':'assistant','content':row['assistant']}])
-            remaining-=size
         return [item for pair in reversed(exchanges) for item in pair]+[{'role':'user','content':current}]
 
     def propose(self, conversation, proposal, ttl=600):

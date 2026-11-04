@@ -1,0 +1,6 @@
+{"check": "syntax-PASS"}
+Traceback (most recent call last):
+  File "/tmp/ollama-retention.DVkOk5ZH/retention.py", line 27, in <module>
+    assert before.replace('OLLAMA_KEEP_ALIVE=0','OLLAMA_KEEP_ALIVE=30m')==rendered,'Predicted unit changes more than retention; stop'
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Predicted unit changes more than retention; stop

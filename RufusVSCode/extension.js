@@ -4,21 +4,29 @@ const fs = require('node:fs');
 const crypto = require('node:crypto');
 const {Client, message, uuid, origin} = require('./client');
 
-function contextText(editor, mode, workspace) {
+function contextText(editor, mode, workspace, limits) {
+  if (!limits) throw new Error('Refresh to obtain backend context capabilities before attaching a file.');
   if (!workspace.isTrusted) throw new Error('Trust the workspace before attaching context.');
   if (!editor || editor.document.uri.scheme !== 'file' || !workspace.getWorkspaceFolder(editor.document.uri)) throw new Error('Open a file inside the current workspace first.');
   const name = workspace.asRelativePath(editor.document.uri);
   if (/(^|[/\\])(?:\.env(?:\..*)?|secrets?(?:\..*)?|credentials?(?:\..*)?|id_(?:rsa|ed25519)(?:\..*)?)$|\.(?:pem|key|p12|pfx)$/i.test(name)) throw new Error('Credential files cannot be attached.');
   const metadata = 'File: '+name+'\nLanguage: '+editor.document.languageId+'\nUnsaved edits: '+editor.document.isDirty;
   if (mode === 'Repository/file details only') return metadata;
-  const text = mode === 'Current selection' ? editor.document.getText(editor.selection) : editor.document.getText();
-  if (!text || [...text].length > 1000) throw new Error('Choose 1–1000 characters; files and selections are never silently truncated.');
-  if (/-----BEGIN .*PRIVATE KEY-----|\b(?:gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,})\b/.test(text)) throw new Error('Recognised credential material cannot be attached.');
-  return metadata+'\n'+(mode === 'Current selection' ? 'Selection lines: '+(editor.selection.start.line+1)+'–'+(editor.selection.end.line+1) : 'Whole active file')+'\n'+text;
+  const raw = mode === 'Current selection' ? editor.document.getText(editor.selection) : editor.document.getText();
+  if (!raw) throw new Error('Select some text first.');
+  if (/-----BEGIN .*PRIVATE KEY-----|\b(?:gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,})\b/.test(raw)) throw new Error('Recognised credential material cannot be attached.');
+  // Prefer selected text; for whole files use a line-aligned window around the cursor.
+  const lines=raw.split('\n'), cursor=mode==='Current selection'?0:editor.selection.start.line;
+  const window=lines.slice(Math.max(0,cursor-20),cursor+81).join('\n');
+  const source=Buffer.byteLength(raw,'utf8')<=limits.repository_max_bytes?raw:window;
+  let text='';for(const character of source){if(Buffer.byteLength(text+character,'utf8')>Math.max(0,limits.repository_max_bytes-256-Buffer.byteLength(metadata,'utf8')))break;text+=character;}
+  const shortened=text!==raw;
+  if(shortened)text+='\n[… repository excerpt; remaining content omitted …]';
+  return metadata+'\n'+(mode === 'Current selection' ? 'Selection lines: '+(editor.selection.start.line+1)+'–'+(editor.selection.end.line+1) : shortened ? 'Active file excerpt around cursor' : 'Whole active file')+'\n'+text;
 }
 function activate(context) {
   let panel, timer, client, selected, attachment = '', refreshing = false, submitting = false;
-  let observedExecutions = new Set();
+  let observedExecutions = new Set(), backendLimits;
   let lastEditor = vscode.window.activeTextEditor;
   const post = data => panel?.webview.postMessage(data);
   const stop = () => { clearInterval(timer); timer = undefined; };
@@ -40,6 +48,7 @@ function activate(context) {
       if (!current.session) { post({type:'signedOut'}); return; }
       const snapshotSelected = selected;
       const conversations = await current.api('/conversations');
+      backendLimits=conversations.limits;
       let history = null, actions = [], executions = [];
       if (snapshotSelected && conversations.conversations.some(c => c.id === snapshotSelected)) {
         history = await current.api('/conversations/'+snapshotSelected);
@@ -54,7 +63,7 @@ function activate(context) {
         catch { executions.push({execution_id:id,status:'unavailable',failure:'Execution monitoring unavailable; no operation was retried.'}); }
       }
       await context.globalState.update('executions.'+current.url,[...observedExecutions]);
-      if (client === current && selected === snapshotSelected) post({type:'state', origin:current.url, selected, conversations:conversations.conversations, history, actions, executions});
+      if (client === current && selected === snapshotSelected) post({type:'state', origin:current.url, selected, conversations:conversations.conversations, history, actions, executions,limits:backendLimits});
     } finally { refreshing = false; }
   }
   async function choose(id) {
@@ -80,11 +89,11 @@ function activate(context) {
     else if (data.type === 'attach') {
       const editor = vscode.window.activeTextEditor || lastEditor;
       const mode = await vscode.window.showQuickPick(['Current selection','Whole active file','Repository/file details only'],{title:'Explicitly attach context to the next message'});
-      if (mode) { attachment = contextText(editor,mode,vscode.workspace); post({type:'context',text:attachment}); }
+      if (mode) { attachment = contextText(editor,mode,vscode.workspace,backendLimits); post({type:'context',text:attachment}); }
     }
     else if (data.type === 'send') {
       if (submitting || typeof data.content !== 'string') return;
-      const body = message(data.content,attachment);
+      const body = message(data.content,attachment,backendLimits);
       submitting = true; post({type:'busy',value:true});
       try {
         if (!selected) { const conversation = await client.api('/conversations',{}); await choose(conversation.id); }

@@ -31,6 +31,29 @@ class ChatTests(unittest.TestCase):
         self.flow.process(message)
         return message
 
+    def test_long_message_context_and_classifier_are_separate(self):
+        content='Explain this. '+('x'*3000)
+        repository='File: example.py\n'+('code\n'*1000)
+        self.model.chat.side_effect=[json.dumps({'intent':'chat','target':'unknown','explanation':'chat'}),'Reply']
+        with patch.object(self.flow,'schedule'):
+            message=self.flow.message(self.conversation,{'request_id':str(uuid.uuid4()),'content':content,'repository_context':repository})
+        self.flow.process(message)
+        calls=self.model.chat.call_args_list
+        self.assertEqual(calls[-1].args[0][-1]['content'],content)
+        self.assertNotIn('File: example.py',json.dumps(calls[0].args[0]))
+        history=self.flow.store.history(self.conversation)
+        self.assertEqual(history['messages'][0]['repository_context'],repository)
+        self.assertTrue(any(e['kind']=='context_budget' for e in history['events']))
+        self.assertEqual(self.client.mock_calls,[])
+
+    def test_oversize_current_rejected_before_persistence(self):
+        from conversations import ConversationError
+        with self.assertRaisesRegex(ConversationError,'not truncated') as caught:
+            self.flow.message(self.conversation,{'request_id':str(uuid.uuid4()),'content':'x'*16000})
+        self.assertEqual(caught.exception.status,413)
+        self.assertEqual(caught.exception.details['code'],'message_too_large')
+        self.assertEqual(self.flow.store.history(self.conversation)['messages'],[])
+
     def test_question_saves_response_and_no_rundeck(self):
         self.send('Why is the sky blue?','Sunlight scatters in the atmosphere.')
         history=self.flow.store.history(self.conversation)
@@ -75,10 +98,9 @@ class ChatTests(unittest.TestCase):
         self.assertEqual(reopened.history(self.conversation),self.flow.store.history(self.conversation))
         self.assertEqual(reopened.context(self.conversation,'Which name?')[1]['content'],'Willow it is.')
 
-    def test_context_limits_keep_whole_recent_exchanges(self):
+    def test_context_retrieves_whole_recent_exchanges_for_budgeting(self):
         for n in range(10):self.send('Question '+str(n),'Answer '+str(n))
-        context=self.flow.store.context(self.conversation,'Next',max_chars=60,max_messages=4)
-        self.assertLessEqual(sum(len(m['content']) for m in context),60)
+        context=self.flow.store.context(self.conversation,'Next',max_messages=4)
         self.assertLessEqual(len(context),5)
         self.assertEqual(context[-1],{'role':'user','content':'Next'})
         self.assertEqual(context[0]['role'],'user')
@@ -127,3 +149,12 @@ class ChatTests(unittest.TestCase):
         history=self.flow.store.history(self.conversation)
         self.assertEqual(history['messages'][0]['status'],'failed')
         self.assertEqual(len(history['messages']),1)
+
+    def test_structured_history_has_independent_budget(self):
+        self.flow.budget.history_tokens=10
+        self.model.chat.return_value='{"intent":"chat","target":"unknown","explanation":"chat"}'
+        self.flow.infer('Route only',{'request':'keep me','recent_messages':['old'*100,'new'*100]},
+                        {key:{'type':'string'} for key in ('intent','target','explanation')},['intent','target','explanation'])
+        data=json.loads(self.model.chat.call_args.args[0][1]['content'])
+        self.assertEqual(data['request'],'keep me')
+        self.assertEqual(data['recent_messages'],[])

@@ -2,18 +2,19 @@
 const {test}=require('node:test');const assert=require('node:assert/strict');const Module=require('node:module');const path=require('node:path');
 const vscode={};const originalLoad=Module._load;
 Module._load=function(name,...args){return name==='vscode'?vscode:originalLoad.call(this,name,...args);};
-const {activate,contextText}=require('../extension');Module._load=originalLoad;
+const {activate,contextText:backendContextText}=require('../extension');Module._load=originalLoad;
 const {Client}=require('../client');
+const contextText=(...args)=>backendContextText(...args,{repository_max_bytes:8192});
 const document={uri:{scheme:'file'},languageId:'javascript',isDirty:true,getText:()=>'<script>untrusted text</script>'};
 const editor={document,selection:{start:{line:1},end:{line:2}}};
 const workspace={isTrusted:true,getWorkspaceFolder:()=>({}),asRelativePath:()=> 'repo/file.js'};
-test('context requires explicit trusted in-workspace editor and refuses credential files/material or oversize',()=>{
+test('context requires explicit trusted in-workspace editor and refuses credential files/material and excerpts large files',()=>{
   assert.match(contextText(editor,'Current selection',workspace),/Selection lines: 2–3/);
   assert.doesNotMatch(contextText(editor,'Repository/file details only',workspace),/<script>/);
   assert.throws(()=>contextText(editor,'Whole active file',{...workspace,isTrusted:false}),/Trust/);
   assert.throws(()=>contextText(editor,'Whole active file',{...workspace,getWorkspaceFolder:()=>undefined}),/workspace/);
   for(const name of ['.env','repo/secrets.txt','id_ed25519','key.pem'])assert.throws(()=>contextText(editor,'Whole active file',{...workspace,asRelativePath:()=>name}),/Credential/);
-  assert.throws(()=>contextText({...editor,document:{...document,getText:()=> 'x'.repeat(1001)}},'Whole active file',workspace),/1000/);
+  const excerpt=contextText({...editor,document:{...document,getText:()=> '🙂'.repeat(4000)}},'Whole active file',workspace);assert.ok(Buffer.byteLength(excerpt,'utf8')<=8192);assert.match(excerpt,/omitted/);assert.ok(!excerpt.includes('�'));
   assert.throws(()=>contextText({...editor,document:{...document,getText:()=> '-----BEGIN OPENSSH PRIVATE KEY-----'}},'Whole active file',workspace),/credential/);
 });
 test('panel lifecycle keeps secrets out of webview and native approval sends exact backend identity only after confirmation',async t=>{

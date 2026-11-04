@@ -75,6 +75,16 @@ connect/read timeouts are not a strict end-to-end wall-clock deadline for a
 peer deliberately sending a slow response. Structured content must still be
 validated against the caller's schema before any future action proposal.
 
+The local VS Code 0.2.0 correction centralises all inference accounting in
+`Rufus/budget.py`, using a replaceable conservative UTF-8 byte estimator and the configured
+8,192-token window for both chat and structured workflow calls. Output allowances
+remain 2,048 and 256 respectively. See [context budgeting](rufus-vscode.md#message-and-context-budgeting-020)
+for system/schema/tool/headroom reservations, trimming, capabilities and independent
+HTTP protection. The tagged inference-client tasks install no tokenizer dependency
+or asset. This working revision is now deployed through scoped Ansible from an uncommitted
+source snapshot; see the resumed deployment record in the VS Code integration
+document. Live/manual acceptance status is recorded there. Earlier runtime acceptance below is historical, not proof of deployment.
+
 The user approved the existing runtime/model and Rufus-only firewall access. Deployment must use Git → Rundeck → Ansible. No runtime
 is to be installed inside Rufus. Subsequent acceptance must prove local and
 Rufus-container inference, source restrictions and an idempotent second run.
@@ -172,3 +182,32 @@ and enabled state alone do not prove post-reboot acceptance.
   2 November 2026; that fix is separate from this inference deployment.
 - No conversational repairs, Dell worker, VS Code extension, OpenBao or other
   backlog systems were deployed. Stop this milestone here.
+
+
+## HP model retention — 3 November 2026
+
+The managed role default `ollama_keep_alive: 30m` now renders
+`OLLAMA_KEEP_ALIVE=30m`. The existing service task has tag
+`ollama_service_configuration` for retention-only deployment through
+`ai-inference.yml --limit ai_inference --tags ollama_service_configuration`.
+The existing handler restarts Ollama only when the rendered unit changes.
+
+Deployment and checks passed: active process environment 30m, same model and
+resource settings, Rufus-service-account API access and successful inference.
+Without a request override, `/api/ps` showed the model resident after the request
+and expiry 30 minutes after HP-local completion. A convergence check found no
+pending change. Actual timed unloading remains unverified; no 30-minute wait.
+
+**Request override remains:** `Rufus/inference.py` and the existing inference
+acceptance playbook explicitly send `keep_alive: 0`. These override the server
+default ([official precedence](https://docs.ollama.com/faq)); ordinary Rufus
+requests therefore still request immediate unloading. Application code and
+inference settings were intentionally left unchanged under this task's constraints.
+No Rufus latency improvement is claimed. No commit or push was performed.
+
+[Detailed verification and timing](evidence/ollama-retention-2026-11-03/README.md)
+record the source manifest, configuration comparison, deployment/check logs and
+model expiry. The server-default task is verified within its requested scope;
+natural expiry observation was explicitly optional. The temporary retention task
+continuation is removed after saving this evidence; the unfinished VS Code
+continuation is preserved.

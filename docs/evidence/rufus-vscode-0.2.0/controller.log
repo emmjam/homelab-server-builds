@@ -1,0 +1,240 @@
+
+PLAY [Configure Rufus AI management system] ************************************
+
+TASK [Gathering Facts] *********************************************************
+ok: [rufus.lan]
+
+TASK [Install Rufus application modules] ***************************************
+changed: [rufus.lan] => (item=app.py)
+ok: [rufus.lan] => (item=config.py)
+ok: [rufus.lan] => (item=rundeck.py)
+changed: [rufus.lan] => (item=inference.py)
+changed: [rufus.lan] => (item=conversations.py)
+changed: [rufus.lan] => (item=budget.py)
+changed: [rufus.lan] => (item=workflow.py)
+ok: [rufus.lan] => (item=nodes.py)
+
+TASK [Install approved job policy] *********************************************
+ok: [rufus.lan]
+
+TASK [Install reusable conversational acceptance client] ***********************
+ok: [rufus.lan]
+
+TASK [Install general conversation acceptance client] **************************
+ok: [rufus.lan]
+
+TASK [Install conversational operation catalogue] ******************************
+ok: [rufus.lan]
+
+TASK [Install Rufus configuration] *********************************************
+ok: [rufus.lan]
+
+TASK [Install only Rufus API credentials] **************************************
+ok: [rufus.lan]
+
+TASK [Install Rufus systemd service] *******************************************
+ok: [rufus.lan]
+
+TASK [Enable Rufus service] ****************************************************
+ok: [rufus.lan]
+
+RUNNING HANDLER [Restart Rufus] ************************************************
+changed: [rufus.lan]
+
+PLAY RECAP *********************************************************************
+rufus.lan                  : ok=11   changed=2    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+
+
+PLAY [Verify Rufus identity and source address from existing inventory hostname] ***
+
+TASK [Gathering Facts] *********************************************************
+ok: [rufus.lan]
+
+PLAY [Adopt approved HP runtime and model without reinstalling] ****************
+skipping: no hosts matched
+
+PLAY [Configure Rufus inference client without changing its API or permissions] ***
+
+TASK [Install inference client module] *****************************************
+ok: [rufus.lan] => (item=inference.py)
+ok: [rufus.lan] => (item=budget.py)
+
+TASK [Install non-secret inference settings] ***********************************
+changed: [rufus.lan]
+
+RUNNING HANDLER [Restart Rufus inference client] *******************************
+changed: [rufus.lan]
+
+PLAY [Validate local inference and service prerequisites] **********************
+skipping: no hosts matched
+
+PLAY [Validate inference as unprivileged Rufus service account] ****************
+
+PLAY [Verify non-Rufus controller cannot access inference] *********************
+skipping: no hosts matched
+
+PLAY RECAP *********************************************************************
+rufus.lan                  : ok=4    changed=2    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+
+
+PLAY [Deploy separate web client on the existing Rufus host] *******************
+
+TASK [Gathering Facts] *********************************************************
+ok: [rufus.lan]
+
+TASK [Require the existing Rufus guest and intended LAN address] ***************
+ok: [rufus.lan] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [Require managed account source before deploying authentication] **********
+ok: [rufus.lan]
+
+TASK [Require at least one enabled administrative account] *********************
+ok: [rufus.lan]
+
+TASK [Create unprivileged web account without shell or extra groups] ***********
+ok: [rufus.lan]
+
+TASK [Create protected web directories] ****************************************
+ok: [rufus.lan] => (item={'path': '/opt/rufus-web', 'owner': 'root', 'mode': '0750'})
+ok: [rufus.lan] => (item={'path': '/opt/rufus-web/app', 'owner': 'root', 'mode': '0750'})
+ok: [rufus.lan] => (item={'path': '/opt/rufus-web/app/static', 'owner': 'root', 'mode': '0750'})
+ok: [rufus.lan] => (item={'path': '/opt/rufus-web/config', 'owner': 'root', 'mode': '0750'})
+ok: [rufus.lan] => (item={'path': '/opt/rufus-web/data', 'owner': 'rufus-web', 'mode': '0700'})
+
+TASK [Install web application and static assets] *******************************
+changed: [rufus.lan] => (item=web.py)
+ok: [rufus.lan] => (item=auth.py)
+ok: [rufus.lan] => (item=static/index.html)
+ok: [rufus.lan] => (item=static/login.html)
+ok: [rufus.lan] => (item=static/app.js)
+ok: [rufus.lan] => (item=static/style.css)
+
+TASK [Remove superseded nested static directory] *******************************
+ok: [rufus.lan]
+
+TASK [Install managed salted account hashes only] ******************************
+changed: [rufus.lan]
+
+TASK [Install centrally managed LAN web settings] ******************************
+ok: [rufus.lan]
+
+TASK [Ensure firewall tooling] *************************************************
+ok: [rufus.lan]
+
+TASK [Install dedicated LAN firewall rules] ************************************
+ok: [rufus.lan]
+
+TASK [Install persistent dedicated firewall unit] ******************************
+ok: [rufus.lan]
+
+TASK [Read dedicated firewall before reconciliation] ***************************
+ok: [rufus.lan]
+
+TASK [Reconcile only the dedicated table before opening LAN listener] **********
+ok: [rufus.lan]
+
+TASK [Report semantic firewall changes] ****************************************
+ok: [rufus.lan]
+
+TASK [Enable persistent firewall before Web] ***********************************
+ok: [rufus.lan]
+
+TASK [Install only the Rufus API credential in the web account's protected file] ***
+ok: [rufus.lan]
+
+TASK [Install separate web systemd service] ************************************
+ok: [rufus.lan]
+
+TASK [Enable the trusted-LAN web service] **************************************
+ok: [rufus.lan]
+
+RUNNING HANDLER [Restart Rufus Web] ********************************************
+changed: [rufus.lan]
+
+PLAY RECAP *********************************************************************
+rufus.lan                  : ok=21   changed=3    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+
+
+PLAY [Deploy separate web client on the existing Rufus host] *******************
+
+TASK [Gathering Facts] *********************************************************
+ok: [rufus.lan]
+
+TASK [Require the existing Rufus guest and intended LAN address] ***************
+ok: [rufus.lan] => {
+    "changed": false,
+    "msg": "All assertions passed"
+}
+
+TASK [Require managed account source before deploying authentication] **********
+ok: [rufus.lan]
+
+TASK [Require at least one enabled administrative account] *********************
+ok: [rufus.lan]
+
+TASK [Create unprivileged web account without shell or extra groups] ***********
+ok: [rufus.lan]
+
+TASK [Create protected web directories] ****************************************
+ok: [rufus.lan] => (item={'path': '/opt/rufus-web', 'owner': 'root', 'mode': '0750'})
+ok: [rufus.lan] => (item={'path': '/opt/rufus-web/app', 'owner': 'root', 'mode': '0750'})
+ok: [rufus.lan] => (item={'path': '/opt/rufus-web/app/static', 'owner': 'root', 'mode': '0750'})
+ok: [rufus.lan] => (item={'path': '/opt/rufus-web/config', 'owner': 'root', 'mode': '0750'})
+ok: [rufus.lan] => (item={'path': '/opt/rufus-web/data', 'owner': 'rufus-web', 'mode': '0700'})
+
+TASK [Install web application and static assets] *******************************
+ok: [rufus.lan] => (item=web.py)
+ok: [rufus.lan] => (item=auth.py)
+ok: [rufus.lan] => (item=static/index.html)
+ok: [rufus.lan] => (item=static/login.html)
+ok: [rufus.lan] => (item=static/app.js)
+ok: [rufus.lan] => (item=static/style.css)
+
+TASK [Remove superseded nested static directory] *******************************
+ok: [rufus.lan]
+
+TASK [Install managed salted account hashes only] ******************************
+changed: [rufus.lan]
+
+TASK [Install centrally managed LAN web settings] ******************************
+ok: [rufus.lan]
+
+TASK [Ensure firewall tooling] *************************************************
+ok: [rufus.lan]
+
+TASK [Install dedicated LAN firewall rules] ************************************
+ok: [rufus.lan]
+
+TASK [Install persistent dedicated firewall unit] ******************************
+ok: [rufus.lan]
+
+TASK [Read dedicated firewall before reconciliation] ***************************
+ok: [rufus.lan]
+
+TASK [Reconcile only the dedicated table before opening LAN listener] **********
+ok: [rufus.lan]
+
+TASK [Report semantic firewall changes] ****************************************
+ok: [rufus.lan]
+
+TASK [Enable persistent firewall before Web] ***********************************
+ok: [rufus.lan]
+
+TASK [Install only the Rufus API credential in the web account's protected file] ***
+ok: [rufus.lan]
+
+TASK [Install separate web systemd service] ************************************
+ok: [rufus.lan]
+
+TASK [Enable the trusted-LAN web service] **************************************
+ok: [rufus.lan]
+
+RUNNING HANDLER [Restart Rufus Web] ********************************************
+changed: [rufus.lan]
+
+PLAY RECAP *********************************************************************
+rufus.lan                  : ok=21   changed=2    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+

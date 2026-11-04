@@ -14,17 +14,17 @@ existing conversation/action schema. Reply insertion and user-message completion
 commit atomically. Failed requests retain their prompt and error event, without
 an assistant success message. Duplicate request IDs do not regenerate replies.
 
-Inference context contains at most six completed exchanges plus the current
-prompt, bounded to 6,000 characters excluding the fixed system prompt. Oldest
-exchanges are omitted whole; failed/interrupted requests are excluded. The durable
-archive is retained; this is an inference context limit, not history deletion.
-Structured requests retain a 4,096-token context and 256-token output limit;
-chat uses an 8,192-token context and managed chat allows 2,048 output
-tokens (`chat_num_predict` in inference settings), with inline Qwen reasoning
-removed and incomplete/limit-exhausted chat rejected;
-character budgeting is approximate, not a tokenizer. Responses are redacted and saved whole up to 8,192 characters; larger replies fail
-rather than being silently truncated. Operational text limits remain unchanged. No tools or hosted dependency
-are added. Endpoint/model/timeouts remain in Ansible-managed inference.json.
+Inference context contains at most six completed exchanges plus the full current
+message and optional separately persisted repository context. Old exchanges are
+omitted whole and failed/interrupted requests excluded; archives are retained.
+The local VS Code 0.2.0 revision replaces the old 6,000-character heuristic with
+[conservative byte-estimated context budgeting](rufus-vscode.md#message-and-context-budgeting-020)
+covering system, input, repository context, history, framing and reserved output.
+All inference uses the configured 8,192-token window, with separate output
+reservations of 256 for structured routing/repair and 2,048 for chat. No message is length-truncated: excessive input fails clearly. Existing
+redaction and complete reply storage (up to 8,192 characters) remain. Endpoint,
+model and timeouts remain in Ansible-managed inference.json. Historical acceptance
+below predates this local budgeting revision and does not verify its deployment.
 
 Backend unavailability and timeouts produce safe persisted error events. HTTP 404
 identifies the configured model or endpoint as unavailable without disclosing
@@ -65,7 +65,7 @@ Qwen reasoning; the inference client now excludes it from final replies. The
 acceptance runner uses the existing runuser pattern rather than adding ACL tools.
 
 Remaining limitations: loopback-only API, polling rather than streaming, approximate
-character-based context budgeting, bounded replies, and no automatic retry of
+byte-estimated context budgeting (local revision), bounded replies, and no automatic retry of
 interrupted generation. Durable history is retained rather than pruned. No remote
 client, worker allocation, new operation permissions or hosted dependency was added.
 
@@ -118,7 +118,7 @@ at the native maximum, before weights/workspace. This is an estimate, not an
 assertion of measured allocator usage.
 
 Chat therefore requests 8,192 context tokens, with 2,048 reserved as its maximum
-generation allowance. Existing history selection remains six complete exchanges
+generation allowance. At that historical deployment, history selection remained six complete exchanges
 and 6,000 characters (roughly 1,500–2,000 ordinary English tokens, not an exact
 token count), plus the system/current prompt. This leaves substantial context
 margin. Ollama's global default remains 4,096; Rufus overrides it per chat request.

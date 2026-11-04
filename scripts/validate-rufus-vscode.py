@@ -18,7 +18,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--node', default=shutil.which('node'))
     parser.add_argument('--electron-node', action='store_true')
-    parser.add_argument('--output', type=Path, default=Path('/tmp/rufus-chat-0.1.0.vsix'))
+    parser.add_argument('--output', type=Path, default=Path('/tmp/rufus-chat-0.2.0.vsix'))
     args = parser.parse_args()
     if not args.node:
         parser.error('Install/use Node 20+ or pass a VS Code Electron executable with --node and --electron-node')

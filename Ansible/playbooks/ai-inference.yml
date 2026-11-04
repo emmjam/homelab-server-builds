@@ -29,11 +29,12 @@
   tasks:
     - name: Install inference client module
       ansible.builtin.copy:
-        src: '{{ playbook_dir }}/../../Rufus/inference.py'
-        dest: /opt/rufus/app/inference.py
+        src: '{{ playbook_dir }}/../../Rufus/{{ item }}'
+        dest: /opt/rufus/app/{{ item }}
         owner: root
         group: rufus
         mode: '0640'
+      loop: [inference.py, budget.py]
       notify: Restart Rufus inference client
 
     - name: Install non-secret inference settings
@@ -50,6 +51,11 @@
               'chat_num_predict': rufus_chat_generation_tokens,
               'chat_inference_timeout': rufus_chat_timeout_seconds,
               'chat_empty_thinking_prefill': true,
+              'repository_context_tokens': rufus_repository_context_tokens,
+              'context_framing_tokens': rufus_context_framing_tokens,
+              'workflow_context_reserve_tokens': rufus_workflow_context_reserve_tokens,
+              'incoming_message_tokens': rufus_incoming_message_tokens,
+              'history_context_tokens': rufus_history_context_tokens,
               'auth_secret_name': none} | to_nice_json }}
 
       notify: Restart Rufus inference client

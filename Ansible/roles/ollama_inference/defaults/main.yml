@@ -6,3 +6,5 @@ ollama_port: 11434
 ollama_models: /usr/share/ollama/.ollama/models
 # Exact on-disk manifest observed during adoption; API digest is recorded above.
 ollama_manifest_sha256: 31d9857b5705086d352d4d6db04e86c5d0f6a2b5d59a4dc7ce5cdb271ccf9141
+# Default residency; explicit per-request keep_alive values take precedence.
+ollama_keep_alive: 30m

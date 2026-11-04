@@ -1,0 +1,43 @@
+## main...origin/main
+ M Ansible/playbooks/ai-inference.yml
+ M Ansible/playbooks/rufus.yml
+ M Ansible/vars/rufus-inference.yml
+ M BACKLOG.md
+ M PROJECT_CONTEXT.md
+ M Rufus/app.py
+ M Rufus/conversations.py
+ M Rufus/inference.py
+ M Rufus/workflow.py
+ M RufusVSCode/README.md
+ M RufusVSCode/client.js
+ M RufusVSCode/extension.js
+ M RufusVSCode/media/index.html
+ M RufusVSCode/media/panel.css
+ M RufusVSCode/media/panel.js
+ M RufusVSCode/package.json
+ M RufusVSCode/test/client.test.js
+ M RufusVSCode/test/extension.test.js
+ M RufusWeb/web.py
+ M TASK-CONTINUATION.md
+ M docs/ai-inference.md
+ M docs/ai2-api.md
+ M docs/ai3.md
+ M docs/rufus-vscode.md
+ M scripts/rufus-inference-acceptance.py
+ M scripts/validate-rufus-vscode.py
+ M tests/rufus/test_chat.py
+ M tests/rufus/test_inference.py
+?? Rufus/budget.py
+?? RufusVSCode/test/panel.test.js
+?? docs/evidence/rufus-vscode-0.2.0/DEPLOYMENT-SOURCE.json
+?? docs/evidence/rufus-vscode-0.2.0/README.md
+?? docs/evidence/rufus-vscode-0.2.0/acceptance.jsonl
+?? docs/evidence/rufus-vscode-0.2.0/client.jsonl
+?? docs/evidence/rufus-vscode-0.2.0/controller.log
+?? docs/evidence/rufus-vscode-0.2.0/extension-host-lifecycle.log
+?? docs/evidence/rufus-vscode-0.2.0/git-status.txt
+?? scripts/rufus-vscode-deploy.py
+?? scripts/rufus-vscode-host-test.js
+?? scripts/rufus-vscode-live.js
+?? scripts/run-rufus-vscode-deployment.py
+?? tests/rufus/test_budget.py

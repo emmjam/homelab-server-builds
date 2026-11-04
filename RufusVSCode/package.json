@@ -2,7 +2,7 @@
   "name": "rufus-chat",
   "displayName": "Rufus Chat",
   "description": "Thin client for existing Rufus conversations and approved homelab operations.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "emmjam",
   "engines": {"vscode": "^1.96.0"},
   "categories": ["Other"],

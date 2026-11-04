@@ -1,6 +1,6 @@
 # Authoritative homelab project backlog
 
-**Updated:** 1 November 2026
+**Updated:** 3 November 2026
 
 **Repository:** `emmjam/homelab-server-builds`
 
@@ -84,9 +84,11 @@ product deliverable after basic Rufus, before OpenBao.
 
 | ID | Status | Work and completion criteria | Evidence / dependency |
 |---|---|---|---|
-| VSCODE-01 | DONE | Build a thin VS Code chat extension/panel, similar in concept to the Codex chat tab, communicating through the Rufus API. | [Rufus Chat 0.1.0 extension/package and acceptance](docs/rufus-vscode.md). Implemented and packaged 3 November 2026; isolated real VS Code CLI installation passed. Interactive checks remain pending. |
-| VSCODE-02 | DONE | Support persistent chat, streamed progress/results, useful current repository/file context, approved Rundeck operations, and deployment/status/log viewing. | [Acceptance and limits](docs/rufus-vscode.md): persisted chat, backend-supported progress polling, explicit bounded context and approved-operation/status/log views. Six client tests and 91 Rufus regressions passed; live authenticated gateway acceptance passed. |
+| VSCODE-01 | DONE | Build a thin VS Code chat extension/panel, similar in concept to the Codex chat tab, communicating through the Rufus API. | [Rufus Chat 0.1.0 extension/package and acceptance](docs/rufus-vscode.md). Implemented and packaged 3 November 2026; isolated real VS Code CLI installation passed. 0.2.0 installed locally; actual VS Code host activation and tab open/reopen passed. Revised normal-profile visual checks remain pending. |
+| VSCODE-02 | DONE | Support persistent chat, streamed progress/results, useful current repository/file context, approved Rundeck operations, and deployment/status/log viewing. | [Acceptance and limits](docs/rufus-vscode.md): persisted chat, backend-supported progress polling, explicit bounded context and approved-operation/status/log views. Original automated/live gateway evidence retained; 0.2.0 uses one backend policy with conservative UTF-8 byte estimation, system/workflow/output reservations, whole-exchange history trimming and a separate configurable repository token budget. Verified locally: 106 Rufus tests and 7 VS Code tests passed; reproducible 0.2.0 VSIX built. Backend/config/gateway deployed from an uncommitted working snapshot; live extension transport, 2,790-character input, file context/history, errors and incomplete Ollama output passed. No infrastructure operations executed. Detailed evidence is linked; normal-profile visual/accessibility acceptance and broader model-budget calibration remain outstanding. |
 | VSCODE-03 | DONE | Provide explicit approval/rejection for sensitive operations and carry the decision through the Rufus/Rundeck workflow. Keep execution and authorisation in the backend rather than making the panel an unrestricted infrastructure client. | [Approval contract and evidence](docs/rufus-vscode.md): exact native confirmation and backend decision forwarding; changed/replayed approvals, rejection and direct mutation denial verified with isolated real API/Web/SQLite and mocked infrastructure. No live repair was manufactured. |
+
+| VSCODE-04 | DEFERRED | Finish 0.2.0 context-budgeting deployment and interactive acceptance. | Backend/config/gateway deployed; local extension installed; live chat/context/history/error/denial tests and real-host open/reopen passed. User accepts it for now; detailed normal-profile layout, keyboard/resizing and genuine-proposal rejection checks are deferred and remain unverified. Keep [the continuation checkpoint](TASK-CONTINUATION.md) until required acceptance is complete; [detailed evidence](docs/evidence/rufus-vscode-0.2.0/README.md). |
 
 ### VS Code integration — agreed responsibility boundary
 
@@ -185,7 +187,24 @@ feature requests. No relative implementation order within this queue has been ag
 | TNAS-01 | TODO | Improve temperature-guard logging to include the three highest CPU-consuming processes in high-temperature logs. | Project context sections 3 and 12; the temperature guard/timer already exists according to that context. |
 | GATEWAY-01 | TODO | Implement a Debian gateway and investigate standby gateway HA/failover. | Project context sections 12 and 13. Keep the primary gateway independent of optional VPN services, with Vodafone connectivity as fallback. |
 | VPN-01 | TODO | Implement the separately planned NordVPN/Squid proxy VM for selected traffic. | Project context sections 12 and 13. VPN failure must not cause a general network outage. |
-| MEDIA-01 | TODO | Finalise and deploy the separate Bobarr/Plex media-library project and authenticated HTTPS media access through `emmjam.linkpc.net`, using the proposed Debian VM/Nginx/Certbot arrangement. | Project context sections 2 and 4. Exact deployment details are undecided. This is separate from Rufus; no public exposure without authentication and HTTPS. |
+| MEDIA-01 | IN PROGRESS | Replace Bobarr with Seerr discovery/requests, Sonarr/Radarr, Prowlarr and VPN-isolated Transmission on native TerraMaster TOS Docker Compose. | Scope superseded by explicit user request, 4 November 2026. [Design and staged plan](docs/media-tos.md), [unvalidated templates](MediaStack/compose.yaml), [continuation](TASK-CONTINUATION-MEDIA-TOS.md). Local preparation only; no containers or infrastructure operations. Actual TOS acceptance outstanding. |
+
+### MEDIA-01 — Seerr on native TOS
+
+The 4 November request supersedes the earlier custom Boba/Bobarr UI reuse and
+Debian VM proposal for this media project. Use Seerr's existing interface with
+specialist backends; no Redis dependency is needed in the SQLite baseline.
+TNAS four-disk TRAID synchronisation must remain undisturbed. No deployment,
+NAS changes, storage operations or worker power operations are authorised now.
+
+The [design](docs/media-tos.md) covers service ownership/dependencies, NordVPN
+fail-closed isolation, persistent configuration, paths/permissions, startup/health,
+updates/backups, Plex integration and staged acceptance. All NAS-specific inputs
+remain required parameters, not inferred from historical Proxmox documentation.
+OpenClaw on TOS for Mac orchestration/WOL is a separate conditional feasibility
+track; neither it nor Rufus is a dependency of the basic media stack. MEDIA-02/03
+remain separate. Retain the task-specific continuation until actual TOS testing
+and acceptance have been authorised and completed.
 
 ## Plex networking
 
